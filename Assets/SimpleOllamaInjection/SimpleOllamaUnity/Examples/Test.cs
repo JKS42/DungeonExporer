@@ -9,11 +9,11 @@ namespace HardCodeDev.Examples
         {
             var ollama = new Ollama(new OllamaConfig(
                 modelName: "qwen3:4b",
-                systemPrompt: "Your answer mustn't be more than 10 words"
+                systemPrompt: "Your answer mustn't be more than 100 words"
                 ));
 
             var response = await ollama.SendMessage(new OllamaRequest(
-                userPrompt: "When Github was created?"
+                userPrompt: "What is the weather like today? Give an explanation in 100 words."
                 ));
 
             Debug.Log(response);
