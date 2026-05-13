@@ -18,6 +18,39 @@
 
 ---
 
+## 2026-05-13 — Player character v0 (Meshy) + art-direction doc
+**Type**: scope-change + dependency
+**AI tool(s)**: Meshy AI (text-to-3D) + Cursor + Claude Opus 4.7 (organisation / docs)
+
+**What changed**:
+- The first 3D asset for the project — the player character ("The Adventurer") — was generated with **Meshy AI** using a ~750-character text-to-3D prompt (recorded verbatim in `docs/art-direction.md`).
+- Files were dropped into `Assets/Meshy_AI_Stylized_full_body_3D_0513084955_texture_fbx/`. They have been moved + renamed to:
+  - `Assets/Art/Characters/Adventurer/Adventurer.fbx`
+  - `Assets/Art/Characters/Adventurer/Adventurer_BaseColor.png`
+  - `Assets/Art/Characters/Adventurer/Adventurer_Metallic.png`
+  - `Assets/Art/Characters/Adventurer/Adventurer_Normal.png`
+  - `Assets/Art/Characters/Adventurer/Adventurer_Roughness.png`
+- New top-level art folder convention established: `Assets/Art/<Category>/<AssetName>/`. Recorded in `AGENTS.md`.
+- New documentation file `docs/art-direction.md` created as the single source of truth for the project's visual style, palette, and every asset's generation prompt + tool settings.
+- `README.md` updated: project structure now shows `Art/`, credits + AI-tools table now lists Meshy.
+- `AGENTS.md` updated: documentation-update rules now include a rule for new art assets.
+
+**Why**:
+The character is the first piece of generated art and needs a reproducible record. The naming the generator produced (`Meshy_AI_Stylized_full_body_3D_0513084955_texture_*`) leaked an implementation detail into Unity asset paths, which would have made scenes brittle and ugly. Clean names also let us re-roll the asset in the future without changing references.
+
+**Impact / docs touched**:
+- New: `docs/art-direction.md`, `Assets/Art/Characters/Adventurer/` folder.
+- Edited: `README.md`, `AGENTS.md`, `docs/refinements-changes.md` (this entry).
+- Removed: empty `Assets/Meshy_AI_Stylized_full_body_3D_0513084955_texture_fbx/` folder.
+
+**Follow-ups**:
+- First-time Unity step: open the `.fbx`, extract materials + textures into the same folder (see `docs/art-direction.md` § "First-time Unity import"). Because the textures were renamed, the FBX's embedded material won't auto-link; user wires it up once.
+- Auto-rig the character with **Mixamo** (free) so we have walk/run/idle animations.
+- Place the Adventurer prefab in `Level1.unity` once a player controller exists.
+- Decide on a polish pass — do we keep this Meshy v0 as the final, or commission/regenerate a higher-quality hero asset?
+
+---
+
 ## 2026-05-13 — Options panel layout fix
 **Type**: refactor
 **AI tool(s)**: Cursor + Claude Opus 4.7

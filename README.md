@@ -33,6 +33,7 @@ Full step-by-step instructions in [`docs/setup.md`](docs/setup.md).
 | [`docs/high-concept.md`](docs/high-concept.md) | Game concept, role of the LLM, why local |
 | [`docs/ollama-plan.md`](docs/ollama-plan.md) | Model choice, inference timing, data flow, prompt structure, risks |
 | [`docs/setup.md`](docs/setup.md) | Full install & run guide, system specs |
+| [`docs/art-direction.md`](docs/art-direction.md) | Style pillars, palette, asset prompts (Meshy, etc.) |
 | [`docs/refinements-changes.md`](docs/refinements-changes.md) | Running log of changes and AI-assisted decisions |
 
 ## Dependencies
@@ -65,13 +66,14 @@ These power the preferred Ollama client at `Assets/SimpleOllamaInjection/SimpleO
 
 ## AI tools used during development
 
-This project uses AI assistance throughout. Every meaningful AI-assisted decision is logged in [`docs/refinements-changes.md`](docs/refinements-changes.md).
+This project uses AI assistance throughout. Every meaningful AI-assisted decision is logged in [`docs/refinements-changes.md`](docs/refinements-changes.md); art-asset prompts live in [`docs/art-direction.md`](docs/art-direction.md).
 
 | Tool | Used for |
 |---|---|
 | **Cursor IDE** + **Claude Opus 4.7** | Code generation, refactoring, documentation drafting |
 | **Ollama** (runtime, in-game) | Generates NPC dialogue, room narration, item lore — the game itself |
-| *(add others as we use them: ChatGPT, Copilot, etc.)* | |
+| **Meshy AI** | Text-to-3D character + prop generation (player character is the first asset) |
+| *(add others as we use them: Mixamo, ChatGPT, etc.)* | |
 
 ## Project structure
 
@@ -81,11 +83,13 @@ DungeonExporer/
 ├── README.md
 ├── docs/
 ├── Assets/
-│   ├── Scenes/                # MainMenu, Level1
-│   ├── Scripts/               # Gameplay code (mostly empty so far)
-│   ├── Ollama/                # Minimal Ollama example
-│   ├── SimpleOllamaInjection/ # Preferred Ollama wrapper + plugin DLLs
-│   ├── Resources/Neocortex/   # Neocortex SDK settings (under review)
+│   ├── Art/
+│   │   └── Characters/Adventurer/  # Meshy-generated player character (FBX + PBR maps)
+│   ├── Scenes/                     # MainMenu, Level1
+│   ├── Scripts/                    # Settings/, UI/  (gameplay code goes here)
+│   ├── Ollama/                     # Minimal Ollama example
+│   ├── SimpleOllamaInjection/      # Preferred Ollama wrapper + plugin DLLs
+│   ├── Resources/Neocortex/        # Neocortex SDK settings (under review)
 │   └── ...
 └── ProjectSettings/
 ```
@@ -110,6 +114,7 @@ DungeonExporer/
 - Local LLM runtime: [Ollama](https://ollama.com/)
 - Ollama Unity wrapper: [SimpleOllamaUnity by HardCodeDev](https://github.com/) *(replace with the actual link when known)*
 - AI-NPC SDK: [Neocortex](https://neocortex.link/) *(under review)*
+- 3D character art (player Adventurer): generated with [Meshy AI](https://www.meshy.ai/) — full prompt in [`docs/art-direction.md`](docs/art-direction.md)
 - Documentation & code assistance: Cursor + Claude Opus 4.7
 
 ## License

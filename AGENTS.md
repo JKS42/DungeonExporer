@@ -19,6 +19,7 @@ The following docs are part of the deliverable. If a change touches their topic,
 | `docs/high-concept.md` | Game ideation, the LLM's role, justification for using a *local* model |
 | `docs/ollama-plan.md` | Model choice, inference timing, data flow, prompt structure, risks |
 | `docs/setup.md` | Install Ollama, pull models, system specs, run instructions |
+| `docs/art-direction.md` | Style pillars, palette, per-asset prompts + tool settings (Meshy, etc.) |
 | `docs/refinements-changes.md` | Continuous log of scope changes + AI-assisted decisions |
 | `README.md` | Overview, install, dependencies, credits, AI tools used |
 
@@ -32,7 +33,8 @@ The following docs are part of the deliverable. If a change touches their topic,
 2. **Scope changes** also update `docs/high-concept.md`.
 3. **Model / prompt / data-flow changes** also update `docs/ollama-plan.md`.
 4. **New dependency or package** updates `README.md` (Dependencies + Credits) and, if it affects install, `docs/setup.md`.
-5. Never silently change behavior of the LLM pipeline without logging it in `refinements-changes.md`.
+5. **New art asset** (3D model, texture, sprite) is recorded in `docs/art-direction.md` with the prompt + tool settings used to generate it. Place the asset under `Assets/Art/<Category>/<AssetName>/` with file names that match the asset, not the generator's defaults.
+6. Never silently change behavior of the LLM pipeline without logging it in `refinements-changes.md`.
 
 ## Coding conventions
 
