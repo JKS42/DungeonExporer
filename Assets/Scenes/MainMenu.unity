@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 129669543}
   - component: {fileID: 129669542}
   m_Layer: 0
-  m_Name: Ollama
+  m_Name: MainMenu
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -145,9 +145,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 129669541}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d7509677efa416c4e9aab9f369181e10, type: 3}
+  m_Script: {fileID: 11500000, guid: d4e5f60718293a4b5c6d7e8f90a1b2c3, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HardCodeDev.Examples.Test
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.MainMenuController
+  startSceneName: Level1
 --- !u!4 &129669543
 Transform:
   m_ObjectHideFlags: 0

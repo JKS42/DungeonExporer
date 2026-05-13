@@ -1,0 +1,139 @@
+# Ollama Plan — DungeonExporer
+
+> Living document. Update whenever the model, the prompt structure, or the data flow changes.
+> Last updated: 2026-05-13
+
+## 1. Model choice
+
+### Candidate models
+
+| Model | Size | Strengths | Weaknesses | Status |
+|---|---|---|---|---|
+| `qwen3:4b` | ~4 B params | Fast on modest hardware, currently wired into the test scenes via `OllamaHandler` and `SimpleOllamaUnity`. Reasoning model — emits `<think>` tags that we strip. | Smaller context window, weaker creative writing than larger models. | Default for development |
+| `llama3` (8 B) | ~8 B params | Better prose for narration/dialogue. Default fallback in `OllamaRequester.cs`. | Heavier; may stall on integrated GPUs. | Fallback / quality tier |
+| `phi3` / `mistral:7b` | 3–7 B | Alternatives to evaluate. | TBD | Not yet evaluated |
+
+### Decision (current)
+
+- **Default**: `qwen3:4b` (already the default in `OllamaHandler.cs` and `Test.cs`).
+- **Quality tier (opt-in)**: `llama3` for players with bigger GPUs.
+- The model name is read from a Unity `Inspector` field so it can be swapped without rebuilding.
+
+### Decision criteria (when re-evaluating)
+
+1. P95 token latency < 200 ms on the recommended spec.
+2. Average response time for a 60-token narration < 2 s.
+3. Subjective quality on a 20-prompt evaluation set (kept in `docs/eval/` — TODO).
+4. Memory footprint under 8 GB VRAM (or 12 GB RAM in CPU mode).
+
+## 2. Inference timing (targets)
+
+| Use case | Max tokens | Target latency (P50) | Target latency (P95) | Streaming? |
+|---|---|---|---|---|
+| Room narration on enter | 60 | < 1.5 s | < 3 s | Yes |
+| NPC dialogue line | 80 | < 2 s | < 4 s | Yes |
+| Item description (on pickup) | 40 | < 1 s | < 2 s | No (cache after first call) |
+| Hint (on player request) | 100 | < 3 s | < 6 s | Yes |
+
+> Numbers are *targets*, not measurements. Replace with measured numbers as soon as a benchmark scene exists.
+
+### Pre-warming
+
+The Ollama server keeps a model loaded for ~5 minutes after the last request. To avoid first-prompt latency, the game will issue a tiny warm-up prompt at boot (e.g. on the Main Menu).
+
+## 3. Data flow
+
+```
+Unity (gameplay event)
+   │
+   │ 1. Build PromptContext
+   ▼
+PromptBuilder  ──► systemPrompt + userPrompt strings
+   │
+   │ 2. SendMessage(OllamaRequest)
+   ▼
+SimpleOllamaUnity.Ollama  ──► HTTP POST http://localhost:11434/api/chat (stream)
+   │
+   │ 3. Token stream
+   ▼
+DialogueRenderer (UI)  ──► TextMesh Pro typewriter effect
+   │
+   │ 4. Final response stored back on the NPC / Room state
+   ▼
+WorldState  (for follow-up context)
+```
+
+Key points:
+- **All traffic is local** — `http://localhost:11434` only. The game never reaches a public endpoint.
+- **State is owned by the game, not the LLM.** The LLM is stateless between calls; we re-send the relevant slice of world state each time.
+- **Chat history is per-NPC.** Each NPC keeps its own short conversation history (last N turns), not a single global history.
+
+## 4. Prompt structure
+
+### Template (work in progress)
+
+> Tone is locked to *lighthearted fantasy* (see `high-concept.md`). System prompts must enforce this — no grimdark, no horror, no profanity.
+
+```
+[SYSTEM]
+You are {npc.name}, a {npc.role} in a cosy, whimsical dungeon.
+Personality: {npc.traits}.
+Tone: warm, friendly, lightly humorous. Never grim, never crude.
+You always answer in 1-3 sentences. Never break character.
+Never mention that you are an AI.
+
+[CONTEXT]
+Room: {room.id} — {room.shortDescription}
+Player carries: {inventory.summary}
+Recent events: {worldState.recentEvents (last 3)}
+
+[HISTORY]
+{npc.lastTurns (max 4)}
+
+[USER]
+{player.input}
+```
+
+### Field sources
+
+| Field | Source in code |
+|---|---|
+| `npc.*` | ScriptableObject `NpcDefinition` (TODO) |
+| `room.*` | `RoomDefinition` on the current room |
+| `inventory.summary` | `Player.Inventory.Summarize()` |
+| `worldState.recentEvents` | `WorldState.GetRecentEvents(3)` |
+| `npc.lastTurns` | `NpcRuntimeState.History` (ring buffer) |
+
+### Output constraints
+
+- Strip `<think>...</think>` blocks (already implemented in `SimpleOllamaUnity.Ollama.ClearThinking`).
+- Trim to N sentences server-side via the system prompt.
+- If output is empty or whitespace, fall back to a hard-coded line.
+
+## 5. Risks & mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Player doesn't have Ollama installed | High | Game can't start | First-run detector + friendly install instructions linking to `setup.md`. |
+| First inference is slow (cold model) | High | Bad first impression | Warm-up call on Main Menu. |
+| Model produces unsafe / off-brand output | Medium | Tonal breakage | Strict system prompt; profanity filter on output; cap tokens. |
+| Model hallucinates inconsistent lore | High | Immersion break | Ground every prompt with canonical `RoomDefinition` / `NpcDefinition` text; cache "official" descriptions and only ask the LLM for *variations*. |
+| `<think>`-tag leakage | Medium | UI shows reasoning text | `clearThinking = true` on every request; assert in code. |
+| Ollama server crashes mid-session | Low | Stalled UI | Timeout on each request; fall back to canned text; surface a non-blocking toast. |
+| Per-call latency budget blown on low-end hardware | Medium | Game feels stuttery | Run inference off the main thread (already async); show "..." indicator; allow disabling LLM features in settings. |
+| API key for Neocortex committed in git | **Confirmed** | Account compromise | Rotate key; gitignore `NeocortexSettings.asset`; decide whether Neocortex stays in the project. |
+
+## 6. Player-facing kill switch
+
+`GameSettings.LlmEnabled` (toggle in the Options menu) must be honoured at every Ollama call site:
+
+- When `true`, the dialogue system queries the model normally.
+- When `false`, every LLM call short-circuits and returns a canned line (defined per-NPC / per-Room). This is the fallback for players without Ollama installed, low-spec hardware, or anyone who just wants to skip the AI.
+
+The toggle defaults to `true` and persists via PlayerPrefs.
+
+## 7. Open questions
+
+- Do we keep Neocortex alongside Ollama, or remove it to keep the stack simple?
+- Do we ship Ollama with the game (bundled), or require the player to install it themselves? (Currently: player installs.)
+- Do we expose a *model picker* in Options, or keep the model name as an advanced text field? (Current Options panel exposes only the on/off toggle.)
