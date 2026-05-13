@@ -63,6 +63,8 @@ DialogueRenderer (UI)  ──► TextMesh Pro typewriter effect
 WorldState  (for follow-up context)
 ```
 
+The current `Assets/Scripts/OllamaHandler.cs` test path also appends each successful response to a JSON history file (`Assets/DialogueOutput/ollama-dialogue.json`) so the dialogue line can be reused by a later reader without depending on the live UI.
+
 Key points:
 - **All traffic is local** — `http://localhost:11434` only. The game never reaches a public endpoint.
 - **State is owned by the game, not the LLM.** The LLM is stateless between calls; we re-send the relevant slice of world state each time.

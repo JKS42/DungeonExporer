@@ -18,6 +18,87 @@
 
 ---
 
+## 2026-05-13 — Dialogue JSON saved within Assets
+**Type**: refactor + decision
+**AI tool(s)**: Cursor + Claude Opus 4.7
+
+**What changed**:
+- `Assets/Scripts/OllamaHandler.cs` now saves the dialogue history to `Assets/DialogueOutput/ollama-dialogue.json` instead of `Application.persistentDataPath/ollama-dialogue.json`.
+- The output directory is created automatically if it does not exist.
+
+**Why**:
+Saving within the Assets folder makes it easy to inspect, version control (or gitignore), and include in build outputs without relying on platform-specific user folders or the project root.
+
+**Impact / docs touched**:
+- Edited: `Assets/Scripts/OllamaHandler.cs`
+- Edited: `docs/ollama-plan.md`
+- Edited: `docs/refinements-changes.md` (this entry)
+
+**Follow-ups**:
+- Add `Assets/DialogueOutput/` to `.gitignore` if dialogue history should not be committed.
+
+---
+
+## 2026-05-13 — Ollama timeout widened for cold starts
+**Type**: refactor + risk
+**AI tool(s)**: Cursor + Claude Opus 4.7
+
+**What changed**:
+- `Assets/Scripts/OllamaHandler.cs` now uses a configurable request timeout (`requestTimeoutSeconds`) instead of a hard-coded 30 seconds.
+- The default timeout was raised to 120 seconds so the local model has room to cold-load and answer without Unity aborting the request too early.
+
+**Why**:
+The Ollama model can take longer than 30 seconds to load or generate on first use, especially on slower hardware. The earlier hard cap was causing avoidable timeouts even when the endpoint was valid.
+
+**Impact / docs touched**:
+- Edited: `Assets/Scripts/OllamaHandler.cs`
+- Edited: `docs/refinements-changes.md` (this entry)
+
+**Follow-ups**:
+- If the editor still times out after this, check whether the model is actually running in Ollama or whether the prompt is large enough to justify a separate warm-up call.
+
+## 2026-05-13 — Dialogue JSON now appends history
+**Type**: refactor + decision
+**AI tool(s)**: Cursor + Claude Opus 4.7
+
+**What changed**:
+- `Assets/Scripts/OllamaHandler.cs` now stores dialogue output as an append-only history list in `Application.persistentDataPath/ollama-dialogue.json` instead of overwriting the last response.
+- The saver migrates the previous single-entry JSON format into the new history wrapper on the next write.
+- `docs/ollama-plan.md` was updated to describe the file as a history list.
+
+**Why**:
+The dialogue file needs to preserve prior turns so later systems can replay or inspect the generated conversation without losing earlier responses.
+
+**Impact / docs touched**:
+- Edited: `Assets/Scripts/OllamaHandler.cs`
+- Edited: `docs/ollama-plan.md`
+- Edited: `docs/refinements-changes.md` (this entry)
+
+**Follow-ups**:
+- Decide whether the history file should have a max length or rotation policy.
+- Add a small reader API for NPC dialogue so consumers can load the history without duplicating JSON code.
+
+## 2026-05-13 — Ollama test output now writes dialogue JSON
+**Type**: refactor + decision
+**AI tool(s)**: Cursor + Claude Opus 4.7
+
+**What changed**:
+- `Assets/Scripts/OllamaHandler.cs` now parses the Ollama `/api/generate` response, shows the extracted dialogue text in the TMP output field, and writes a structured JSON payload to `Application.persistentDataPath/ollama-dialogue.json` after each successful request.
+- The saved payload includes the model name, original prompt, response text, and a UTC timestamp.
+- `docs/ollama-plan.md` was updated to note the runtime JSON file so the dialogue flow stays documented.
+
+**Why**:
+The test UI previously only rendered the response and discarded it after the frame. Persisting the generated line gives us a concrete JSON handoff for later dialogue systems and makes the output reusable outside the temporary test UI.
+
+**Impact / docs touched**:
+- Edited: `Assets/Scripts/OllamaHandler.cs`
+- Edited: `docs/ollama-plan.md`
+- Edited: `docs/refinements-changes.md` (this entry)
+
+**Follow-ups**:
+- Decide whether the next dialogue system should append to a history file or overwrite the latest line.
+- If we standardise on the JSON handoff, add a reader utility for NPC dialogue so other systems do not duplicate file I/O.
+
 ## 2026-05-13 — Player character v0 (Meshy) + art-direction doc
 **Type**: scope-change + dependency
 **AI tool(s)**: Meshy AI (text-to-3D) + Cursor + Claude Opus 4.7 (organisation / docs)
