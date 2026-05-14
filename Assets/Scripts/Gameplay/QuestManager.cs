@@ -33,6 +33,9 @@ namespace DungeonExporer.Gameplay
         private readonly Dictionary<string, int> _activeObjectiveIndex = new();
         private readonly HashSet<string> _completed = new();
 
+        private static string NormalizeQuestId(string questId) =>
+            string.IsNullOrWhiteSpace(questId) ? string.Empty : questId.Trim();
+
         private void Awake()
         {
             Instance = this;
@@ -78,33 +81,43 @@ namespace DungeonExporer.Gameplay
 
         public bool TryStartQuest(string questId)
         {
+            questId = NormalizeQuestId(questId);
+            Debug.Log($"QuestManager.TryStartQuest: attempting to start quest '{questId}'");
+
             if (!_definitions.TryGetValue(questId, out QuestDefinition def))
             {
-                Debug.LogWarning($"QuestManager: unknown quest '{questId}'.");
+                Debug.LogWarning($"QuestManager.TryStartQuest: unknown quest '{questId}'.");
                 return false;
             }
 
             if (_completed.Contains(questId))
+            {
+                Debug.LogWarning($"QuestManager.TryStartQuest: quest '{questId}' is already completed.");
                 return false;
+            }
 
             if (_activeObjectiveIndex.ContainsKey(questId))
+            {
+                Debug.LogWarning($"QuestManager.TryStartQuest: quest '{questId}' is already active.");
                 return false;
+            }
 
             if (!string.IsNullOrWhiteSpace(def.prerequisiteQuestIdCompleted) &&
-                !_completed.Contains(def.prerequisiteQuestIdCompleted))
+                !_completed.Contains(NormalizeQuestId(def.prerequisiteQuestIdCompleted)))
             {
-                Debug.LogWarning($"QuestManager: prerequisite not met for '{questId}'.");
+                Debug.LogWarning($"QuestManager.TryStartQuest: prerequisite not met for '{questId}'. Required prerequisite: '{def.prerequisiteQuestIdCompleted}'");
                 return false;
             }
 
             _activeObjectiveIndex[questId] = 0;
-            Debug.Log($"Quest started: {def.title}");
+            Debug.Log($"QuestManager.TryStartQuest: quest '{questId}' started successfully. Title: {def.title}");
             QuestStateChanged?.Invoke();
             return true;
         }
 
         public void NotifyWorldEvent(string eventId)
         {
+            eventId = NormalizeQuestId(eventId);
             if (string.IsNullOrWhiteSpace(eventId))
                 return;
 
@@ -146,24 +159,26 @@ namespace DungeonExporer.Gameplay
                 QuestStateChanged?.Invoke();
         }
 
-        public bool IsQuestActive(string questId) => _activeObjectiveIndex.ContainsKey(questId);
+        public bool IsQuestActive(string questId) => _activeObjectiveIndex.ContainsKey(NormalizeQuestId(questId));
 
-        public bool IsQuestCompleted(string questId) => _completed.Contains(questId);
+        public bool IsQuestCompleted(string questId) => _completed.Contains(NormalizeQuestId(questId));
 
         public bool CanOfferQuest(string questId)
         {
+            questId = NormalizeQuestId(questId);
+
             if (!_definitions.TryGetValue(questId, out QuestDefinition def))
                 return false;
             if (IsQuestActive(questId) || IsQuestCompleted(questId))
                 return false;
             if (!string.IsNullOrWhiteSpace(def.prerequisiteQuestIdCompleted) &&
-                !_completed.Contains(def.prerequisiteQuestIdCompleted))
+                !_completed.Contains(NormalizeQuestId(def.prerequisiteQuestIdCompleted)))
                 return false;
             return true;
         }
 
         public bool TryGetDefinition(string questId, out QuestDefinition definition) =>
-            _definitions.TryGetValue(questId, out definition);
+            _definitions.TryGetValue(NormalizeQuestId(questId), out definition);
 
         public bool TryGetPrimaryObjectiveHudLine(out string line)
         {
@@ -235,11 +250,12 @@ namespace DungeonExporer.Gameplay
             {
                 foreach (SaveQuestProgress a in data.activeQuests)
                 {
-                    if (string.IsNullOrWhiteSpace(a.questId))
+                    string questId = NormalizeQuestId(a.questId);
+                    if (string.IsNullOrWhiteSpace(questId))
                         continue;
-                    if (!_definitions.ContainsKey(a.questId.Trim()))
+                    if (!_definitions.ContainsKey(questId))
                         continue;
-                    _activeObjectiveIndex[a.questId.Trim()] = Mathf.Max(0, a.objectiveIndex);
+                    _activeObjectiveIndex[questId] = Mathf.Max(0, a.objectiveIndex);
                 }
             }
 

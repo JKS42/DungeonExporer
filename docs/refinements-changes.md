@@ -18,6 +18,66 @@
 
 ---
 
+## 2026-05-14 — Quest button interactivity diagnostics
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.4 mini
+
+**What changed**: Enhanced button click debugging to identify whether Accept button is unclickable due to visibility, interactability, or raycast issues. Added explicit `raycastTarget = true` on button Image components and comprehensive logging:
+- `MakeButton` logs when button is created with raycast settings
+- Button click handler logs each click attempt
+- `RefreshButtons` logs exact state transitions (active/interactable before/after)
+- Logs when button is NULL (not created)
+
+**Why**: Previous fixes assumed button was clickable but wasn't verifying. This logging chain clarifies whether the button exists, is visible, is interactable, and whether clicks register at the event system level.
+
+**Impact / docs touched**: `Assets/Scripts/UI/DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+**Follow-ups**: Run the game with these logs open. When you try to click Accept, the console will show exactly where in the chain the button interaction fails. Share those logs to pinpoint the root cause.
+
+---
+
+## 2026-05-14 — Quest acceptance visual feedback
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.4 mini
+
+**What changed**: Quest acceptance now displays a prominent confirmation message in the dialogue body text: "✓ [Quest Title] accepted!" with "Check your objectives for details." below. The confirmation persists for 2 seconds (using unscaled time to work while paused) before auto-dismissing and showing the updated quest state. Added `_acceptanceConfirmationCoroutine` to manage the timed feedback and ensure cleanup when the dialogue closes.
+
+**Why**: The previous status-line feedback was not visible enough. Quest acceptance now has unmistakable confirmation that the player's action succeeded, with a clear callout to check objectives and a smooth transition back to the regular quest view.
+
+**Impact / docs touched**: `Assets/Scripts/UI/DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+**Follow-ups**: None.
+
+---
+
+## 2026-05-14 — Quest acceptance diagnostics + UI feedback
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.4 mini
+
+**What changed**: Enhanced quest acceptance path with comprehensive logging and clearer UI feedback. `QuestManager.TryStartQuest()` now logs each failure condition (already active, already completed, prerequisite not met) with specific details. `DialoguePanelController` shows "✓ Quest accepted!" on success and logs button state (hasQuest, canOffer, active, completed) on each refresh. Added `_justAcceptedQuest` flag to track acceptance state and prevent state confusion. Button now explicitly sets `interactable` property alongside visibility.
+
+**Why**: Quest acceptance failures were difficult to diagnose because failure reasons were not surfaced. Console logs and UI feedback now clarify exactly why an acceptance succeeds or fails, helping identify whether delays are due to state checks, button gating, or NPC interaction interference.
+
+**Impact / docs touched**: `Assets/Scripts/Gameplay/QuestManager.cs`, `Assets/Scripts/UI/DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+**Follow-ups**: If acceptance still delays until player moves away, logs will show: (1) quest accepted but UI not updating, (2) TryStartQuest returning false with reason, or (3) acceptance happening on dialogue re-open (suggests NPC interaction loop issue).
+
+---
+
+## 2026-05-14 — Quest acceptance hardening
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.4 mini
+
+**What changed**: Normalized quest ids in `QuestManager` and trimmed the quest id captured by `DialoguePanelController` before starting a quest. If a quest still cannot be started, the dialogue status line now explains whether it is already active, already completed, or locked behind a prerequisite.
+
+**Why**: Accepting a quest should not fail because of incidental whitespace or an opaque UI state; the dialogue should also report the reason when a start attempt is blocked.
+
+**Impact / docs touched**: `Assets/Scripts/Gameplay/QuestManager.cs`, `Assets/Scripts/UI/DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+**Follow-ups**: None.
+
+---
+
 ## 2026-05-14 — Clearer Ollama HTTP errors (404 → model hint)
 **Type**: decision
 **AI tool(s)**: Cursor + GPT-5.3 Codex

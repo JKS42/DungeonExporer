@@ -34,9 +34,11 @@ namespace DungeonExporer.UI
         private string _questId = string.Empty;
         private string _npcConversationId = "npc";
         private bool _busy;
+        private bool _justAcceptedQuest;
         private int _dialogueGeneration;
         private readonly StringBuilder _streamBuffer = new StringBuilder(2048);
         private Coroutine _streamUiCoroutine;
+        private Coroutine _acceptanceConfirmationCoroutine;
 
         private void Awake()
         {
@@ -65,9 +67,10 @@ namespace DungeonExporer.UI
             StopStreamUiInternal();
 
             _displayName = displayName ?? "Stranger";
-            _questId = questId ?? string.Empty;
+            _questId = string.IsNullOrWhiteSpace(questId) ? string.Empty : questId.Trim();
             _npcConversationId = string.IsNullOrWhiteSpace(npcConversationId) ? "npc_default" : npcConversationId.Trim();
             _busy = false;
+            _justAcceptedQuest = false;
 
             if (_llmBodyText != null)
                 _llmBodyText.text = string.Empty;
@@ -81,6 +84,7 @@ namespace DungeonExporer.UI
         {
             StopStreamUiInternal();
             _busy = false;
+            _justAcceptedQuest = false;
             SetOpen(false, restoreCursor: true);
         }
 
@@ -94,6 +98,12 @@ namespace DungeonExporer.UI
             {
                 StopCoroutine(_streamUiCoroutine);
                 _streamUiCoroutine = null;
+            }
+            
+            if (_acceptanceConfirmationCoroutine != null)
+            {
+                StopCoroutine(_acceptanceConfirmationCoroutine);
+                _acceptanceConfirmationCoroutine = null;
             }
 
             SetHearInteractable(true);
@@ -170,8 +180,23 @@ namespace DungeonExporer.UI
             bool active = hasQuest && QuestManager.Instance.IsQuestActive(_questId);
             bool done = hasQuest && QuestManager.Instance.IsQuestCompleted(_questId);
 
+            Debug.Log($"DialoguePanelController.RefreshButtons: questId='{_questId}', hasQuest={hasQuest}, canOffer={canOffer}, active={active}, done={done}");
+            Debug.Log($"DialoguePanelController.RefreshButtons: _acceptButton is null? {_acceptButton == null}, will SetActive({canOffer})");
+
             if (_acceptButton != null)
+            {
+                bool wasActive = _acceptButton.gameObject.activeSelf;
+                bool wasInteractable = _acceptButton.interactable;
+                
                 _acceptButton.gameObject.SetActive(canOffer);
+                _acceptButton.interactable = canOffer;
+                
+                Debug.Log($"DialoguePanelController.RefreshButtons: Accept button state changed: active {wasActive}->{_acceptButton.gameObject.activeSelf}, interactable {wasInteractable}->{_acceptButton.interactable}");
+            }
+            else
+            {
+                Debug.LogWarning("DialoguePanelController.RefreshButtons: _acceptButton is NULL - button was not created!");
+            }
 
             if (_hearButton != null)
                 _hearButton.gameObject.SetActive(hasQuest && (canOffer || active || done));
@@ -323,10 +348,70 @@ namespace DungeonExporer.UI
 
         private void OnAcceptClicked()
         {
+            Debug.Log($"DialoguePanelController.OnAcceptClicked: attempting to start quest '{_questId}'");
+            
             if (QuestManager.Instance == null)
+            {
+                if (_statusText != null)
+                    _statusText.text = "Quest manager is not available.";
+                Debug.LogWarning("DialoguePanelController.OnAcceptClicked: QuestManager.Instance is null");
                 return;
-            if (QuestManager.Instance.TryStartQuest(_questId))
-                RefreshStaticCopy();
+            }
+
+            bool startSuccess = QuestManager.Instance.TryStartQuest(_questId);
+            Debug.Log($"DialoguePanelController.OnAcceptClicked: TryStartQuest returned {startSuccess}");
+
+            if (startSuccess)
+            {
+                Debug.Log($"DialoguePanelController.OnAcceptClicked: quest '{_questId}' accepted successfully, refreshing UI");
+                _justAcceptedQuest = true;
+                
+                // Show a clear acceptance confirmation in the main body text area
+                string questTitle = "Quest";
+                if (QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
+                    questTitle = def.title;
+                
+                if (_staticBodyText != null)
+                    _staticBodyText.text = $"✓ {questTitle} accepted!\n\nCheck your objectives for details.";
+                
+                if (_statusText != null)
+                    _statusText.text = string.Empty;
+                
+                // Refresh buttons to hide Accept button
+                RefreshButtons();
+                
+                // Auto-dismiss confirmation after 2 seconds and show updated quest state
+                if (_acceptanceConfirmationCoroutine != null)
+                    StopCoroutine(_acceptanceConfirmationCoroutine);
+                _acceptanceConfirmationCoroutine = StartCoroutine(AcceptanceConfirmationRoutine());
+                return;
+            }
+
+            Debug.LogWarning($"DialoguePanelController.OnAcceptClicked: failed to start quest '{_questId}'");
+            if (_statusText != null)
+            {
+                if (QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
+                {
+                    if (QuestManager.Instance.IsQuestCompleted(_questId))
+                        _statusText.text = $"{def.title} is already complete.";
+                    else if (QuestManager.Instance.IsQuestActive(_questId))
+                        _statusText.text = $"{def.title} is already active.";
+                    else if (!string.IsNullOrWhiteSpace(def.prerequisiteQuestIdCompleted) &&
+                             !QuestManager.Instance.IsQuestCompleted(def.prerequisiteQuestIdCompleted))
+                        _statusText.text = $"{def.title} is locked until its prerequisite is complete.";
+                    else
+                        _statusText.text = $"{def.title} could not be started.";
+                }
+                else
+                    _statusText.text = "Quest data is missing.";
+            }
+        }
+
+        private IEnumerator AcceptanceConfirmationRoutine()
+        {
+            yield return new WaitForSecondsRealtime(2f);
+            RefreshStaticCopy();
+            _acceptanceConfirmationCoroutine = null;
         }
 
         private void BuildUi()
@@ -348,7 +433,7 @@ namespace DungeonExporer.UI
             StretchToParent(dim.GetComponent<RectTransform>());
             var dimImg = dim.AddComponent<Image>();
             dimImg.color = new Color(0.04f, 0.03f, 0.07f, 0.55f);
-            dimImg.raycastTarget = true;
+            dimImg.raycastTarget = false;
 
             _rootPanel = MakeUiObject("DialoguePanel", dim.transform);
             var panelRt = _rootPanel.GetComponent<RectTransform>();
@@ -359,6 +444,7 @@ namespace DungeonExporer.UI
 
             var panelBg = _rootPanel.AddComponent<Image>();
             panelBg.color = MenuTheme.Panel;
+            panelBg.raycastTarget = true;  // Enable raycast so panel and child buttons receive input
             var outline = _rootPanel.AddComponent<Outline>();
             outline.effectColor = MenuTheme.PanelBorder;
             outline.effectDistance = new Vector2(3, -3);
@@ -374,31 +460,34 @@ namespace DungeonExporer.UI
 
             _titleText = MakeText("Title", _rootPanel.transform, "NPC",
                 36f, MenuTheme.TitleText, TextAlignmentOptions.Center);
+            _titleText.raycastTarget = false;
             var titleLe = _titleText.gameObject.AddComponent<LayoutElement>();
             titleLe.minHeight = 44f;
             titleLe.preferredHeight = 44f;
 
             var staticHint = MakeText("StaticHint", _rootPanel.transform, "Quest (game rules)",
                 16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+            staticHint.raycastTarget = false;
             var staticHintLe = staticHint.gameObject.AddComponent<LayoutElement>();
             staticHintLe.minHeight = 22f;
             staticHintLe.preferredHeight = 22f;
 
             _staticBodyText = MakeText("StaticBody", _rootPanel.transform, string.Empty,
                 MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
+            _staticBodyText.raycastTarget = false;
             var staticBodyLe = _staticBodyText.gameObject.AddComponent<LayoutElement>();
             staticBodyLe.minHeight = 120f;
             staticBodyLe.flexibleHeight = 1f;
             _staticBodyText.textWrappingMode = TextWrappingModes.Normal;
 
             var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama, streams in)",
-                16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
-            var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
+                16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);            llmHint.raycastTarget = false;            var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
             llmHintLe.minHeight = 22f;
             llmHintLe.preferredHeight = 22f;
 
             _llmBodyText = MakeText("LlmBody", _rootPanel.transform, string.Empty,
                 MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
+            _llmBodyText.raycastTarget = false;
             var llmBodyLe = _llmBodyText.gameObject.AddComponent<LayoutElement>();
             llmBodyLe.minHeight = 100f;
             llmBodyLe.flexibleHeight = 1f;
@@ -406,6 +495,7 @@ namespace DungeonExporer.UI
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
                 18f, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
+            _statusText.raycastTarget = false;
             var statusLe = _statusText.gameObject.AddComponent<LayoutElement>();
             statusLe.minHeight = 28f;
             statusLe.preferredHeight = 28f;
@@ -454,6 +544,7 @@ namespace DungeonExporer.UI
             var go = MakeUiObject(name, parent);
             var img = go.AddComponent<Image>();
             img.color = baseColor;
+            img.raycastTarget = true;  // Explicit raycast target for button interaction
 
             var le = go.AddComponent<LayoutElement>();
             le.minHeight = MenuTheme.ButtonHeight;
@@ -462,6 +553,8 @@ namespace DungeonExporer.UI
             le.flexibleWidth = 1;
 
             var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;  // Explicitly set the target graphic
+            btn.navigation = new Navigation { mode = Navigation.Mode.None };  // Disable auto-navigation
             var colors = btn.colors;
             colors.normalColor = baseColor;
             colors.highlightedColor = hoverColor;
@@ -469,12 +562,18 @@ namespace DungeonExporer.UI
             colors.selectedColor = hoverColor;
             colors.disabledColor = baseColor * 0.5f;
             btn.colors = colors;
-            btn.onClick.AddListener(() => onClick());
+            btn.onClick.AddListener(() => {
+                Debug.Log($"Button '{name}' clicked!");
+                onClick();
+            });
+            
+            Debug.Log($"MakeButton: created button '{name}': Image.raycastTarget={img.raycastTarget}, Button.targetGraphic={btn.targetGraphic?.name}, Button.interactable={btn.interactable}");
 
             var labelTmp = MakeText("Label", go.transform, label,
                 MenuTheme.ButtonFontSize, MenuTheme.ButtonText, TextAlignmentOptions.Center);
             StretchToParent(labelTmp.rectTransform);
             labelTmp.fontStyle = FontStyles.Bold;
+            labelTmp.raycastTarget = false;
             return btn;
         }
     }
