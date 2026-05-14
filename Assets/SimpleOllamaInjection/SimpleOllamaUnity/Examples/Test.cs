@@ -1,22 +1,20 @@
 using UnityEngine;
-using HardCodeDev.SimpleOllamaUnity;
 
 namespace HardCodeDev.Examples
 {
+    /// <summary>
+    /// Legacy sample for the SimpleOllamaUnity package. <see cref="HardCodeDev.SimpleOllamaUnity.Ollama"/>
+    /// inherits <see cref="MonoBehaviour"/> but also exposes a config constructor; instantiating it with
+    /// <c>new</c> is invalid in Unity and logs a runtime warning. DungeonExporer uses <c>OllamaHandler</c>
+    /// instead; keep this script only as a placeholder if scenes still reference it.
+    /// </summary>
     public class Test : MonoBehaviour
     {
-        private async void Start()
+        private void Start()
         {
-            var ollama = new Ollama(new OllamaConfig(
-                modelName: "qwen3:4b",
-                systemPrompt: "Your answer mustn't be more than 100 words"
-                ));
-
-            var response = await ollama.SendMessage(new OllamaRequest(
-                userPrompt: "What is the weather like today? Give an explanation in 100 words."
-                ));
-
-            Debug.Log(response);
+            Debug.LogWarning(
+                "[HardCodeDev.Examples.Test] Sample disabled. Use the scene's OllamaHandler (or attach " +
+                "HardCodeDev.SimpleOllamaUnity.Ollama via AddComponent and initialize without `new`).");
         }
     }
 }

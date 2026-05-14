@@ -102,6 +102,7 @@ namespace DungeonExporer.UI
         private void SetOpen(bool open, bool restoreCursor)
         {
             IsOpen = open;
+            NarrationUiGate.DialogueOpen = open;
             if (_rootPanel != null)
                 _rootPanel.SetActive(open);
 
@@ -388,7 +389,7 @@ namespace DungeonExporer.UI
             var staticBodyLe = _staticBodyText.gameObject.AddComponent<LayoutElement>();
             staticBodyLe.minHeight = 120f;
             staticBodyLe.flexibleHeight = 1f;
-            _staticBodyText.enableWordWrapping = true;
+            _staticBodyText.textWrappingMode = TextWrappingModes.Normal;
 
             var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama, streams in)",
                 16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
@@ -401,7 +402,7 @@ namespace DungeonExporer.UI
             var llmBodyLe = _llmBodyText.gameObject.AddComponent<LayoutElement>();
             llmBodyLe.minHeight = 100f;
             llmBodyLe.flexibleHeight = 1f;
-            _llmBodyText.enableWordWrapping = true;
+            _llmBodyText.textWrappingMode = TextWrappingModes.Normal;
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
                 18f, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
@@ -443,7 +444,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             return tmp;
         }
 

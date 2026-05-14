@@ -289,7 +289,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000001}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd0011223344556677889901, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd001122334455667788990001, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Player.PlayerHealth
   _maxHealth: 100
@@ -307,7 +307,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000001}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd0011223344556677889902, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd001122334455667788990002, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Player.PlayerInventory
   _maxDistinctItems: 28
@@ -405,7 +405,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000030}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d6e7f80918293a4b5c6d7e8, type: 3}
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d6e7f80918293a4b5c6d7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.PauseMenuController
   _mainMenuSceneName: MainMenu
@@ -502,7 +502,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000050}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd0011223344556677889903, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd001122334455667788990003, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.GameplayHudController
   _canvasSortOrder: 35
@@ -515,7 +515,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000050}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff001, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff0001, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Gameplay.GameSaveService
   _player: {fileID: 2100000002}
@@ -528,7 +528,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000050}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff003, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff0003, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Gameplay.OllamaFirstRunHealthCheck
   _ollama: {fileID: 396942281}
@@ -543,7 +543,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000050}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff002, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff0002, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.OllamaSetupPanelController
   _sortingOrder: 220
@@ -556,7 +556,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2100000050}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff005, type: 3}
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff0005, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Dungeon.DungeonFlavorNarrator
   _ollama: {fileID: 396942281}
@@ -685,7 +685,6 @@ GameObject:
   m_Component:
   - component: {fileID: 396942280}
   - component: {fileID: 396942281}
-  - component: {fileID: 396942282}
   m_Layer: 0
   m_Name: Ollama
   m_TagString: Untagged
@@ -731,18 +730,6 @@ MonoBehaviour:
   requestTimeoutSeconds: 120
   defaultStreamMaxTokens: 96
   defaultNonStreamMaxTokens: 256
---- !u!114 &396942282
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 396942278}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 16f49892d78f7f54ab7ab5bcba7a3722, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PromptTester
 --- !u!1 &554397351
 GameObject:
   m_ObjectHideFlags: 0
@@ -1388,50 +1375,6 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
---- !u!1 &1168778912
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1168778914}
-  - component: {fileID: 1168778913}
-  m_Layer: 0
-  m_Name: Test
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1168778913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1168778912}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d7509677efa416c4e9aab9f369181e10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HardCodeDev.Examples.Test
---- !u!4 &1168778914
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1168778912}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 341.50632, y: 229.36128, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1269868860
 GameObject:
   m_ObjectHideFlags: 0
@@ -2133,7 +2076,6 @@ SceneRoots:
   - {fileID: 2100000021}
   - {fileID: 1152202146}
   - {fileID: 396942280}
-  - {fileID: 1168778914}
   - {fileID: 1269868864}
   - {fileID: 684561091}
   - {fileID: 95113467}

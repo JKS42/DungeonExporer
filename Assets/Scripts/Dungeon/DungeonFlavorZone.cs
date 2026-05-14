@@ -2,14 +2,8 @@ using UnityEngine;
 
 namespace DungeonExporer.Dungeon
 {
-    public enum DungeonFlavorKind
-    {
-        Safe = 0,
-        Encounter = 1
-    }
-
     /// <summary>
-    /// Trigger volume for short LLM “floor flavor” when the player enters safe vs encounter tiles.
+    /// Trigger volume for short LLM "floor flavor" when the player enters safe vs encounter tiles.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class DungeonFlavorZone : MonoBehaviour

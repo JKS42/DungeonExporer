@@ -18,6 +18,20 @@
 
 ---
 
+## 2026-05-14 — Level1: remove stale Ollama test components
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Stripped `Level1.unity`’s `Ollama` GameObject of a **PromptTester** component whose script asset is no longer in the repo (missing-script warning), and removed the root **Test** object that ran **HardCodeDev.Examples.Test** (`new Ollama(...)` → Unity “MonoBehaviour with `new`” warning). **Test.cs** is now a no-op placeholder with a warning log so the pattern is not reintroduced.
+
+**Why**: Clean play-mode console; production uses **OllamaHandler** + health UI, not the package sample.
+
+**Impact / docs touched**: `Assets/Scenes/Level1.unity`, `Assets/SimpleOllamaInjection/SimpleOllamaUnity/Examples/Test.cs`, `docs/refinements-changes.md`.
+
+**Follow-ups**: If you still need SimpleOllamaUnity’s chat client, refactor **Ollama** to a non-MonoBehaviour service or a component with an explicit `Initialize(OllamaConfig)` called from `Awake`/`Start`.
+
+---
+
 ## 2026-05-14 — Ollama UX, flavor zones, NPC memory, saves, HUD objectives
 **Type**: scope-change | decision
 **AI tool(s)**: Cursor + GPT-5.3 Codex
@@ -40,6 +54,56 @@ Surfaces LLM/setup failures instead of silent hangs, adds lightweight narrative 
 - Docs: `docs/refinements-changes.md`, `docs/ollama-plan.md`, `docs/high-concept.md`, `docs/setup.md`, `README.md`.
 
 **Follow-ups**: optional boot warm-up prompt (`ollama-plan` placeholder); richer save (enemy state, open UI).
+
+## 2026-05-14 — Compile fix: split save DTOs and dungeon flavor enum
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Moved `GameSaveData` / `SaveQuestProgress` / `SaveInventoryStack` into `GameSaveData.cs`, and `DungeonFlavorKind` into `DungeonFlavorKind.cs`, so types resolve even if another script in the same file fails to compile; removed `Array.Empty` field initializers from the save DTOs.
+
+**Why**: Unity reported CS0246 for `GameSaveData` and `DungeonFlavorKind` (Safe Mode); isolated types avoid fragile single-file coupling.
+
+**Impact / docs touched**: New `.cs` + `.meta` under `Assets/Scripts/`; trimmed `GameSaveService.cs`, `DungeonFlavorZone.cs`; `docs/refinements-changes.md`.
+
+## 2026-05-14 — Break Dungeon → UI compile cycle (flavor narration)
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Added `NarrationUiGate` (pause/dialogue flags) and `DungeonFlavorHudBridge` (toast delegate); `DungeonFlavorNarrator` no longer references UI types; `GameplayHudController` registers the bridge; `PauseMenuController` / `DialoguePanelController` drive the gate.
+
+**Why**: A dependency loop `PlayerHealth → DungeonLevelBuilder → DungeonFlavorZone → DungeonFlavorNarrator → GameplayHudController → PlayerHealth` prevented Unity from resolving types (`CS0246` / `CS0103` cascades) until dungeon code stopped referencing HUD types directly.
+
+**Impact / docs touched**: `DungeonFlavorNarrator.cs`, `DungeonFlavorHudBridge.cs`, `NarrationUiGate.cs`, HUD/pause/dialogue/menu/setup TMP lines, `docs/refinements-changes.md`.
+
+## 2026-05-14 — Fix invalid Unity meta GUID lengths (scene + compile cascade)
+**Type**: refactor | risk
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Several `.meta` files used **30–31** hex digits instead of Unity’s required **32**, so the editor could not parse `m_Script` GUIDs in `Level1.unity` (e.g. line 559) and script types failed to resolve project-wide. All affected `guid:` lines and scene references were rewritten to valid 32-char IDs (`…990001` / `…eeff0001` patterns).
+
+**Why**: `Could not extract GUID` in the scene plus mass `CS0103`/`CS0246` were symptoms of malformed GUIDs, not missing C# code.
+
+**Impact / docs touched**: `Level1.unity`, multiple `Assets/Scripts/**/*.meta`, `docs/refinements-changes.md`.
+
+## 2026-05-14 — Fix 33-char GUIDs (PauseMenu, Data folder) + PlayerHealth UI using
+**Type**: refactor | risk
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: `PauseMenuController.cs.meta` and `Assets/Data.meta` had **33**-hex `guid:` values (invalid in Unity); corrected to **32** hex and updated `Level1.unity` pause script reference. Added `using UnityEngine.UI` to `PlayerHealth.cs` so `CanvasScaler` / UI fade code resolves.
+
+**Why**: Invalid pause-menu GUID prevented `PauseMenuController` from loading, producing widespread `CS0103`; missing `UnityEngine.UI` caused `CS0246` for `CanvasScaler` in `PlayerHealth`.
+
+**Impact / docs touched**: `PauseMenuController.cs.meta`, `Data.meta`, `Level1.unity`, `PlayerHealth.cs`, `docs/refinements-changes.md`.
+
+## 2026-05-14 — TMP: replace obsolete enableWordWrapping
+**Type**: refactor
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: UI scripts now set `textWrappingMode = TextWrappingModes.Normal` (TMPro in UGUI 2.x) instead of `enableWordWrapping`, clearing CS0618.
+
+**Why**: Obsolete API warnings; `TextWrappingModes` lives in `TMPro` namespace alongside `TMP_Text`.
+
+**Impact / docs touched**: `PauseMenuController`, `GameplayHudController`, `DialoguePanelController`, `OllamaSetupPanelController`, `MainMenuController`, `docs/refinements-changes.md`.
 
 ## 2026-05-14 — Player health, respawn, inventory, and HUD
 **Type**: scope-change

@@ -3,6 +3,7 @@ using System.Collections;
 using DungeonExporer.Dungeon;
 using DungeonExporer.UI;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace DungeonExporer.Player
 {

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using DungeonExporer.Gameplay;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -36,6 +37,7 @@ namespace DungeonExporer.UI
             if (IsPaused)
                 Time.timeScale = Mathf.Approximately(_savedTimeScale, 0f) ? 1f : _savedTimeScale;
             IsPaused = false;
+            NarrationUiGate.PauseOpen = false;
         }
 
         private void Update()
@@ -64,6 +66,7 @@ namespace DungeonExporer.UI
         private void SetPaused(bool paused, bool restoreTimeScale)
         {
             IsPaused = paused;
+            NarrationUiGate.PauseOpen = paused;
 
             if (paused)
             {
@@ -93,6 +96,7 @@ namespace DungeonExporer.UI
         {
             Time.timeScale = 1f;
             IsPaused = false;
+            NarrationUiGate.PauseOpen = false;
             SceneManager.LoadScene(_mainMenuSceneName);
         }
 
@@ -199,7 +203,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             return tmp;
         }
 

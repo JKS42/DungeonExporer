@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Text;
+using DungeonExporer.Dungeon;
 using DungeonExporer.Gameplay;
 using DungeonExporer.Player;
 using TMPro;
@@ -33,6 +35,7 @@ namespace DungeonExporer.UI
         private void Awake()
         {
             Instance = this;
+            DungeonFlavorHudBridge.PublishFlavorToast = (msg, sec) => ShowFlavorToast(msg, sec);
         }
 
         private void Start()
@@ -48,7 +51,10 @@ namespace DungeonExporer.UI
         {
             Unbind();
             if (Instance == this)
+            {
                 Instance = null;
+                DungeonFlavorHudBridge.PublishFlavorToast = null;
+            }
         }
 
         private void LateUpdate()
@@ -215,7 +221,7 @@ namespace DungeonExporer.UI
             var questLe = _questObjectiveLine.gameObject.AddComponent<LayoutElement>();
             questLe.minHeight = 40f;
             questLe.flexibleHeight = 1f;
-            _questObjectiveLine.enableWordWrapping = true;
+            _questObjectiveLine.textWrappingMode = TextWrappingModes.Normal;
 
             _inventoryRoot = new GameObject("InventoryPanel", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
             _inventoryRoot.transform.SetParent(canvasGo.transform, false);
@@ -242,7 +248,7 @@ namespace DungeonExporer.UI
             var invBodyLe = _inventoryBody.gameObject.AddComponent<LayoutElement>();
             invBodyLe.flexibleHeight = 1f;
             invBodyLe.minHeight = 120f;
-            _inventoryBody.enableWordWrapping = true;
+            _inventoryBody.textWrappingMode = TextWrappingModes.Normal;
 
             var invHint = MakeTmp("InvHint", _inventoryRoot.transform, "Walk over glowing orbs to pick them up.", 16f, MenuTheme.BodyText, TextAlignmentOptions.Left);
             var invHintLe = invHint.gameObject.AddComponent<LayoutElement>();
@@ -289,7 +295,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = size;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             return tmp;
         }
 

@@ -119,29 +119,4 @@ namespace DungeonExporer.Gameplay
             }
         }
     }
-
-    [Serializable]
-    public sealed class GameSaveData
-    {
-        public int version = 1;
-        public float px, py, pz;
-        public string[] completedQuestIds = Array.Empty<string>();
-        public SaveQuestProgress[] activeQuests = Array.Empty<SaveQuestProgress>();
-        public SaveInventoryStack[] inventory = Array.Empty<SaveInventoryStack>();
-    }
-
-    [Serializable]
-    public struct SaveQuestProgress
-    {
-        public string questId;
-        public int objectiveIndex;
-    }
-
-    [Serializable]
-    public struct SaveInventoryStack
-    {
-        public string id;
-        public string displayName;
-        public int count;
-    }
 }

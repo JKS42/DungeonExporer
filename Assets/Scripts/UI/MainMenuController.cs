@@ -315,7 +315,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             return tmp;
         }
 

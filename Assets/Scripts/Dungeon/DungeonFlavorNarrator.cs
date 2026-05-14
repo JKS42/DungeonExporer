@@ -1,4 +1,4 @@
-using DungeonExporer.UI;
+using DungeonExporer.Gameplay;
 using UnityEngine;
 
 namespace DungeonExporer.Dungeon
@@ -42,7 +42,7 @@ namespace DungeonExporer.Dungeon
         {
             if (!isActiveAndEnabled || _ollama == null)
                 return;
-            if (PauseMenuController.IsPaused || DialoguePanelController.IsOpen)
+            if (NarrationUiGate.PauseOpen || NarrationUiGate.DialogueOpen)
                 return;
             if (Time.unscaledTime < _nextAllowedTime || _busy)
                 return;
@@ -67,7 +67,7 @@ namespace DungeonExporer.Dungeon
                     _busy = false;
                     string line = OllamaHandler.SanitizeModelOutput(text).Trim();
                     if (line.Length > 0)
-                        GameplayHudController.ShowFlavorToast(line, 5.5f);
+                        DungeonFlavorHudBridge.PublishFlavorToast?.Invoke(line, 5.5f);
                 },
                 onError: _ => { _busy = false; },
                 saveToDialogueJson: false,

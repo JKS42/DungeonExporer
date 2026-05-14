@@ -78,7 +78,7 @@ namespace DungeonExporer.UI
             var bodyLe = _body.gameObject.AddComponent<LayoutElement>();
             bodyLe.flexibleHeight = 1f;
             bodyLe.minHeight = 160f;
-            _body.enableWordWrapping = true;
+            _body.textWrappingMode = TextWrappingModes.Normal;
 
             var hint = MakeText("Hint", _root.transform,
                 "First model load can take 30–60s (cold). After Ollama is healthy, press Continue.",
@@ -113,7 +113,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = size;
             tmp.color = color;
             tmp.alignment = TextAlignmentOptions.TopLeft;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             return tmp;
         }
 
