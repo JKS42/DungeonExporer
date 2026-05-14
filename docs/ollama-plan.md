@@ -1,7 +1,7 @@
 # Ollama Plan — DungeonExporer
 
 > Living document. Update whenever the model, the prompt structure, or the data flow changes.
-> Last updated: 2026-05-13
+> Last updated: 2026-05-14
 
 ## 1. Model choice
 
@@ -42,6 +42,26 @@
 The Ollama server keeps a model loaded for ~5 minutes after the last request. To avoid first-prompt latency, the game will issue a tiny warm-up prompt at boot (e.g. on the Main Menu).
 
 ## 3. Data flow
+
+### Implemented (Level1 slice)
+
+```
+NpcInteractable (player in range + Interact)
+   │
+   ▼
+DialoguePanelController  ──► shows authored quest title/briefing (QuestManager)
+   │
+   │ optional: "Hear them out"
+   ▼
+OllamaHandler.RequestGeneration / RequestGenerationStreaming
+   │  HTTP POST http://localhost:11434/api/generate (UnityWebRequest)
+   │  Non-stream: JSON body with stream:false; stream:true returns NDJSON lines parsed in `DownloadHandlerScript`
+   │  Response sanitized (strip thinking-style tagged blocks); dialogue UI typewrites from the live buffer
+   ▼
+Same JSON log as test UI (optional saveToDialogueJson)
+```
+
+### Planned (full pipeline)
 
 ```
 Unity (gameplay event)

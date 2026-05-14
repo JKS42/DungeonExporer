@@ -29,6 +29,16 @@ namespace DungeonExporer.Dungeon
         [Tooltip("Approximate world width of one brick column; tiling is derived from wall cube size.")]
         [SerializeField] private float _brickWorldMeters = 0.34f;
 
+        [Header("Encounter gameplay")]
+        [Tooltip("Quest/world event id fired the first time the player enters any <c>E</c> encounter cell volume.")]
+        [SerializeField] private string _encounterEnterQuestEventId = "entered_encounter_zone";
+
+        /// <summary>Floor center (XZ) of the maze <c>P</c> spawn after the last successful <see cref="Build"/>; Y is floor level.</summary>
+        public Vector3 LastPlayerSpawnWorld { get; private set; }
+
+        /// <summary>True after <see cref="Build"/> placed the player at the maze <c>P</c> cell.</summary>
+        public bool HasRecordedPlayerSpawn { get; private set; }
+
         private string[] _gridRows = System.Array.Empty<string>();
 
         private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
@@ -198,6 +208,8 @@ namespace DungeonExporer.Dungeon
             if (spawnCell.HasValue && _player != null)
             {
                 Vector3 p = CellCenterWorld(Mathf.RoundToInt(spawnCell.Value.x), Mathf.RoundToInt(spawnCell.Value.y));
+                LastPlayerSpawnWorld = new Vector3(p.x, 0f, p.z);
+                HasRecordedPlayerSpawn = true;
                 _player.SetPositionAndRotation(new Vector3(p.x, 0f, p.z), Quaternion.identity);
             }
         }
@@ -252,7 +264,8 @@ namespace DungeonExporer.Dungeon
             var box = go.AddComponent<BoxCollider>();
             box.isTrigger = true;
             box.size = new Vector3(_cellSize * 0.92f, _wallHeight * 0.85f, _cellSize * 0.92f);
-            go.AddComponent<DungeonEncounterVolume>();
+            var encounter = go.AddComponent<DungeonEncounterVolume>();
+            encounter.Configure(_encounterEnterQuestEventId);
             var rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;

@@ -44,7 +44,16 @@ namespace DungeonExporer.UI
                 return;
 
             if (Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                if (DialoguePanelController.IsOpen)
+                {
+                    var dialogue = FindFirstObjectByType<DialoguePanelController>();
+                    dialogue?.Close();
+                    return;
+                }
+
                 TogglePause();
+            }
         }
 
         private void TogglePause()

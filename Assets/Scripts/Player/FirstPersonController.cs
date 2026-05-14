@@ -95,7 +95,7 @@ namespace DungeonExporer.Player
             if (_playerMap == null)
                 return;
 
-            if (PauseMenuController.IsPaused)
+            if (PauseMenuController.IsPaused || DialoguePanelController.IsOpen)
                 return;
 
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)

@@ -18,6 +18,54 @@
 
 ---
 
+## 2026-05-14 — Streaming Ollama, encounter quests, post-quest NPC copy
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- **Ollama streaming**: `OllamaHandler.RequestGenerationStreaming` uses `/api/generate` with `stream: true`, an `OllamaNdjsonStreamHandler` (`DownloadHandlerScript`) to parse NDJSON lines, and `AbortActiveRequest()` (abort-only; dispose stays in coroutine `finally`). `SanitizeModelOutput` is public for UI. Non-streaming `RequestGeneration` unchanged for the test UI.
+- **Dialogue UI**: `DialoguePanelController` splits **quest (authoritative)** vs **LLM (streaming)** TMP blocks; “Hear them out” drives streaming + a typewriter-style reveal (`_typewriterCharsPerSecond`); closing dialogue or starting a new line aborts the HTTP request via generation guards.
+- **Post-quest copy**: `QuestDefinition.completionSummary` + richer completed-state prompts for Ollama; Cap’s static panel explains streaming when a quest is done.
+- **Follow-up quest**: `echoes_in_the_dark` (prerequisite `cap_training`) completes on `entered_encounter_zone`; `NpcInteractable` resolves primary vs follow-up quest id.
+- **Encounter volumes**: `DungeonEncounterVolume.Configure` + `OnTriggerEnter` (player `CharacterController`) fires the quest event once per volume; `DungeonLevelBuilder` exposes `_encounterEnterQuestEventId` (serialized on `Level1` dungeon).
+- **NpcInteractable**: restored explicit serialized fields + `ResolveQuestId` priority (active follow-up, active main, offer follow-up, offer main, completed follow-up, completed main).
+
+**Why**:
+Delivers the promised follow-ups: streamed NPC lines feel responsive, encounter tiles advance a second quest, and returning to Cap after objectives has clearer authored + LLM context.
+
+**Impact / docs touched**:
+- Edited: `OllamaHandler.cs`, `DialoguePanelController.cs`, `QuestManager.cs`, `NpcInteractable.cs`, `DungeonEncounterVolume.cs`, `DungeonLevelBuilder.cs`, `Level1.unity`, `docs/refinements-changes.md`, `docs/ollama-plan.md`.
+
+**Follow-ups**:
+- Optional: merge multi-quest completion summaries in one NPC panel; `/api/chat` stream + conversation memory; throttle encounter `NotifyWorldEvent` if designers want re-entry.
+
+---
+
+## 2026-05-14 — NPC dialogue, quests, and training combat (Level1)
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- **Quests**: `DungeonExporer.Gameplay.QuestManager` tracks definitions, active steps, and completion; objectives advance via `NotifyWorldEvent` string ids (first quest: defeat training dummy).
+- **NPC + Ollama**: `NpcInteractable` opens `DialoguePanelController` near the capsule NPC; **Hear them out** calls `OllamaHandler.RequestGeneration` with a persona + quest-state prompt; **Accept quest** starts the quest in-engine (authoritative objectives stay in C#).
+- **Combat**: `PlayerCombat` raycasts from the camera on **Attack** (left click / bound control); `EnemyActor` applies damage and fires the defeat event for the quest.
+- **Bootstrap**: `LevelGameplayBootstrap` spawns NPC + dummy near `DungeonLevelBuilder.LastPlayerSpawnWorld` (requires `HasRecordedPlayerSpawn`).
+- **Dungeon**: `DungeonLevelBuilder` exposes `LastPlayerSpawnWorld` and `HasRecordedPlayerSpawn` after placing the player at `P`.
+- **Input / UI**: `FirstPersonController` and `PlayerCombat` respect `DialoguePanelController.IsOpen`; **Escape** closes dialogue first via `PauseMenuController`, then toggles pause.
+- **Scene**: `Level1` root **GameplaySystems** (Quest + Dialogue + Bootstrap) and **PlayerCombat** on the player; `OllamaHandler.RequestGeneration` already used for gameplay calls.
+
+**Why**:
+Establishes the first vertical slice of the design loop: talk → quest → explore/fight → world events feeding the quest manager, with local LLM flavor on top of deterministic game rules.
+
+**Impact / docs touched**:
+- New: `Assets/Scripts/Gameplay/*.cs`, `Assets/Scripts/UI/DialoguePanelController.cs`, `Assets/Scripts/Player/PlayerCombat.cs`, matching `.meta` files.
+- Edited: `DungeonLevelBuilder.cs`, `FirstPersonController.cs`, `PauseMenuController.cs`, `Level1.unity`, `docs/refinements-changes.md`, `docs/ollama-plan.md`, `docs/high-concept.md`.
+
+**Follow-ups**:
+- Streaming/typewriter UI for Ollama; richer quest definitions (JSON from model vs. hand-authored only); return-to-NPC dialogue branch; mesh NPC instead of capsule.
+
+---
+
 ## 2026-05-14 — Simple pause menu (Level1)
 **Type**: scope-change
 **AI tool(s)**: Cursor + GPT-5.3 Codex
