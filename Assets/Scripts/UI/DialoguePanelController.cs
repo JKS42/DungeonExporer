@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Text;
 using DungeonExporer.Gameplay;
+using DungeonExporer.Player;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -268,6 +269,7 @@ namespace DungeonExporer.UI
         private string BuildNpcPrompt(QuestDefinition def)
         {
             string world = QuestManager.Instance != null ? QuestManager.Instance.BuildPromptContext() : string.Empty;
+            string inv = PlayerInventory.Instance != null ? PlayerInventory.Instance.BuildSummaryForPrompt() : "Inventory: unknown.";
             bool completed = QuestManager.Instance != null && QuestManager.Instance.IsQuestCompleted(_questId);
             bool active = QuestManager.Instance != null && QuestManager.Instance.IsQuestActive(_questId);
 
@@ -282,6 +284,7 @@ namespace DungeonExporer.UI
                 "Authoritative quest title: " + def.title + ".\n" +
                 "Authoritative briefing (facts): " + def.briefing + "\n" +
                 "Quest state summary from the game: " + world + "\n" +
+                inv + "\n" +
                 situation + "\n" +
                 "Write 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.";
         }

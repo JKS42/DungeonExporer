@@ -98,6 +98,9 @@ namespace DungeonExporer.Player
             if (PauseMenuController.IsPaused || DialoguePanelController.IsOpen)
                 return;
 
+            if (PlayerHealth.Instance != null && PlayerHealth.Instance.IsDead)
+                return;
+
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 ApplyCursorLock(false);
 
@@ -121,6 +124,16 @@ namespace DungeonExporer.Player
             if (_cameraTransform == null)
                 return;
             _pitchDegrees = NormalizePitch(_cameraTransform.localEulerAngles.x);
+        }
+
+        /// <summary>Call after teleport (e.g. respawn) so look axes match the transform.</summary>
+        public void ResetOrientationFromTransform()
+        {
+            _verticalVelocity = Vector3.zero;
+            SyncLookFromTransform();
+            if (_cameraTransform != null)
+                _cameraTransform.localRotation = Quaternion.Euler(_pitchDegrees, 0f, 0f);
+            transform.rotation = Quaternion.Euler(0f, _yawDegrees, 0f);
         }
 
         private static float NormalizePitch(float eulerX)

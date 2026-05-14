@@ -15,6 +15,9 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private DungeonLevelBuilder _dungeon;
         [SerializeField] private Vector3 _npcOffsetFromSpawn = new(2.2f, 0f, 2.2f);
         [SerializeField] private Vector3 _enemyOffsetFromSpawn = new(5f, 0.55f, 2.2f);
+        [SerializeField] private Vector3 _pickupPebbleOffset = new(3.4f, 0.35f, 0.6f);
+        [SerializeField] private Vector3 _pickupRationOffset = new(4.1f, 0.35f, -0.4f);
+        [SerializeField] private Vector3 _hazardOffset = new(6.2f, 0.25f, 3.1f);
 
         private void Reset()
         {
@@ -46,6 +49,7 @@ namespace DungeonExporer.Gameplay
 
             SpawnNpc(origin, dialogue);
             SpawnTrainingDummy(origin);
+            SpawnWorldLoot(origin);
         }
 
         private void SpawnNpc(Vector3 spawnFloor, DialoguePanelController dialogue)
@@ -70,6 +74,57 @@ namespace DungeonExporer.Gameplay
             go.transform.position = pos;
             go.transform.localScale = new Vector3(1.1f, 1.1f, 1.1f);
             go.AddComponent<EnemyActor>();
+        }
+
+        private void SpawnWorldLoot(Vector3 spawnFloor)
+        {
+            SpawnPickup(spawnFloor + _pickupPebbleOffset, "dungeon_pebble", "Wobbly pebble", 1, 0f,
+                new Color(0.72f, 0.68f, 0.55f, 1f));
+            SpawnPickup(spawnFloor + _pickupRationOffset, "trail_ration", "Trail ration", 1, 18f,
+                new Color(0.55f, 0.78f, 0.45f, 1f));
+            SpawnHazard(spawnFloor + _hazardOffset);
+        }
+
+        private void SpawnPickup(Vector3 position, string itemId, string displayName, int count, float healAmount,
+            Color tint)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name = "Pickup_" + itemId;
+            go.transform.SetParent(transform, false);
+            go.transform.position = position;
+            go.transform.localScale = Vector3.one * 0.42f;
+
+            var col = go.GetComponent<SphereCollider>();
+            col.isTrigger = true;
+
+            var rend = go.GetComponent<Renderer>();
+            if (rend != null)
+                rend.material.color = tint;
+
+            var pickup = go.AddComponent<WorldPickup>();
+            pickup.Configure(itemId, displayName, count, healAmount);
+        }
+
+        private void SpawnHazard(Vector3 position)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "SpikeHazard";
+            go.transform.SetParent(transform, false);
+            go.transform.position = position;
+            go.transform.localScale = new Vector3(2.2f, 0.35f, 2.2f);
+
+            var box = go.GetComponent<BoxCollider>();
+            box.isTrigger = true;
+
+            var rend = go.GetComponent<Renderer>();
+            if (rend != null)
+                rend.material.color = new Color(0.55f, 0.22f, 0.28f, 1f);
+
+            var rb = go.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+
+            go.AddComponent<HazardVolume>();
         }
     }
 }

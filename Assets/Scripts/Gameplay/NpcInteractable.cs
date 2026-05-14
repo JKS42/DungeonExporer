@@ -1,3 +1,4 @@
+using DungeonExporer.Player;
 using DungeonExporer.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -69,6 +70,8 @@ namespace DungeonExporer.Gameplay
             if (_player == null || _dialogue == null || _interactAction == null)
                 return;
             if (DialoguePanelController.IsOpen || PauseMenuController.IsPaused)
+                return;
+            if (PlayerHealth.Instance != null && PlayerHealth.Instance.IsDead)
                 return;
 
             Vector3 flat = transform.position;

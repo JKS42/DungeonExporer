@@ -20,7 +20,7 @@
 1. Enter a room (layout includes **safe** rest areas and **encounter** zones the dungeon builder marks in-world).
 2. Observe environment + interact with NPCs/objects.
 3. **Level1 slice**: talk to the placeholder NPC (**E** / Interact), accept a **quest** from `QuestManager`, optionally hear extra lines from **Ollama** (`DialoguePanelController` → `OllamaHandler.RequestGenerationStreaming` with NDJSON + typewriter reveal), beat the training dummy, then (after Cap’s drill) accept **Echoes in the dark** and step on any **E** encounter tile to finish it. Broader: NPC dialogue, item descriptions, and room flavor from the local LLM, conditioned on world state.
-4. Solve / fight / loot.
+4. Solve / fight / loot (**HP**, hazards, **inventory** pickups on Level1).
 5. Move to the next room. Loop.
 
 ### Win / fail conditions

@@ -18,6 +18,31 @@
 
 ---
 
+## 2026-05-14 — Player health, respawn, inventory, and HUD
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- **`PlayerHealth`**: HP, `TakeDamage` / `Heal`, void fall death (`_voidDeathY`), death closes dialogue and aborts Ollama; respawn at `DungeonLevelBuilder.LastPlayerSpawnWorld` with black fade (unscaled time); `ResetOrientationFromTransform` on `FirstPersonController` after teleport.
+- **`PlayerInventory`**: stack dictionary by string id, `TryAdd`, `BuildSummaryForPrompt` for LLM context.
+- **`WorldPickup`**: trigger pickup adds stacks and optional heal; **`HazardVolume`**: periodic damage in triggers; **`LevelGameplayBootstrap`** spawns sample pebble, ration (heal), and spike hazard near spawn.
+- **`GameplayHudController`**: health bar + numbers, inventory panel toggled with **I** (disabled while paused or dead).
+- **Input gating**: `FirstPersonController`, `PlayerCombat`, `NpcInteractable` respect `PlayerHealth.IsDead`.
+- **`DialoguePanelController`**: NPC prompts include inventory summary when available.
+- **`Level1.unity`**: `PlayerHealth` + `PlayerInventory` on Player, HUD on `GameplaySystems`, bootstrap pickup/hazard offsets serialized.
+
+**Why**:
+Gives combat and exploration stakes (HP, hazards, fall), a bag for future keys/quest items, and readable UI without new assets.
+
+**Impact / docs touched**:
+- New: `PlayerHealth.cs`, `PlayerInventory.cs`, `GameplayHudController.cs`, `WorldPickup.cs`, `HazardVolume.cs` + `.meta`.
+- Edited: `FirstPersonController.cs`, `PlayerCombat.cs`, `NpcInteractable.cs`, `DialoguePanelController.cs`, `LevelGameplayBootstrap.cs`, `Level1.unity`, `docs/refinements-changes.md`, `docs/high-concept.md`.
+
+**Follow-ups**:
+- Enemy attacks that call `PlayerHealth.TakeDamage`; save/load inventory; item ScriptableObjects; drop tables.
+
+---
+
 ## 2026-05-14 — Streaming Ollama, encounter quests, post-quest NPC copy
 **Type**: scope-change
 **AI tool(s)**: Cursor + GPT-5.3 Codex

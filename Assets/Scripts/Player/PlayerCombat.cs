@@ -42,6 +42,8 @@ namespace DungeonExporer.Player
                 return;
             if (PauseMenuController.IsPaused || DialoguePanelController.IsOpen)
                 return;
+            if (PlayerHealth.Instance != null && PlayerHealth.Instance.IsDead)
+                return;
             if (Time.time < _nextSwing)
                 return;
             if (!_attackAction.WasPressedThisFrame())
