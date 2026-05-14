@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using DungeonExporer.Gameplay;
 using UnityEngine;
 
 namespace DungeonExporer.Player
@@ -83,6 +84,49 @@ namespace DungeonExporer.Player
             foreach (StackEntry e in _items.Values)
                 sb.Append(e.displayName).Append(" x").Append(e.count).Append("; ");
             return sb.ToString().TrimEnd(' ', ';');
+        }
+
+        public void ExportToSave(GameSaveData data)
+        {
+            if (data == null)
+                return;
+
+            var stacks = new SaveInventoryStack[_items.Count];
+            int i = 0;
+            foreach (StackEntry e in _items.Values)
+            {
+                stacks[i++] = new SaveInventoryStack
+                {
+                    id = e.id,
+                    displayName = e.displayName,
+                    count = e.count
+                };
+            }
+
+            data.inventory = stacks;
+        }
+
+        public void ApplyFromSave(GameSaveData data)
+        {
+            _items.Clear();
+            if (data?.inventory != null)
+            {
+                foreach (SaveInventoryStack s in data.inventory)
+                {
+                    if (string.IsNullOrWhiteSpace(s.id) || s.count <= 0)
+                        continue;
+
+                    string id = s.id.Trim();
+                    _items[id] = new StackEntry
+                    {
+                        id = id,
+                        displayName = string.IsNullOrWhiteSpace(s.displayName) ? id : s.displayName.Trim(),
+                        count = s.count
+                    };
+                }
+            }
+
+            OnChanged?.Invoke();
         }
     }
 }

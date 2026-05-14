@@ -166,6 +166,8 @@ namespace DungeonExporer.Dungeon
             floorsRoot.SetParent(root, false);
             Transform encounterRoot = new GameObject("EncounterVolumes").transform;
             encounterRoot.SetParent(root, false);
+            Transform flavorRoot = new GameObject("FlavorVolumes").transform;
+            flavorRoot.SetParent(root, false);
 
             int height = _gridRows.Length;
             int width = w;
@@ -196,11 +198,13 @@ namespace DungeonExporer.Dungeon
                     else if (c == 'S')
                     {
                         CreateFloor(floorsRoot, cellCenter, _matSafe);
+                        CreateFlavorVolume(flavorRoot, cellCenter, DungeonFlavorKind.Safe);
                     }
                     else if (c == 'E')
                     {
                         CreateFloor(floorsRoot, cellCenter, _matEncounter);
                         CreateEncounterVolume(encounterRoot, cellCenter);
+                        CreateFlavorVolume(flavorRoot, cellCenter, DungeonFlavorKind.Encounter);
                     }
                 }
             }
@@ -266,6 +270,21 @@ namespace DungeonExporer.Dungeon
             box.size = new Vector3(_cellSize * 0.92f, _wallHeight * 0.85f, _cellSize * 0.92f);
             var encounter = go.AddComponent<DungeonEncounterVolume>();
             encounter.Configure(_encounterEnterQuestEventId);
+            var rb = go.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        private void CreateFlavorVolume(Transform parent, Vector3 cellCenter, DungeonFlavorKind kind)
+        {
+            GameObject go = new GameObject(kind == DungeonFlavorKind.Safe ? "FlavorSafe" : "FlavorEncounter");
+            go.transform.SetParent(parent, false);
+            go.transform.position = cellCenter + new Vector3(0f, _wallHeight * 0.28f, 0f);
+            var box = go.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.size = new Vector3(_cellSize * 0.94f, _wallHeight * 0.5f, _cellSize * 0.94f);
+            var flavor = go.AddComponent<DungeonFlavorZone>();
+            flavor.Configure(kind);
             var rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;

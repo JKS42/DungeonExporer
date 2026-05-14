@@ -1,7 +1,7 @@
 # High Concept Document — DungeonExporer
 
 > A scaffold for the High Concept Document. Fill in / refine each section as design decisions are made.
-> Last updated: 2026-05-14
+> Last updated: 2026-05-14 (save model + LLM surface area)
 
 ## 1. Ideation
 
@@ -25,7 +25,12 @@
 
 ### Win / fail conditions
 
-*To be defined.* Likely a "reach the bottom floor" or "defeat the boss" goal, with permadeath optional.
+*To be defined.* Likely a "reach the bottom floor" or "defeat the boss" goal.
+
+### Save model (v1 decision)
+
+- **Session / run save (not roguelite permadeath for v1)** — `GameSaveService` persists player position, `QuestManager` progress, and `PlayerInventory` stacks to `Application.persistentDataPath` (auto-load if a save exists; **F5** manual save, **F9** load). This favors longer exploratory sessions over heavy meta-progression systems.
+- **Roguelite / permadeath** remains a possible later mode if design pivots; it would drop or slim full-world saves in favor of meta-unlocks.
 
 ### Out of scope (v1)
 
@@ -39,8 +44,8 @@ The LLM is **not** a chatbot bolted onto the game — it is woven into the gamep
 
 | Use case | Description | Status |
 |---|---|---|
-| NPC dialogue | LLM generates NPC responses conditioned on NPC persona + world state. | **Partial** — first NPC uses `DialoguePanelController` + `OllamaHandler.RequestGeneration`; quest facts remain authoritative in C#. |
-| Room narration | When the player enters a room, the LLM produces a short flavor description. | Planned |
+| NPC dialogue | LLM generates NPC responses conditioned on NPC persona + world state + short per-NPC memory of recent assistant lines. | **Partial** — `DialoguePanelController` + `OllamaHandler.RequestGenerationStreaming` + `NpcConversationMemory`; quest facts remain authoritative in C#. |
+| Room narration | When the player enters **safe (`S`) or encounter (`E`)** floor cells, a short narrator line is requested (rate-limited). | **Partial** — `DungeonFlavorZone` + `DungeonFlavorNarrator`; not yet full room-by-room prose. |
 | Item / lore text | Descriptions of items and lore fragments are LLM-generated. | Planned |
 | Hint system | Optional context-aware hints when the player is stuck. | Stretch |
 | AI Director (stretch) | LLM influences encounter difficulty/pacing based on the player's recent play pattern. | Stretch |

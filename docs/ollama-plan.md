@@ -1,7 +1,7 @@
 # Ollama Plan — DungeonExporer
 
 > Living document. Update whenever the model, the prompt structure, or the data flow changes.
-> Last updated: 2026-05-14
+> Last updated: 2026-05-14 (connectivity check, flavor lines, dialogue memory, token caps)
 
 ## 1. Model choice
 
@@ -30,8 +30,9 @@
 
 | Use case | Max tokens | Target latency (P50) | Target latency (P95) | Streaming? |
 |---|---|---|---|---|
-| Room narration on enter | 60 | < 1.5 s | < 3 s | Yes |
-| NPC dialogue line | 80 | < 2 s | < 4 s | Yes |
+| Room / tile flavor (safe vs encounter) | ~72 (`DungeonFlavorNarrator`) | < 2 s | < 5 s | No (single completion) |
+| Full room prose (future) | 60 | < 1.5 s | < 3 s | Yes |
+| NPC dialogue line | ~96 (`num_predict` default on `OllamaHandler`) | < 2 s | < 4 s | Yes |
 | Item description (on pickup) | 40 | < 1 s | < 2 s | No (cache after first call) |
 | Hint (on player request) | 100 | < 3 s | < 6 s | Yes |
 
@@ -46,17 +47,33 @@ The Ollama server keeps a model loaded for ~5 minutes after the last request. To
 ### Implemented (Level1 slice)
 
 ```
+OllamaFirstRunHealthCheck (Start)
+   │
+   ├─► GET /api/tags (reachable host + model tag substring match)
+   └─► on failure: OllamaSetupPanelController → points player to docs/setup.md / README
+
+DungeonFlavorZone (S / E floor triggers)
+   │
+   ▼
+DungeonFlavorNarrator (cooldown) ──► OllamaHandler.RequestGeneration (num_predict capped, no dialogue JSON)
+   │
+   ▼
+GameplayHudController.ShowFlavorToast (short line)
+
 NpcInteractable (player in range + Interact)
    │
    ▼
 DialoguePanelController  ──► shows authored quest title/briefing (QuestManager)
+   │                          prompt includes NpcConversationMemory (last assistant lines for that NPC id)
    │
    │ optional: "Hear them out"
    ▼
 OllamaHandler.RequestGeneration / RequestGenerationStreaming
    │  HTTP POST http://localhost:11434/api/generate (UnityWebRequest)
-   │  Non-stream: JSON body with stream:false; stream:true returns NDJSON lines parsed in `DownloadHandlerScript`
+   │  JSON body includes stream flag + options.num_predict (defaults: stream 96, non-stream 256)
+   │  stream:true returns NDJSON lines; UI shows “Still thinking…” if no tokens for ~3.25s
    │  Response sanitized (strip thinking-style tagged blocks); dialogue UI typewrites from the live buffer
+   │  on stream completion: append sanitized reply to NpcConversationMemory for that NPC id
    ▼
 Same JSON log as test UI (optional saveToDialogueJson)
 ```

@@ -1,7 +1,7 @@
 # Setup Guide — DungeonExporer
 
 > Step-by-step setup for developing and running DungeonExporer.
-> Last updated: 2026-05-13
+> Last updated: 2026-05-14
 
 ## 1. System requirements
 
@@ -96,7 +96,8 @@ ollama run qwen3:4b "Say hello in 5 words."
 1. In the Project window, open `Assets/Scenes/Level1.unity`.
 2. Make sure Ollama is running (`curl http://localhost:11434/api/tags`).
 3. Press **Play**.
-4. In the on-screen UI, type a prompt and hit the Send button. You should see a streamed response.
+4. **Boot check**: if Ollama is unreachable or the model from `OllamaHandler` is not in `ollama list`, a blocking panel appears with a shortcut to this guide; you can **Continue** to move without NPC streaming.
+5. In the on-screen Ollama tester UI, type a prompt and hit **Send**. You should see a streamed response.
 
 If nothing happens:
 - Check the Unity Console for errors.
@@ -132,8 +133,10 @@ DungeonExporer/
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| First NPC dialogue stalls several seconds | Model cold-load / CPU inference | Normal on first generate; the dialogue bar shows a short “still thinking” hint. Later lines should be faster while Ollama keeps the model resident. |
+| In-game “Ollama needs attention” panel | Service down or model not pulled | Start Ollama; run `ollama pull qwen3:4b` (or match `defaultModel` on the scene’s `OllamaHandler`). |
 | Unity console: `Cannot connect to localhost:11434` | Ollama service not running | Start Ollama; check Windows Services or run `ollama serve`. |
-| First response takes > 10 s | Model cold-load | Normal; subsequent requests are fast. We pre-warm at game launch. |
+| First response takes > 10 s | Model cold-load | Normal; subsequent requests are faster while the model stays loaded. A boot-time warm-up prompt is planned (see `ollama-plan.md`). |
 | Response contains `<think>...</think>` text | `clearThinking` not enabled on the request | Set `clearThinking = true` when calling `Ollama.SendMessage`. |
 | Out-of-memory crash from Ollama | Model too big for hardware | Switch to `qwen3:4b` or a smaller quantization. |
 | Compile error: `Newtonsoft.Json` not found | Package not installed | Open Package Manager and install `com.unity.nuget.newtonsoft-json`, or remove `OllamaRequester.cs` if unused. |

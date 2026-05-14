@@ -422,6 +422,10 @@ GameObject:
   - component: {fileID: 2100000053}
   - component: {fileID: 2100000054}
   - component: {fileID: 2100000055}
+  - component: {fileID: 2100000056}
+  - component: {fileID: 2100000057}
+  - component: {fileID: 2100000058}
+  - component: {fileID: 2100000059}
   m_Layer: 0
   m_Name: GameplaySystems
   m_TagString: Untagged
@@ -502,6 +506,62 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.GameplayHudController
   _canvasSortOrder: 35
+--- !u!114 &2100000056
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff001, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Gameplay.GameSaveService
+  _player: {fileID: 2100000002}
+--- !u!114 &2100000057
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff003, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Gameplay.OllamaFirstRunHealthCheck
+  _ollama: {fileID: 396942281}
+  _setupPanel: {fileID: 2100000058}
+  _runOnStart: 1
+--- !u!114 &2100000058
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.OllamaSetupPanelController
+  _sortingOrder: 220
+--- !u!114 &2100000059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aabbccdd3344556677889900eeff005, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Dungeon.DungeonFlavorNarrator
+  _ollama: {fileID: 396942281}
+  _cooldownSeconds: 42
+  _maxPredictTokens: 72
 --- !u!1 &95113463
 GameObject:
   m_ObjectHideFlags: 0
@@ -669,6 +729,8 @@ MonoBehaviour:
   responseOutputField: {fileID: 1728383869}
   dialogueJsonFileName: ollama-dialogue.json
   requestTimeoutSeconds: 120
+  defaultStreamMaxTokens: 96
+  defaultNonStreamMaxTokens: 256
 --- !u!114 &396942282
 MonoBehaviour:
   m_ObjectHideFlags: 0

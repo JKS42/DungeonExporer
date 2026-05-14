@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Text;
+using DungeonExporer.Gameplay;
 using DungeonExporer.Player;
 using TMPro;
 using UnityEngine;
@@ -8,19 +10,30 @@ using UnityEngine.UI;
 namespace DungeonExporer.UI
 {
     /// <summary>
-    /// Minimal HUD: health readout + optional inventory list (toggle with <b>I</b>).
+    /// HUD: health, active quest one-liner, inventory (I), NPC interact hint, transient flavor toasts.
     /// </summary>
     [DefaultExecutionOrder(-30)]
     public sealed class GameplayHudController : MonoBehaviour
     {
+        public static GameplayHudController Instance { get; private set; }
+
         [SerializeField] private int _canvasSortOrder = 35;
 
         private Canvas _canvas;
         private RectTransform _healthFillAnchor;
         private TextMeshProUGUI _healthNumbers;
+        private TextMeshProUGUI _questObjectiveLine;
         private GameObject _inventoryRoot;
         private TextMeshProUGUI _inventoryBody;
         private bool _inventoryVisible;
+        private TextMeshProUGUI _interactPrompt;
+        private TextMeshProUGUI _flavorToast;
+        private Coroutine _flavorCoroutine;
+
+        private void Awake()
+        {
+            Instance = this;
+        }
 
         private void Start()
         {
@@ -28,11 +41,26 @@ namespace DungeonExporer.UI
             Bind();
             RefreshHealth(PlayerHealth.Instance);
             RefreshInventory();
+            RefreshQuestObjectiveLine();
         }
 
         private void OnDestroy()
         {
             Unbind();
+            if (Instance == this)
+                Instance = null;
+        }
+
+        private void LateUpdate()
+        {
+            RefreshInteractPromptFromRegistry();
+        }
+
+        public static void ShowFlavorToast(string message, float secondsVisible)
+        {
+            if (Instance == null)
+                return;
+            Instance.ShowFlavorToastInternal(message, secondsVisible);
         }
 
         private void Update()
@@ -55,6 +83,9 @@ namespace DungeonExporer.UI
 
             if (PlayerInventory.Instance != null)
                 PlayerInventory.Instance.OnChanged += RefreshInventory;
+
+            if (QuestManager.Instance != null)
+                QuestManager.Instance.QuestStateChanged += OnQuestStateChanged;
         }
 
         private void Unbind()
@@ -67,7 +98,12 @@ namespace DungeonExporer.UI
 
             if (PlayerInventory.Instance != null)
                 PlayerInventory.Instance.OnChanged -= RefreshInventory;
+
+            if (QuestManager.Instance != null)
+                QuestManager.Instance.QuestStateChanged -= OnQuestStateChanged;
         }
+
+        private void OnQuestStateChanged() => RefreshQuestObjectiveLine();
 
         private void OnHealthChanged(float current, float max) => RefreshHealthBar(current, max);
 
@@ -134,7 +170,7 @@ namespace DungeonExporer.UI
             topRt.anchorMax = new Vector2(0f, 1f);
             topRt.pivot = new Vector2(0f, 1f);
             topRt.anchoredPosition = new Vector2(28f, -24f);
-            topRt.sizeDelta = new Vector2(360f, 72f);
+            topRt.sizeDelta = new Vector2(520f, 130f);
 
             var vlg = topLeft.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 6f;
@@ -174,6 +210,13 @@ namespace DungeonExporer.UI
             hpNumLe.minHeight = 26f;
             hpNumLe.preferredHeight = 26f;
 
+            _questObjectiveLine = MakeTmp("QuestObjective", topLeft.transform, " ", 18f, MenuTheme.BodyText,
+                TextAlignmentOptions.TopLeft);
+            var questLe = _questObjectiveLine.gameObject.AddComponent<LayoutElement>();
+            questLe.minHeight = 40f;
+            questLe.flexibleHeight = 1f;
+            _questObjectiveLine.enableWordWrapping = true;
+
             _inventoryRoot = new GameObject("InventoryPanel", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
             _inventoryRoot.transform.SetParent(canvasGo.transform, false);
             var invRt = _inventoryRoot.GetComponent<RectTransform>();
@@ -207,6 +250,33 @@ namespace DungeonExporer.UI
 
             _inventoryRoot.SetActive(false);
             _inventoryVisible = false;
+
+            var bottom = new GameObject("BottomHud", typeof(RectTransform));
+            bottom.transform.SetParent(canvasGo.transform, false);
+            var bottomRt = bottom.GetComponent<RectTransform>();
+            bottomRt.anchorMin = new Vector2(0.5f, 0f);
+            bottomRt.anchorMax = new Vector2(0.5f, 0f);
+            bottomRt.pivot = new Vector2(0.5f, 0f);
+            bottomRt.anchoredPosition = new Vector2(0f, 22f);
+            bottomRt.sizeDelta = new Vector2(920f, 120f);
+            var bottomV = bottom.AddComponent<VerticalLayoutGroup>();
+            bottomV.spacing = 8f;
+            bottomV.childAlignment = TextAnchor.MiddleCenter;
+            bottomV.childControlHeight = true;
+            bottomV.childControlWidth = true;
+            bottomV.childForceExpandWidth = true;
+
+            _interactPrompt = MakeTmp("InteractPrompt", bottom.transform, string.Empty, 22f, MenuTheme.TitleText,
+                TextAlignmentOptions.Center);
+            var interactLe = _interactPrompt.gameObject.AddComponent<LayoutElement>();
+            interactLe.minHeight = 30f;
+            _interactPrompt.fontStyle = FontStyles.Bold;
+
+            _flavorToast = MakeTmp("FlavorToast", bottom.transform, string.Empty, 18f, MenuTheme.SubtitleText,
+                TextAlignmentOptions.Center);
+            var flavorLe = _flavorToast.gameObject.AddComponent<LayoutElement>();
+            flavorLe.minHeight = 44f;
+            _flavorToast.alpha = 0.92f;
         }
 
         private static TextMeshProUGUI MakeTmp(string name, Transform parent, string text, float size, Color color,
@@ -221,6 +291,55 @@ namespace DungeonExporer.UI
             tmp.alignment = align;
             tmp.enableWordWrapping = true;
             return tmp;
+        }
+
+        private void RefreshQuestObjectiveLine()
+        {
+            if (_questObjectiveLine == null)
+                return;
+
+            if (QuestManager.Instance != null && QuestManager.Instance.TryGetPrimaryObjectiveHudLine(out string line))
+            {
+                _questObjectiveLine.text = line;
+                return;
+            }
+
+            _questObjectiveLine.text = " ";
+        }
+
+        private void RefreshInteractPromptFromRegistry()
+        {
+            if (_interactPrompt == null)
+                return;
+
+            if (PauseMenuController.IsPaused || DialoguePanelController.IsOpen ||
+                (PlayerHealth.Instance != null && PlayerHealth.Instance.IsDead))
+            {
+                _interactPrompt.text = string.Empty;
+                return;
+            }
+
+            string label = NpcPromptRegistry.CurrentLabel;
+            _interactPrompt.text = string.IsNullOrEmpty(label) ? string.Empty : label;
+        }
+
+        private void ShowFlavorToastInternal(string message, float secondsVisible)
+        {
+            if (_flavorToast == null)
+                return;
+
+            if (_flavorCoroutine != null)
+                StopCoroutine(_flavorCoroutine);
+
+            _flavorCoroutine = StartCoroutine(FlavorToastRoutine(message ?? string.Empty, secondsVisible));
+        }
+
+        private IEnumerator FlavorToastRoutine(string message, float secondsVisible)
+        {
+            _flavorToast.text = message;
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.35f, secondsVisible));
+            _flavorToast.text = string.Empty;
+            _flavorCoroutine = null;
         }
     }
 }

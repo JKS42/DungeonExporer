@@ -18,6 +18,29 @@
 
 ---
 
+## 2026-05-14 — Ollama UX, flavor zones, NPC memory, saves, HUD objectives
+**Type**: scope-change | decision
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- **`OllamaHandler`**: `/api/generate` JSON now sends `options.num_predict` (stream + non-stream); `CheckConnectivityCoroutine` hits `/api/tags` for reachability + rough model tag match; inspector defaults for stream vs non-stream caps.
+- **`OllamaFirstRunHealthCheck`** + **`OllamaSetupPanelController`**: first-run friendly overlay with path to repo `docs/setup.md` / README (file URL) when Ollama is down or the model is not pulled; dismiss continues without LLM.
+- **`DungeonFlavorZone`** + **`DungeonFlavorNarrator`**: `S` and `E` cells from `DungeonLevelBuilder` get trigger volumes; short one-line narrator prompt (non-dialogue JSON log) rate-limited; toast via **`GameplayHudController.ShowFlavorToast`**.
+- **`NpcConversationMemory`**: last assistant snippets per NPC id injected into **`DialoguePanelController`** prompts; **`NpcInteractable`** passes stable `_npcConversationId`.
+- **`NpcPromptRegistry`** + HUD bottom line: binding display string for Interact + NPC name when in range (**`NpcInteractable`** `LateUpdate`).
+- **`QuestManager`**: `objectiveHudHints`, `TryGetPrimaryObjectiveHudLine`, `QuestStateChanged`, **`ExportToSave` / `ApplyFromSave`**; **`GameSaveService`** session file under `persistentDataPath`, auto-load if present, **F5** save / **F9** load; **`PlayerInventory`** import/export for the same save blob.
+- **Streaming UX**: stall hint after ~3.25s without tokens; streaming requests pass max tokens from handler.
+- **`Level1.unity`**: new components on `GameplaySystems`; Ollama inspector token fields serialized.
+
+**Why**:
+Surfaces LLM/setup failures instead of silent hangs, adds lightweight narrative and HUD guidance, gives NPC dialogue short-term memory, and commits to **session saves** (not permadeath roguelite) for v1 shipping clarity.
+
+**Impact / docs touched**:
+- New scripts under `Assets/Scripts/` (Gameplay, Dungeon, UI) + `.meta`; edited `OllamaHandler`, `DungeonLevelBuilder`, `DialoguePanelController`, `GameplayHudController`, `QuestManager`, `PlayerInventory`, `NpcInteractable`, `Level1.unity`.
+- Docs: `docs/refinements-changes.md`, `docs/ollama-plan.md`, `docs/high-concept.md`, `docs/setup.md`, `README.md`.
+
+**Follow-ups**: optional boot warm-up prompt (`ollama-plan` placeholder); richer save (enemy state, open UI).
+
 ## 2026-05-14 — Player health, respawn, inventory, and HUD
 **Type**: scope-change
 **AI tool(s)**: Cursor + GPT-5.3 Codex

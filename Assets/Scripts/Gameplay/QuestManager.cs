@@ -16,6 +16,8 @@ namespace DungeonExporer.Gameplay
         [Tooltip("If set, this quest is only offered after the named quest id is completed.")]
         public string prerequisiteQuestIdCompleted;
         public string[] objectiveEvents;
+        [Tooltip("Optional HUD / player hint per objective index (parallel to objectiveEvents).")]
+        public string[] objectiveHudHints;
     }
 
     /// <summary>
@@ -24,6 +26,8 @@ namespace DungeonExporer.Gameplay
     public sealed class QuestManager : MonoBehaviour
     {
         public static QuestManager Instance { get; private set; }
+
+        public event Action QuestStateChanged;
 
         private readonly Dictionary<string, QuestDefinition> _definitions = new();
         private readonly Dictionary<string, int> _activeObjectiveIndex = new();
@@ -49,7 +53,8 @@ namespace DungeonExporer.Gameplay
                 title = "Cap's corridor drill",
                 briefing = "Cap wants you to wallop the training dummy down the hall, then come back so they can pretend they planned it all along.",
                 completionSummary = "You flattened the training dummy. Cap is grinning like a cat in a creamery — go on, let them talk your ear off.",
-                objectiveEvents = new[] { "defeated_training_dummy" }
+                objectiveEvents = new[] { "defeated_training_dummy" },
+                objectiveHudHints = new[] { "Defeat the training dummy down the hall, then check in with Cap." }
             });
 
             Register(new QuestDefinition
@@ -59,7 +64,8 @@ namespace DungeonExporer.Gameplay
                 briefing = "Cap swears the marked encounter tiles hum when something listens back. Step onto one of those crimson floors and see if the dungeon answers.",
                 completionSummary = "You stood where the floor felt wrong and lived to tell. Cap will want every detail.",
                 prerequisiteQuestIdCompleted = "cap_training",
-                objectiveEvents = new[] { "entered_encounter_zone" }
+                objectiveEvents = new[] { "entered_encounter_zone" },
+                objectiveHudHints = new[] { "Stand on a crimson encounter tile until the floor \"answers\"." }
             });
         }
 
@@ -93,6 +99,7 @@ namespace DungeonExporer.Gameplay
 
             _activeObjectiveIndex[questId] = 0;
             Debug.Log($"Quest started: {def.title}");
+            QuestStateChanged?.Invoke();
             return true;
         }
 
@@ -102,6 +109,7 @@ namespace DungeonExporer.Gameplay
                 return;
 
             var toComplete = new List<string>();
+            bool stateChanged = false;
             foreach (var kv in _activeObjectiveIndex)
             {
                 string questId = kv.Key;
@@ -115,9 +123,15 @@ namespace DungeonExporer.Gameplay
 
                 int next = idx + 1;
                 if (next >= def.objectiveEvents.Length)
+                {
                     toComplete.Add(questId);
+                    stateChanged = true;
+                }
                 else
+                {
                     _activeObjectiveIndex[questId] = next;
+                    stateChanged = true;
+                }
             }
 
             foreach (string q in toComplete)
@@ -127,6 +141,9 @@ namespace DungeonExporer.Gameplay
                 if (_definitions.TryGetValue(q, out QuestDefinition d))
                     Debug.Log($"Quest complete: {d.title}");
             }
+
+            if (stateChanged)
+                QuestStateChanged?.Invoke();
         }
 
         public bool IsQuestActive(string questId) => _activeObjectiveIndex.ContainsKey(questId);
@@ -147,6 +164,87 @@ namespace DungeonExporer.Gameplay
 
         public bool TryGetDefinition(string questId, out QuestDefinition definition) =>
             _definitions.TryGetValue(questId, out definition);
+
+        public bool TryGetPrimaryObjectiveHudLine(out string line)
+        {
+            line = null;
+            foreach (var kv in _activeObjectiveIndex)
+            {
+                if (!_definitions.TryGetValue(kv.Key, out QuestDefinition def))
+                    continue;
+
+                int idx = kv.Value;
+                string hint = string.Empty;
+                if (def.objectiveHudHints != null && idx < def.objectiveHudHints.Length &&
+                    !string.IsNullOrWhiteSpace(def.objectiveHudHints[idx]))
+                {
+                    hint = def.objectiveHudHints[idx].Trim();
+                }
+                else if (def.objectiveEvents != null && idx < def.objectiveEvents.Length)
+                    hint = "Objective signal: " + def.objectiveEvents[idx];
+
+                line = "Next: " + def.title + " — " + hint;
+                return true;
+            }
+
+            return false;
+        }
+
+        public void ExportToSave(GameSaveData data)
+        {
+            if (data == null)
+                return;
+
+            var completed = new string[_completed.Count];
+            int i = 0;
+            foreach (string id in _completed)
+                completed[i++] = id;
+            data.completedQuestIds = completed;
+
+            var active = new SaveQuestProgress[_activeObjectiveIndex.Count];
+            i = 0;
+            foreach (var kv in _activeObjectiveIndex)
+            {
+                active[i++] = new SaveQuestProgress
+                {
+                    questId = kv.Key,
+                    objectiveIndex = kv.Value
+                };
+            }
+
+            data.activeQuests = active;
+        }
+
+        public void ApplyFromSave(GameSaveData data)
+        {
+            if (data == null)
+                return;
+
+            _completed.Clear();
+            if (data.completedQuestIds != null)
+            {
+                foreach (string id in data.completedQuestIds)
+                {
+                    if (!string.IsNullOrWhiteSpace(id))
+                        _completed.Add(id.Trim());
+                }
+            }
+
+            _activeObjectiveIndex.Clear();
+            if (data.activeQuests != null)
+            {
+                foreach (SaveQuestProgress a in data.activeQuests)
+                {
+                    if (string.IsNullOrWhiteSpace(a.questId))
+                        continue;
+                    if (!_definitions.ContainsKey(a.questId.Trim()))
+                        continue;
+                    _activeObjectiveIndex[a.questId.Trim()] = Mathf.Max(0, a.objectiveIndex);
+                }
+            }
+
+            QuestStateChanged?.Invoke();
+        }
 
         /// <summary>Short summary for LLM system context.</summary>
         public string BuildPromptContext()

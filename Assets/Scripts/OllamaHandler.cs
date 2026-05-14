@@ -26,6 +26,12 @@ public class OllamaHandler : MonoBehaviour
     [Header("Request Timing")]
     public int requestTimeoutSeconds = 120;
 
+    [Header("Token limits (Ollama options.num_predict)")]
+    [Tooltip("Default max tokens for streamed gameplay dialogue.")]
+    public int defaultStreamMaxTokens = 96;
+    [Tooltip("Default max tokens for non-stream test UI and short checks.")]
+    public int defaultNonStreamMaxTokens = 256;
+
     private UnityWebRequest _abortableRequest;
 
     [Serializable]
@@ -149,7 +155,8 @@ public class OllamaHandler : MonoBehaviour
             {
                 SetOutputText(err);
                 Debug.LogError(err);
-            }));
+            },
+            defaultNonStreamMaxTokens));
     }
 
     /// <summary>
@@ -158,7 +165,7 @@ public class OllamaHandler : MonoBehaviour
     /// <param name="saveToDialogueJson">When true, appends to the same JSON log used by the test UI.</param>
     /// <param name="updateResponseUiField">When true, writes the model reply to <see cref="responseOutputField"/>.</param>
     public void RequestGeneration(string model, string prompt, Action<string> onSuccess, Action<string> onError,
-        bool saveToDialogueJson = true, bool updateResponseUiField = false)
+        bool saveToDialogueJson = true, bool updateResponseUiField = false, int maxPredictTokens = 0)
     {
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -166,7 +173,8 @@ public class OllamaHandler : MonoBehaviour
             return;
         }
 
-        StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError));
+        int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultNonStreamMaxTokens;
+        StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError, limit));
     }
 
     /// <summary>
@@ -174,7 +182,7 @@ public class OllamaHandler : MonoBehaviour
     /// <paramref name="onComplete"/> receives the full sanitized text (same as saved to JSON when enabled).
     /// </summary>
     public void RequestGenerationStreaming(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
-        Action<string> onError, bool saveToDialogueJson = true)
+        Action<string> onError, bool saveToDialogueJson = true, int maxPredictTokens = 0)
     {
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -182,7 +190,8 @@ public class OllamaHandler : MonoBehaviour
             return;
         }
 
-        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, onComplete, onError, saveToDialogueJson));
+        int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultStreamMaxTokens;
+        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, onComplete, onError, saveToDialogueJson, limit));
     }
 
     /// <summary>Aborts the in-flight HTTP request (streaming or not). The owning coroutine still runs and disposes the request in its <c>finally</c> block.</summary>
@@ -202,13 +211,13 @@ public class OllamaHandler : MonoBehaviour
     }
 
     private IEnumerator GenerateStreamingCoroutine(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
-        Action<string> onError, bool saveToDialogueJson)
+        Action<string> onError, bool saveToDialogueJson, int maxPredictTokens)
     {
         AbortActiveRequest();
 
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
-        string jsonBody = $"{{\"model\":\"{EscapeJson(model)}\",\"prompt\":\"{EscapeJson(prompt)}\",\"stream\":true}}";
+        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: true, maxPredictTokens);
 
         var streamHandler = new OllamaNdjsonStreamHandler(onDelta);
         var request = new UnityWebRequest(url, "POST");
@@ -254,13 +263,13 @@ public class OllamaHandler : MonoBehaviour
     }
 
     private IEnumerator GenerateCoroutine(string model, string prompt, bool saveToDialogueJson, bool updateResponseUiField,
-        Action<string> onSuccess, Action<string> onError)
+        Action<string> onSuccess, Action<string> onError, int maxPredictTokens)
     {
         AbortActiveRequest();
 
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
-        string jsonBody = $"{{\"model\":\"{EscapeJson(model)}\",\"prompt\":\"{EscapeJson(prompt)}\",\"stream\":false}}";
+        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: false, maxPredictTokens);
 
         var request = new UnityWebRequest(url, "POST");
         _abortableRequest = request;
@@ -469,6 +478,61 @@ public class OllamaHandler : MonoBehaviour
         }
 
         return new DialogueHistoryJson();
+    }
+
+    public IEnumerator CheckConnectivityCoroutine(string modelToVerify, Action onOk, Action<string> onFail)
+    {
+        string protocol = ShouldUseHttps() ? "https" : "http";
+        string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/tags";
+
+        using (var request = UnityWebRequest.Get(url))
+        {
+            request.timeout = 8;
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                onFail?.Invoke(
+                    $"Cannot reach Ollama at {ollamaHost}:{ollamaPort} ({request.error}). Install from https://ollama.com and see docs/setup.md in the repo.");
+                yield break;
+            }
+
+            string body = request.downloadHandler.text ?? string.Empty;
+            if (!TagsBodyLooksLikeModelPresent(body, modelToVerify))
+            {
+                onFail?.Invoke(
+                    $"Ollama is running but no pulled model matched '{modelToVerify}'. Try: ollama pull {modelToVerify}  (docs/setup.md).");
+                yield break;
+            }
+
+            onOk?.Invoke();
+        }
+    }
+
+    private static bool TagsBodyLooksLikeModelPresent(string body, string model)
+    {
+        if (string.IsNullOrWhiteSpace(body) || string.IsNullOrWhiteSpace(model))
+            return false;
+
+        if (body.IndexOf(model, StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+
+        int colon = model.IndexOf(':');
+        if (colon > 0)
+        {
+            string stem = model.Substring(0, colon);
+            if (body.IndexOf(stem, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static string BuildGenerateJsonBody(string model, string prompt, bool stream, int maxPredictTokens)
+    {
+        int n = Mathf.Clamp(maxPredictTokens, 8, 8192);
+        return "{\"model\":\"" + EscapeJson(model) + "\",\"prompt\":\"" + EscapeJson(prompt) + "\",\"stream\":" +
+               (stream ? "true" : "false") + ",\"options\":{\"num_predict\":" + n + "}}";
     }
 
     private static string EscapeJson(string text)

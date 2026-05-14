@@ -32,6 +32,7 @@ namespace DungeonExporer.UI
 
         private string _displayName = string.Empty;
         private string _questId = string.Empty;
+        private string _npcConversationId = "npc";
         private bool _busy;
         private int _dialogueGeneration;
         private readonly StringBuilder _streamBuffer = new StringBuilder(2048);
@@ -56,12 +57,16 @@ namespace DungeonExporer.UI
             }
         }
 
-        public void BeginSession(string displayName, string questId)
+        public void BeginSession(string displayName, string questId) =>
+            BeginSession(displayName, questId, displayName);
+
+        public void BeginSession(string displayName, string questId, string npcConversationId)
         {
             StopStreamUiInternal();
 
             _displayName = displayName ?? "Stranger";
             _questId = questId ?? string.Empty;
+            _npcConversationId = string.IsNullOrWhiteSpace(npcConversationId) ? "npc_default" : npcConversationId.Trim();
             _busy = false;
 
             if (_llmBodyText != null)
@@ -208,13 +213,14 @@ namespace DungeonExporer.UI
                         return;
                     _streamBuffer.Append(delta);
                 },
-                onComplete: _ =>
+                onComplete: full =>
                 {
                     if (gen != _dialogueGeneration)
                         return;
                     streamFinished = true;
                     if (_statusText != null)
                         _statusText.text = string.Empty;
+                    NpcConversationMemory.AppendAssistantReply(_npcConversationId, full);
                 },
                 onError: err =>
                 {
@@ -225,7 +231,8 @@ namespace DungeonExporer.UI
                     if (_statusText != null)
                         _statusText.text = err;
                 },
-                saveToDialogueJson: true);
+                saveToDialogueJson: true,
+                maxPredictTokens: _ollama.defaultStreamMaxTokens);
 
             _streamUiCoroutine = StartCoroutine(StreamRevealRoutine(gen, () => streamFinished, () => streamError));
         }
@@ -233,17 +240,37 @@ namespace DungeonExporer.UI
         private IEnumerator StreamRevealRoutine(int gen, Func<bool> isStreamFinished, Func<string> getError)
         {
             float revealed = 0f;
+            int lastCap = 0;
+            float idleSeconds = 0f;
+            const float stallSeconds = 3.25f;
 
             while (gen == _dialogueGeneration)
             {
-                if (!string.IsNullOrEmpty(getError()))
+                string err = getError();
+                if (!string.IsNullOrEmpty(err))
                     break;
+
+                int cap = _streamBuffer.Length;
+                if (cap > lastCap)
+                {
+                    lastCap = cap;
+                    idleSeconds = 0f;
+                }
+                else if (!isStreamFinished())
+                {
+                    idleSeconds += Time.unscaledDeltaTime;
+                    if (idleSeconds > stallSeconds && _statusText != null && string.IsNullOrEmpty(err))
+                    {
+                        _statusText.text =
+                            "Still thinking… (no tokens yet — cold models can take a few seconds; see docs/setup.md if it never starts)";
+                    }
+                }
 
                 if (isStreamFinished() && revealed >= _streamBuffer.Length)
                     break;
 
                 revealed += _typewriterCharsPerSecond * Time.unscaledDeltaTime;
-                int cap = _streamBuffer.Length;
+                cap = _streamBuffer.Length;
                 int shown = Mathf.Clamp(Mathf.FloorToInt(revealed), 0, cap);
 
                 if (_llmBodyText != null && gen == _dialogueGeneration)
@@ -273,6 +300,9 @@ namespace DungeonExporer.UI
             bool completed = QuestManager.Instance != null && QuestManager.Instance.IsQuestCompleted(_questId);
             bool active = QuestManager.Instance != null && QuestManager.Instance.IsQuestActive(_questId);
 
+            string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
+            string memoryBlock = string.IsNullOrEmpty(memory) ? string.Empty : memory + "\n";
+
             string situation = completed
                 ? "The adventurer has returned after finishing this quest (or its objectives). React in warm, cosy fantasy banter — thanks, jokes, or loose ends. Do not assign new formal objectives or numbered tasks."
                 : active
@@ -281,6 +311,7 @@ namespace DungeonExporer.UI
 
             return
                 "You are " + _displayName + ", an NPC in a first-person dungeon crawler videogame.\n" +
+                memoryBlock +
                 "Authoritative quest title: " + def.title + ".\n" +
                 "Authoritative briefing (facts): " + def.briefing + "\n" +
                 "Quest state summary from the game: " + world + "\n" +
@@ -312,7 +343,7 @@ namespace DungeonExporer.UI
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
 
-            var dim = MakeUiObject("Dim", _canvas.transform);
+            var dim = MakeUiObject("Dim", canvasGo.transform);
             StretchToParent(dim.GetComponent<RectTransform>());
             var dimImg = dim.AddComponent<Image>();
             dimImg.color = new Color(0.04f, 0.03f, 0.07f, 0.55f);

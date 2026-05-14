@@ -21,7 +21,8 @@ A 3D dungeon-exploration game where the dungeon's inhabitants, signs, and lore a
 ollama pull qwen3:4b
 ```
 
-4. Open this project in Unity, open `Assets/Scenes/Level1.unity`, and press **Play**.
+4. Open this project in Unity, open `Assets/Scenes/Level1.unity`, and press **Play**. If Ollama is missing or the model is not pulled, an in-game panel links to `docs/setup.md`.
+5. **Session save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads it. A save is auto-applied on level start when that file exists (delete it to reset).
 
 Full step-by-step instructions in [`docs/setup.md`](docs/setup.md).
 
