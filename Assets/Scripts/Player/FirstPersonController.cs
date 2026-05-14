@@ -1,3 +1,4 @@
+using DungeonExporer.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -92,6 +93,9 @@ namespace DungeonExporer.Player
         private void Update()
         {
             if (_playerMap == null)
+                return;
+
+            if (PauseMenuController.IsPaused)
                 return;
 
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)

@@ -18,6 +18,27 @@
 
 ---
 
+## 2026-05-14 — Simple pause menu (Level1)
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- Added `DungeonExporer.UI.PauseMenuController` (`Assets/Scripts/UI/PauseMenuController.cs`): **Escape** toggles pause, sets `Time.timeScale` to 0, shows a dim overlay + parchment panel with **Resume**, **Main Menu** (`MainMenu` scene), and **Quit**; styling follows `MenuTheme`.
+- `FirstPersonController` skips movement / look / cursor handling while `PauseMenuController.IsPaused` is true so Escape is not double-consumed.
+- `Level1.unity`: root **PauseMenu** object with the controller (`DefaultExecutionOrder` -10 so pause toggles before the player script).
+
+**Why**:
+Basic quality-of-life for a first-person level: stop play, navigate menus, or exit without killing the editor.
+
+**Impact / docs touched**:
+- New: `Assets/Scripts/UI/PauseMenuController.cs` + `.meta`.
+- Edited: `Assets/Scripts/Player/FirstPersonController.cs`, `Assets/Scenes/Level1.unity`, `docs/refinements-changes.md` (this entry).
+
+**Follow-ups**:
+- If Escape should only unlock the mouse while playing (without pausing), move pause to **P** or **Tab** and restore the old Escape behaviour.
+
+---
+
 ## 2026-05-14 — Dungeon wall brick texture (URP)
 **Type**: scope-change + art
 **AI tool(s)**: Cursor + GPT-5.3 Codex + Python (Pillow)
