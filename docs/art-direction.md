@@ -2,7 +2,7 @@
 
 > Single source of truth for the visual style of the game and the prompts / tools that produced each asset.
 > Tone: **lighthearted fantasy** — warm parchment, sun-gold, mossy green, cocoa brown, brass. No black, no grimdark.
-> Last updated: 2026-05-13
+> Last updated: 2026-05-14
 
 ## Style pillars
 
@@ -48,6 +48,28 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
 | Target polycount | 10k–20k tris |
 | PBR Textures | On (for the brass accents) |
 
+### Dungeon brick — tileable wall albedo
+
+- **Location**: `Assets/Art/Environment/DungeonBrick/`
+- **Files**:
+  - `DungeonBrick_Albedo.png` — 1024×1024 tiling brick pattern (warm mortar, cocoa / terracotta bricks, light noise).
+  - `DungeonBrickWall.mat` — URP Lit (base map only); used by `DungeonLevelBuilder` on wall cubes with per-renderer UV scale via `MaterialPropertyBlock`.
+- **Tool**: **Python 3 + Pillow** — procedural PNG (running-bond layout, row offset, per-brick hue jitter, thin joints, sparse soften noise).
+- **Generated**: 2026-05-14.
+- **Status**: Prototype wall look for the ASCII dungeon; reads in 3D under directional light.
+
+#### “Prompt” / recipe (reproduce the same look)
+
+> Tileable square **albedo** for a **cosy fantasy dungeon** wall: **running-bond** bricks, **parchment-warm mortar** joints, brick faces in **cocoa** and muted **terracotta**, soft hand-painted variation (not photoreal). Light edge shading on brick courses, sparse noise for breakup. Stay in the warm palette — no crushed blacks, no grimdark.
+
+#### Generation notes (Pillow)
+
+| Setting | Value |
+|---|---|
+| Canvas | 1024 × 1024, RGB PNG |
+| Bond | Running bond with row horizontal offset |
+| Palette | Mortar ~RGB(210,198,182); bricks varied ~RGB(140–185, 95–130, 78–108) |
+
 ## First-time Unity import — manual step required
 
 Because the textures were renamed for clarity, Unity's FBX importer may not auto-link them to the embedded material. After Unity finishes importing the new files, do the following **once**:
@@ -73,5 +95,6 @@ Once this is done, do **not** rename these files again — the material will ref
 | **Meshy AI** | Text-to-3D character + prop generation |
 | **Mixamo** *(planned)* | Auto-rig + animation library for humanoid characters |
 | **Unity URP** | Real-time rendering, lighting, material setup |
+| **Python (Pillow)** | Procedural tileable 2D textures (e.g. dungeon brick albedo) |
 
 When we add a new asset, append it to the table above and add a section under **Assets** with the prompt and the tool's settings — same shape as the Adventurer entry. This keeps every art decision reproducible.

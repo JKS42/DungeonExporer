@@ -18,6 +18,94 @@
 
 ---
 
+## 2026-05-14 — Dungeon wall brick texture (URP)
+**Type**: scope-change + art
+**AI tool(s)**: Cursor + GPT-5.3 Codex + Python (Pillow)
+
+**What changed**:
+- Added `Assets/Art/Environment/DungeonBrick/DungeonBrick_Albedo.png` (tileable procedural brick) and `DungeonBrickWall.mat` (URP Lit, base map only).
+- `DungeonLevelBuilder` accepts an optional **`_wallMaterial`**; when set, wall cubes use that material with a **`MaterialPropertyBlock`** so `_BaseMap_ST` tiling matches **`_cellSize`**, **`_wallHeight`**, and **`_brickWorldMeters`** (~brick width in world units). If the material is unset, the old flat procedural wall color remains.
+- `Level1.unity`: **Dungeon** references `DungeonBrickWall`.
+
+**Why**:
+Walls read as a 3D dungeon instead of flat grey blocks.
+
+**Impact / docs touched**:
+- New: `Assets/Art/Environment/` folder metas, `DungeonBrick/` textures + material.
+- Edited: `Assets/Scripts/Dungeon/DungeonLevelBuilder.cs`, `Assets/Scenes/Level1.unity`, `docs/art-direction.md`, `docs/refinements-changes.md` (this entry).
+
+**Follow-ups**:
+- Optional normal + roughness maps for stronger depth under torch / point lights.
+- Bake lightmaps or add subtle ambient occlusion once the dungeon mesh set stabilises.
+
+---
+
+## 2026-05-14 — Maze layout moved to TextAsset
+**Type**: refactor + decision
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- Dungeon ASCII is now edited in `Assets/Data/Dungeon/Level1_Maze.txt` (comment lines with `;`, blank lines ignored). `DungeonLevelBuilder` takes a **TextAsset** reference and parses at runtime; validation aborts the build if row widths differ, characters are invalid, or there is not exactly one `P` spawn.
+- `Level1.unity`: **Dungeon** component wired to that TextAsset.
+
+**Why**:
+Designers can iterate maze layout without recompiling C#.
+
+**Impact / docs touched**:
+- New: `Assets/Data/Dungeon/Level1_Maze.txt`, folder metas under `Assets/Data/`.
+- Edited: `Assets/Scripts/Dungeon/DungeonLevelBuilder.cs`, `Assets/Scenes/Level1.unity`, `README.md` (structure + status), `docs/refinements-changes.md` (this entry).
+
+**Follow-ups**:
+- Add more levels as additional `.txt` files + scene references, or load by name from `Resources/` when you have a level flow.
+
+---
+
+## 2026-05-14 — Prototype dungeon maze (floors, walls, safe vs encounter zones)
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- Added `DungeonExporer.Dungeon.DungeonLevelBuilder`, which builds a **31×17 ASCII maze** at runtime into `Floors`, `Walls`, and `EncounterVolumes` children (URP Lit materials: neutral corridors, moss-tint **safe rooms** `S`, terracotta **encounter areas** `E`, stone **walls** `#`, spawn `P`).
+- Each `E` cell gets a **trigger** volume plus `DungeonEncounterVolume` and a **kinematic Rigidbody** so future gameplay (and `OnTriggerEnter`) works with `CharacterController` movers.
+- `Level1.unity`: added root **`Dungeon`** wired to the **Player** transform so spawn snaps to `P` on play (the scene may also include a separate **Ground** plane and **Adventurer** prefab from other changes).
+
+**Why**:
+Establishes a walkable, maze-like layout with clear **rest / safe** vs **danger** regions before combat or LLM encounter hooks exist.
+
+**Impact / docs touched**:
+- New: `Assets/Scripts/Dungeon/DungeonLevelBuilder.cs`, `DungeonEncounterVolume.cs`, and folder `.meta` files.
+- Edited: `Assets/Scenes/Level1.unity`, `docs/high-concept.md` (core loop / world note), `docs/refinements-changes.md` (this entry).
+
+**Follow-ups**:
+- Replace primitive cubes with modular mesh tiles or probuilder art when art direction lands.
+- Drive encounter / safe room metadata from a `ScriptableObject` or JSON instead of hard-coded strings when levels multiply.
+- Subscribe to `DungeonEncounterVolume` triggers from a future `EncounterDirector` or combat system.
+
+---
+
+## 2026-05-14 — First-person character controller
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**:
+- Added `DungeonExporer.Player.FirstPersonController` on `Assets/Scripts/Player/FirstPersonController.cs` — `CharacterController` movement (WASD / gamepad move), mouse and stick look, jump, sprint, crouch, gravity, and cursor lock (Escape unlocks, click to lock again).
+- Wired to the existing `InputSystem_Actions` asset (`Player` action map: Move, Look, Jump, Sprint, Crouch).
+- Updated `Assets/Scenes/Level1.unity`: `Player` root with `CharacterController` + `FirstPersonController`; **Main Camera** parented under the player at eye height; works with **Dungeon** geometry and any separate scene **Ground** used for playtesting.
+
+**Why**:
+The game needs a playable exploration loop before dungeon content; first-person was chosen as the default presentation.
+
+**Impact / docs touched**:
+- New: `Assets/Scripts/Player/FirstPersonController.cs`, `Assets/Scripts/Player.meta`, `Assets/Scripts/Player/FirstPersonController.cs.meta`.
+- Edited: `Assets/Scenes/Level1.unity`, `docs/high-concept.md` (perspective locked to first-person), `docs/refinements-changes.md` (this entry).
+
+**Follow-ups**:
+- Replace or disable redundant **Ground** if dungeon floors fully cover walkable space (avoid z-fighting).
+- Optional: parent a visible Adventurer mesh for body presence without breaking first-person (an **Adventurer** prefab instance may already exist in the scene for reference).
+- Apply the same player prefab pattern to other gameplay scenes when they are added.
+
+---
+
 ## 2026-05-13 — Dialogue JSON saved within Assets
 **Type**: refactor + decision
 **AI tool(s)**: Cursor + Claude Opus 4.7

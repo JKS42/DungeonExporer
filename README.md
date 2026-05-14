@@ -84,9 +84,11 @@ DungeonExporer/
 ├── docs/
 ├── Assets/
 │   ├── Art/
-│   │   └── Characters/Adventurer/  # Meshy-generated player character (FBX + PBR maps)
+│   │   ├── Characters/Adventurer/  # Meshy-generated player (FBX + PBR maps)
+│   │   └── Environment/DungeonBrick/  # Brick albedo + URP wall material
 │   ├── Scenes/                     # MainMenu, Level1
-│   ├── Scripts/                    # Settings/, UI/  (gameplay code goes here)
+│   ├── Data/Dungeon/               # ASCII maze .txt for DungeonLevelBuilder
+│   ├── Scripts/                    # Settings/, UI/, Player/, Dungeon/
 │   ├── Ollama/                     # Minimal Ollama example
 │   ├── SimpleOllamaInjection/      # Preferred Ollama wrapper + plugin DLLs
 │   ├── Resources/Neocortex/        # Neocortex SDK settings (under review)
@@ -99,8 +101,8 @@ DungeonExporer/
 - [x] Unity project skeleton
 - [x] Ollama integration (3 client variants — to be consolidated)
 - [x] Documentation scaffolding
-- [ ] 3D player controller
-- [ ] First playable dungeon room
+- [x] 3D player controller (first-person `CharacterController`)
+- [x] Walkable maze prototype (`Data/Dungeon/*.txt` + `DungeonLevelBuilder`)
 - [ ] `RoomDefinition` / `NpcDefinition` data
 - [ ] LLM-driven NPC dialogue system
 - [ ] Combat
@@ -115,6 +117,7 @@ DungeonExporer/
 - Ollama Unity wrapper: [SimpleOllamaUnity by HardCodeDev](https://github.com/) *(replace with the actual link when known)*
 - AI-NPC SDK: [Neocortex](https://neocortex.link/) *(under review)*
 - 3D character art (player Adventurer): generated with [Meshy AI](https://www.meshy.ai/) — full prompt in [`docs/art-direction.md`](docs/art-direction.md)
+- Dungeon wall brick albedo: procedural PNG (Python + Pillow); material + use in [`docs/art-direction.md`](docs/art-direction.md)
 - Documentation & code assistance: Cursor + Claude Opus 4.7
 
 ## License

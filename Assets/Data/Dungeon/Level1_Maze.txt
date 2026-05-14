@@ -1,0 +1,22 @@
+; DungeonExporer — ASCII maze for DungeonLevelBuilder
+; Same character count on every grid row. Symbols:
+;   # = wall   . = corridor   S = safe room floor   E = encounter floor   P = player spawn (exactly one)
+; Lines starting with ; and blank lines are ignored.
+
+###############################
+#P............................#
+#..#.....#.....#.....#.....#..#
+#..........EEE........SSSSS...#
+#..###...#.EEE.###...#SSSSS##.#
+#..........EEE........SSSSS...#
+#..SSSSS.#.....#.....#SSSSS#..#
+#..SSSSS.......###....SSSSS##.#
+#..SSSSS.#...SSSSS...#.....#..#
+#..SSSSS.....SSSSS............#
+#..SSSSS.#...SSSSS...#.....##.#
+#............SSSSS.EEE........#
+#..#.....#...SSSSS.EEE.....#..#
+#..###.........###.EEE.....##.#
+#..#.....#.....#.....#.....#..#
+#.............................#
+###############################
