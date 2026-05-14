@@ -18,6 +18,20 @@
 
 ---
 
+## 2026-05-14 — Clearer Ollama HTTP errors (404 → model hint)
+**Type**: decision
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: `OllamaHandler` appends Ollama’s JSON `error` message when present, plus a short note that **HTTP 404** on `/api/generate` usually means the model tag is wrong or not pulled; `docs/setup.md` §9 adds the same symptom row.
+
+**Why**: A bare “404 Not Found” looks like a broken URL; in practice it is almost always fixable via `ollama list` / `ollama pull` and matching the model field.
+
+**Impact / docs touched**: `Assets/Scripts/OllamaHandler.cs`, `docs/setup.md`, `docs/refinements-changes.md`.
+
+**Follow-ups**: None.
+
+---
+
 ## 2026-05-14 — Level1: remove stale Ollama test components
 **Type**: refactor
 **AI tool(s)**: Cursor + GPT-5.3 Codex

@@ -136,6 +136,7 @@ DungeonExporer/
 | First NPC dialogue stalls several seconds | Model cold-load / CPU inference | Normal on first generate; the dialogue bar shows a short “still thinking” hint. Later lines should be faster while Ollama keeps the model resident. |
 | In-game “Ollama needs attention” panel | Service down or model not pulled | Start Ollama; run `ollama pull qwen3:4b` (or match `defaultModel` on the scene’s `OllamaHandler`). |
 | Unity console: `Cannot connect to localhost:11434` | Ollama service not running | Start Ollama; check Windows Services or run `ollama serve`. |
+| Unity console: `Ollama request failed: … (HTTP 404)` | Model not installed or **Model** field does not match a tag from `ollama list` | Run `ollama list`; use the exact name shown (e.g. `qwen3:4b`), or `ollama pull qwen3:4b`. Match **OllamaHandler** `defaultModel` and the tester input. |
 | First response takes > 10 s | Model cold-load | Normal; subsequent requests are faster while the model stays loaded. A boot-time warm-up prompt is planned (see `ollama-plan.md`). |
 | Response contains `<think>...</think>` text | `clearThinking` not enabled on the request | Set `clearThinking = true` when calling `Ollama.SendMessage`. |
 | Out-of-memory crash from Ollama | Model too big for hardware | Switch to `qwen3:4b` or a smaller quantization. |

@@ -48,6 +48,12 @@ public class OllamaHandler : MonoBehaviour
         public bool done;
     }
 
+    [Serializable]
+    private class OllamaApiErrorBody
+    {
+        public string error;
+    }
+
     /// <summary>Buffers NDJSON lines from <c>/api/generate</c> with <c>stream: true</c> and emits decoded <c>response</c> fragments.</summary>
     private sealed class OllamaNdjsonStreamHandler : DownloadHandlerScript
     {
@@ -236,7 +242,8 @@ public class OllamaHandler : MonoBehaviour
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                string errorMessage = $"Ollama stream failed: {request.error} (HTTP {request.responseCode})";
+                string errorMessage =
+                    $"Ollama stream failed: {request.error} (HTTP {request.responseCode}){BuildOllamaFailureDetail(request)}";
                 Debug.LogError(errorMessage);
                 onError?.Invoke(errorMessage);
                 yield break;
@@ -302,7 +309,8 @@ public class OllamaHandler : MonoBehaviour
             }
             else
             {
-                string errorMessage = $"Ollama request failed: {request.error} (HTTP {request.responseCode})";
+                string errorMessage =
+                    $"Ollama request failed: {request.error} (HTTP {request.responseCode}){BuildOllamaFailureDetail(request)}";
                 if (updateResponseUiField)
                     SetOutputText(errorMessage);
                 Debug.LogError(errorMessage);
@@ -526,6 +534,42 @@ public class OllamaHandler : MonoBehaviour
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Appends Ollama's JSON <c>error</c> field (when present) and short hints for common HTTP codes.
+    /// Ollama often returns <b>404</b> when the model name does not exist locally (not pulled or wrong tag).
+    /// </summary>
+    private static string BuildOllamaFailureDetail(UnityWebRequest request)
+    {
+        if (request == null)
+            return string.Empty;
+
+        string body = request.downloadHandler != null ? request.downloadHandler.text : null;
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                OllamaApiErrorBody parsed = JsonUtility.FromJson<OllamaApiErrorBody>(body);
+                if (parsed != null && !string.IsNullOrWhiteSpace(parsed.error))
+                    return " Ollama: " + parsed.error.Trim();
+            }
+            catch (Exception)
+            {
+                // Ignore malformed JSON.
+            }
+        }
+
+        long code = request.responseCode;
+        if (code == 404)
+        {
+            return " (HTTP 404 usually means the model is missing or the name does not match `ollama list` — run `ollama pull <tag>` and align the Model field / OllamaHandler.defaultModel. See docs/setup.md troubleshooting.)";
+        }
+
+        if (code == 401 || code == 403)
+            return " (Check Ollama auth / proxy settings if you use a non-default host.)";
+
+        return string.Empty;
     }
 
     private static string BuildGenerateJsonBody(string model, string prompt, bool stream, int maxPredictTokens)
