@@ -18,6 +18,30 @@
 
 ---
 
+## 2026-05-15 — Taller walls, stone ceiling, dungeon lighting
+**Type**: scope-change
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: **`DungeonLevelBuilder`**: wall height **5.5m**, **ceiling** slabs on walkable cells, **torch point lights** + stronger directional/ambient fill for readability.
+**Why**: User wanted enclosed dungeon feel with enough light to see.
+**Impact / docs touched**: `DungeonLevelBuilder.cs`, `Level1.unity`, `docs/refinements-changes.md`, `docs/setup.md` (brief).
+
+## 2026-05-15 — Fantasy stone wall & floor textures
+**Type**: dependency
+**AI tool(s)**: Cursor + Claude; Pillow
+
+**What changed**: Regenerated **`DungeonBrick_Albedo.png`** and **`DungeonFloor_Albedo.png`** as **irregular hewn stone** (walls + large floor slabs) via `make_stone_wall()` / `make_stone_floor()` in `Tools/generate_dungeon_textures.py`.
+**Why**: User wanted less brick / flagstone, more fantasy dungeon stone.
+**Impact / docs touched**: `Tools/generate_dungeon_textures.py`, texture PNGs, `docs/art-direction.md`, `docs/refinements-changes.md`.
+
+## 2026-05-15 — Visual fixes: tiling, Cap facing, Meshy materials, pickup icons
+**Type**: fix
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: Larger wall/floor UV scale (`_brickWorldMeters` 1.05, `_floorTileWorldMeters` 1.25). Cap rotates to face spawn; Meshy albedos applied via **`MeshyMaterialUtility`**. Pickup icons are **3D** cross/pebble (opaque) inside the bubble instead of transparent quads.
+**Why**: Textures too dense; NPC faced away with broken FBX materials; pickup icons invisible behind transparent shader.
+**Impact / docs touched**: `DungeonLevelBuilder`, `LevelGameplayBootstrap`, `PickupBubbleVisual`, `MeshyMaterialUtility`, `CharacterVisualUtility`, `Level1.unity`, `docs/refinements-changes.md`.
+
 ## 2026-05-15 — Documentation sync (current Level1 build)
 **Type**: decision
 **AI tool(s)**: Cursor + Claude

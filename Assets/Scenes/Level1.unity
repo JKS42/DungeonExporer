@@ -891,7 +891,7 @@ Light:
   serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
-  m_Intensity: 1
+  m_Intensity: 1.55
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -1814,13 +1814,24 @@ MonoBehaviour:
   _mazeLayout: {fileID: 4900000, guid: c8b7a6f504132435465768798a0b1c2d, type: 3}
   _player: {fileID: 2100000002}
   _cellSize: 2.5
-  _wallHeight: 3.5
+  _wallHeight: 5.5
   _floorThickness: 0.22
   _gridOrigin: {x: 0, y: 0, z: 0}
   _wallMaterial: {fileID: 2100000, guid: d0e1f2031425364758697a8b9c0d1e2f, type: 2}
-  _brickWorldMeters: 0.34
+  _brickWorldMeters: 1.05
   _floorMaterial: {fileID: 2100000, guid: f4a8c2e19b3d4f5e8a7061528394b6c7, type: 2}
-  _floorTileWorldMeters: 0.55
+  _floorTileWorldMeters: 1.25
+  _buildCeiling: 1
+  _ceilingThickness: 0.32
+  _ceilingMaterial: {fileID: 0}
+  _setupLighting: 1
+  _directionalIntensity: 1.55
+  _ambientFill: {r: 0.38, g: 0.36, b: 0.34, a: 1}
+  _maxTorches: 56
+  _torchSpacing: 3
+  _torchIntensity: 16
+  _torchRange: 18
+  _torchHeightFactor: 0.72
   _encounterEnterQuestEventId: entered_encounter_zone
 --- !u!1 &2100000030
 GameObject:
@@ -1936,8 +1947,8 @@ MonoBehaviour:
   _npcModel: {fileID: 919132149155446097, guid: d2e3f405162738495a6b7c8d9e0f1122, type: 3}
   _npcOffsetFromSpawn: {x: 2.2, y: 0, z: 2.2}
   _npcHeight: 1.65
-  _npcFacingYaw: 180
   _npcVisualYawOffset: 0
+  _npcAlbedo: {fileID: 2800000, guid: ff779afd7b0f3ec43bad495f65e51eb4, type: 3}
   _scatteredPebbles: 14
   _scatteredRations: 8
   _spikeTrapCount: 20
@@ -1950,8 +1961,8 @@ MonoBehaviour:
   _preferCorridorSpikes: 1
   _spikeTrapMaterial: {fileID: 2100000, guid: e3b7d1c09a4e5f7182638495a0b1c2d3, type: 2}
   _enemyModel: {fileID: 919132149155446097, guid: c1d2e3f405162738495a6b7c8d9e0f11, type: 3}
-  _enemyFacingYaw: 0
-  _enemyVisualYawOffset: 180
+  _enemyVisualYawOffset: 0
+  _enemyAlbedo: {fileID: 2800000, guid: d47513b3817d74e45a91a731f03614cd, type: 3}
   _enemyMaxHealth: 45
   _enemyDefeatQuestEventId: defeated_dungeon_foe
 --- !u!114 &2100000054

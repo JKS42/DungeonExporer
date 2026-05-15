@@ -24,8 +24,9 @@ namespace DungeonExporer.Gameplay
         [Tooltip("Fallback offset from player spawn if no safe (S) floor is found.")]
         [SerializeField] private Vector3 _npcOffsetFromSpawn = new(2.5f, 0f, 2.5f);
         [SerializeField] private float _npcHeight = 1.65f;
-        [SerializeField] private float _npcFacingYaw = 180f;
+        [Tooltip("Fine-tune Cap facing after auto-align (usually 0).")]
         [SerializeField] private float _npcVisualYawOffset;
+        [SerializeField] private Texture2D _npcAlbedo;
 
         [Header("Scattered loot (walkable maze cells)")]
         [SerializeField] private int _scatteredPebbles = 12;
@@ -46,8 +47,8 @@ namespace DungeonExporer.Gameplay
         [Header("Encounter foes")]
         [Tooltip("Meshy Grumblemite / foe model (FBX under Assets/Models). Auto-assigned from GameplayModelPaths.EnemyFbx.")]
         [SerializeField] private GameObject _enemyModel;
-        [SerializeField] private float _enemyFacingYaw;
         [SerializeField] private float _enemyVisualYawOffset = 180f;
+        [SerializeField] private Texture2D _enemyAlbedo;
         [SerializeField] private float _enemyMaxHealth = 45f;
         [SerializeField] private string _enemyDefeatQuestEventId = "defeated_dungeon_foe";
 
@@ -93,6 +94,11 @@ namespace DungeonExporer.Gameplay
                     Debug.LogWarning(
                         "LevelGameplayBootstrap: enemy model not found at " + GameplayModelPaths.EnemyFbx);
             }
+
+            if (_npcAlbedo == null)
+                _npcAlbedo = MeshyMaterialUtility.LoadAlbedoFromFbxPath(GameplayModelPaths.NpcCapFbx);
+            if (_enemyAlbedo == null)
+                _enemyAlbedo = MeshyMaterialUtility.LoadAlbedoFromFbxPath(GameplayModelPaths.EnemyFbx);
 #endif
         }
 
@@ -133,10 +139,20 @@ namespace DungeonExporer.Gameplay
 
             pos.y = 0f;
 
-            GameObject go = CharacterVisualUtility.CreateRoot("Npc_Cap", pos, _npcFacingYaw);
+            Vector3 lookAt = _player != null
+                ? new Vector3(_player.position.x, 0f, _player.position.z)
+                : spawnFloor;
+            float faceYaw = CharacterVisualUtility.YawToward(pos, lookAt);
+            GameObject go = CharacterVisualUtility.CreateRoot("Npc_Cap", pos, faceYaw);
             go.transform.SetParent(transform, false);
 
-            if (!CharacterVisualUtility.TryAttachModel(go, _npcModel, _npcHeight, _npcVisualYawOffset, false))
+            if (CharacterVisualUtility.TryAttachModel(go, _npcModel, _npcHeight, 0f, false, _npcAlbedo))
+            {
+                Transform visual = go.transform.Find("Visual");
+                if (visual != null)
+                    CharacterVisualUtility.AlignVisualToward(visual.gameObject, lookAt, _npcVisualYawOffset);
+            }
+            else
             {
                 Debug.LogWarning("LevelGameplayBootstrap: using fallback capsule for Npc_Cap (assign _npcModel).");
                 CharacterVisualUtility.AddFallbackCapsule(go, _npcHeight, new Color(0.45f, 0.62f, 0.88f, 1f), false);
@@ -223,10 +239,20 @@ namespace DungeonExporer.Gameplay
         {
             position.y = 0f;
 
-            GameObject go = CharacterVisualUtility.CreateRoot("DungeonFoe", position, _enemyFacingYaw);
+            Vector3 faceTarget = _player != null
+                ? new Vector3(_player.position.x, 0f, _player.position.z)
+                : position + Vector3.forward;
+            float faceYaw = CharacterVisualUtility.YawToward(position, faceTarget);
+            GameObject go = CharacterVisualUtility.CreateRoot("DungeonFoe", position, faceYaw);
             go.transform.SetParent(_lootRoot, false);
 
-            if (!CharacterVisualUtility.TryAttachModel(go, _enemyModel, _enemyHeight, _enemyVisualYawOffset, true))
+            if (CharacterVisualUtility.TryAttachModel(go, _enemyModel, _enemyHeight, 0f, true, _enemyAlbedo))
+            {
+                Transform visual = go.transform.Find("Visual");
+                if (visual != null)
+                    CharacterVisualUtility.AlignVisualToward(visual.gameObject, faceTarget, _enemyVisualYawOffset);
+            }
+            else
             {
                 Debug.LogWarning("LevelGameplayBootstrap: using fallback capsule for DungeonFoe (assign _enemyModel).");
                 CharacterVisualUtility.AddFallbackCapsule(go, _enemyHeight, new Color(0.62f, 0.22f, 0.2f, 1f), true);

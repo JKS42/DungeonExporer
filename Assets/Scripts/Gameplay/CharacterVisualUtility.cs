@@ -21,7 +21,8 @@ namespace DungeonExporer.Gameplay
             GameObject modelAsset,
             float targetHeight,
             float visualYawOffset,
-            bool combatCapsule)
+            bool combatCapsule,
+            Texture2D albedoOverride = null)
         {
             if (root == null || modelAsset == null || targetHeight <= 0.01f)
                 return false;
@@ -35,10 +36,43 @@ namespace DungeonExporer.Gameplay
             StripColliders(visual);
             FitVisualToHeight(visual, targetHeight);
 
+            if (albedoOverride != null)
+                MeshyMaterialUtility.ApplyUrpLitAlbedo(visual, albedoOverride);
+
             if (combatCapsule)
                 AddCombatCapsule(root, targetHeight);
 
             return true;
+        }
+
+        /// <summary>
+        /// Picks 0° or 180° local Y on the mesh so its forward axis faces <paramref name="worldTarget"/> (Meshy exports vary).
+        /// </summary>
+        public static void AlignVisualToward(GameObject visual, Vector3 worldTarget, float extraYawDegrees = 0f)
+        {
+            if (visual == null)
+                return;
+
+            Vector3 flat = worldTarget - visual.transform.position;
+            flat.y = 0f;
+            if (flat.sqrMagnitude < 0.0001f)
+                return;
+
+            flat.Normalize();
+            float dotForward = Vector3.Dot(visual.transform.forward, flat);
+            float dotBack = Vector3.Dot(-visual.transform.forward, flat);
+            float flip = dotBack > dotForward ? 180f : 0f;
+            visual.transform.localRotation = Quaternion.Euler(0f, flip + extraYawDegrees, 0f);
+        }
+
+        /// <summary>Y rotation (degrees) so root +Z points at <paramref name="worldTarget"/> on the XZ plane.</summary>
+        public static float YawToward(Vector3 fromWorld, Vector3 worldTarget)
+        {
+            Vector3 dir = worldTarget - fromWorld;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f)
+                return 0f;
+            return Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
         }
 
         public static void AddFallbackCapsule(GameObject root, float height, Color color, bool combatCapsule)

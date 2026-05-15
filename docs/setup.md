@@ -122,6 +122,10 @@ The scene **`OllamaHandler`** component's **Default Model** must match a name fr
 
 Gamepad: Attack = west face button; Interact = north; see `InputSystem_Actions` for full map.
 
+### Dungeon look
+
+The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walkable cell, and **torch lighting** (warm point lights + boosted sun/ambient). Tune on **Dungeon** → `DungeonLevelBuilder`: `_wallHeight`, `_torchIntensity`, `_maxTorches`, `_directionalIntensity`.
+
 ### Playtest checklist
 
 1. Find **Cap** (safe **S** room near spawn).

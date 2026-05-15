@@ -12,5 +12,11 @@ namespace DungeonExporer.Gameplay
         /// <summary>Cap quest-giver (generated second).</summary>
         public const string NpcCapFbx =
             "Assets/Models/Meshy_AI_Stylized_full_body_3D_0515132850_texture_fbx/Meshy_AI_Stylized_full_body_3D_0515132850_texture_fbx/Meshy_AI_Stylized_full_body_3D_0515132850_texture.fbx";
+
+        public const string NpcCapAlbedo =
+            "Assets/Models/Meshy_AI_Stylized_full_body_3D_0515132850_texture_fbx/Meshy_AI_Stylized_full_body_3D_0515132850_texture_fbx/Meshy_AI_Stylized_full_body_3D_0515132850_texture.png";
+
+        public const string EnemyAlbedo =
+            "Assets/Models/Meshy_AI_Stylized_full_body_3D_0515132512_texture_fbx/Meshy_AI_Stylized_full_body_3D_0515132512_texture_fbx/Meshy_AI_Stylized_full_body_3D_0515132512_texture.png";
     }
 }
