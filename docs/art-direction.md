@@ -2,7 +2,7 @@
 
 > Single source of truth for the visual style of the game and the prompts / tools that produced each asset.
 > Tone: **lighthearted fantasy** — warm parchment, sun-gold, mossy green, cocoa brown, brass. No black, no grimdark.
-> Last updated: 2026-05-14
+> Last updated: 2026-05-15
 
 ## Style pillars
 
@@ -55,20 +55,41 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
   - `DungeonBrick_Albedo.png` — 1024×1024 tiling brick pattern (warm mortar, cocoa / terracotta bricks, light noise).
   - `DungeonBrickWall.mat` — URP Lit (base map only); used by `DungeonLevelBuilder` on wall cubes with per-renderer UV scale via `MaterialPropertyBlock`.
 - **Tool**: **Python 3 + Pillow** — procedural PNG (running-bond layout, row offset, per-brick hue jitter, thin joints, sparse soften noise).
-- **Generated**: 2026-05-14.
-- **Status**: Prototype wall look for the ASCII dungeon; reads in 3D under directional light.
+- **Generated**: 2026-05-15 (regenerated with moss + crack pass).
+- **Status**: In use on **Level1** via **Dungeon** → `_wallMaterial`.
 
 #### “Prompt” / recipe (reproduce the same look)
 
-> Tileable square **albedo** for a **cosy fantasy dungeon** wall: **running-bond** bricks, **parchment-warm mortar** joints, brick faces in **cocoa** and muted **terracotta**, soft hand-painted variation (not photoreal). Light edge shading on brick courses, sparse noise for breakup. Stay in the warm palette — no crushed blacks, no grimdark.
+> Tileable square **albedo** for a **cosy fantasy dungeon** wall: **running-bond** bricks, **parchment-warm mortar** joints, brick faces in **cocoa** and muted **terracotta**, soft hand-painted variation (not photoreal). Light edge shading on brick courses, sparse **moss** patches, hairline **cracks**. Stay in the warm palette — no crushed blacks, no grimdark.
 
 #### Generation notes (Pillow)
 
 | Setting | Value |
 |---|---|
+| Script | `Tools/generate_dungeon_textures.py` → `make_brick_wall()` |
 | Canvas | 1024 × 1024, RGB PNG |
 | Bond | Running bond with row horizontal offset |
-| Palette | Mortar ~RGB(210,198,182); bricks varied ~RGB(140–185, 95–130, 78–108) |
+| Palette | Mortar ~RGB(198,186,168); bricks varied cocoa / terracotta |
+
+### Dungeon floor — tileable flagstone albedo
+
+- **Location**: `Assets/Art/Environment/DungeonFloor/`
+- **Files**:
+  - `DungeonFloor_Albedo.png` — 1024×1024 rounded flagstones, warm mortar gaps.
+  - `DungeonFloor.mat` — URP Lit; **`DungeonLevelBuilder._floorMaterial`** with per-cell tint (safe / encounter) via `MaterialPropertyBlock`.
+- **Tool**: **Python 3 + Pillow** — `make_floor()` in `Tools/generate_dungeon_textures.py`.
+- **Generated**: 2026-05-15.
+- **Status**: In use on **Level1** walkable floors.
+
+### Spike trap — tileable hazard albedo
+
+- **Location**: `Assets/Art/Environment/SpikeTrap/`
+- **Files**:
+  - `SpikeTrap_Albedo.png` — 512×512 rusted grate + upward spikes (top-down readable).
+  - `SpikeTrap.mat` — URP Lit; assigned on **`LevelGameplayBootstrap._spikeTrapMaterial`**.
+- **Tool**: **Python 3 + Pillow** — `make_spike_trap()` in `Tools/generate_dungeon_textures.py`.
+- **Generated**: 2026-05-15.
+- **Status**: In use on scattered maze spike hazards.
 
 ## First-time Unity import — manual step required
 

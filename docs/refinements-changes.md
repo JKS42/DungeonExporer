@@ -18,6 +18,32 @@
 
 ---
 
+## 2026-05-15 — Meshy NPC + enemy models in gameplay spawn
+**Type**: refactor
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: **`LevelGameplayBootstrap`** spawns **Cap** and **DungeonFoe** from Meshy FBX under `Assets/Models` (`GameplayModelPaths`, `CharacterVisualUtility`) with height fit, floor alignment, and combat capsule on foes. Editor auto-assigns `_npcModel` / `_enemyModel` from paths; fallback capsules if missing.
+**Why**: User imported Meshy models and wanted them instead of placeholder primitives.
+**Impact / docs touched**: `LevelGameplayBootstrap.cs`, `CharacterVisualUtility.cs`, `GameplayModelPaths.cs`, `docs/refinements-changes.md`.
+**Follow-ups**: Swap `_npcModel` / `_enemyModel` in the inspector if Cap and foe are reversed; rig + idle animation.
+
+## 2026-05-15 — Pickup bubble visuals with centre icons
+**Type**: refactor
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: World pickups render as a **translucent bubble** (URP transparent Lit) with a **billboarded centre icon** — green **cross** for heal rations, round **pebble** mark for loot pebbles (`PickupBubbleVisual`, `PickupIconBillboard`).
+**Why**: Solid coloured spheres did not read clearly at a glance.
+**Impact / docs touched**: `PickupBubbleVisual.cs`, `PickupIconBillboard.cs`, `LevelGameplayBootstrap.cs`, `docs/refinements-changes.md`.
+
+## 2026-05-15 — Dungeon 2D wall / floor / spike textures
+**Type**: dependency
+**AI tool(s)**: Cursor + Claude; Pillow (`Tools/generate_dungeon_textures.py`)
+
+**What changed**: Regenerated **brick wall** albedo (moss, cracks). Added **flagstone floor** and **spike-trap** tileable albedos + URP materials. **`DungeonLevelBuilder`** tiles floors via **`_floorMaterial`**; **`LevelGameplayBootstrap`** uses **`_spikeTrapMaterial`** on hazards. **Level1** references all three materials.
+**Why**: Flat cubes did not read as a dungeon; user requested 2D art on walls and spike traps.
+**Impact / docs touched**: `Assets/Art/Environment/`, `DungeonLevelBuilder.cs`, `LevelGameplayBootstrap.cs`, `Level1.unity`, `Tools/generate_dungeon_textures.py`, `docs/art-direction.md`, `docs/refinements-changes.md`.
+**Follow-ups**: Normal maps; Meshy props for NPC/enemies.
+
 ## 2026-05-15 — Dialogue reply now renders from stream callbacks
 **Type**: fix
 **AI tool(s)**: Cursor + GPT-5.4 mini

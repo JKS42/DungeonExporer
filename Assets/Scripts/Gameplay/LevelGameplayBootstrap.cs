@@ -2,6 +2,9 @@ using DungeonExporer.Dungeon;
 using DungeonExporer.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace DungeonExporer.Gameplay
 {
@@ -16,9 +19,13 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private DungeonLevelBuilder _dungeon;
 
         [Header("NPC")]
+        [Tooltip("Meshy Cap model (FBX under Assets/Models). Auto-assigned in the editor from GameplayModelPaths.NpcCapFbx.")]
+        [SerializeField] private GameObject _npcModel;
         [Tooltip("Fallback offset from player spawn if no safe (S) floor is found.")]
         [SerializeField] private Vector3 _npcOffsetFromSpawn = new(2.5f, 0f, 2.5f);
-        [SerializeField] private float _npcHeight = 0.9f;
+        [SerializeField] private float _npcHeight = 1.65f;
+        [SerializeField] private float _npcFacingYaw = 180f;
+        [SerializeField] private float _npcVisualYawOffset;
 
         [Header("Scattered loot (walkable maze cells)")]
         [SerializeField] private int _scatteredPebbles = 12;
@@ -30,10 +37,17 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private int _scatterSeed;
         [SerializeField] private float _pickupHeight = 0.35f;
         [SerializeField] private float _hazardHeight = 0.25f;
-        [SerializeField] private float _enemyHeight = 0.9f;
+        [SerializeField] private float _enemyHeight = 1.1f;
         [SerializeField] private bool _preferCorridorSpikes = true;
 
+        [Header("Hazard art")]
+        [SerializeField] private Material _spikeTrapMaterial;
+
         [Header("Encounter foes")]
+        [Tooltip("Meshy Grumblemite / foe model (FBX under Assets/Models). Auto-assigned from GameplayModelPaths.EnemyFbx.")]
+        [SerializeField] private GameObject _enemyModel;
+        [SerializeField] private float _enemyFacingYaw;
+        [SerializeField] private float _enemyVisualYawOffset = 180f;
         [SerializeField] private float _enemyMaxHealth = 45f;
         [SerializeField] private string _enemyDefeatQuestEventId = "defeated_dungeon_foe";
 
@@ -42,6 +56,7 @@ namespace DungeonExporer.Gameplay
         private void Awake()
         {
             UiEventSystemBootstrap.EnsureEventSystem(_inputActions);
+            ResolveModelsIfMissing();
         }
 
         private void Reset()
@@ -50,6 +65,35 @@ namespace DungeonExporer.Gameplay
             if (p != null)
                 _player = p.transform;
             _dungeon = FindFirstObjectByType<DungeonLevelBuilder>();
+            ResolveModelsIfMissing();
+        }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            ResolveModelsIfMissing();
+        }
+#endif
+
+        private void ResolveModelsIfMissing()
+        {
+#if UNITY_EDITOR
+            if (_npcModel == null)
+            {
+                _npcModel = AssetDatabase.LoadAssetAtPath<GameObject>(GameplayModelPaths.NpcCapFbx);
+                if (_npcModel == null)
+                    Debug.LogWarning(
+                        "LevelGameplayBootstrap: NPC model not found at " + GameplayModelPaths.NpcCapFbx);
+            }
+
+            if (_enemyModel == null)
+            {
+                _enemyModel = AssetDatabase.LoadAssetAtPath<GameObject>(GameplayModelPaths.EnemyFbx);
+                if (_enemyModel == null)
+                    Debug.LogWarning(
+                        "LevelGameplayBootstrap: enemy model not found at " + GameplayModelPaths.EnemyFbx);
+            }
+#endif
         }
 
         private void Start()
@@ -81,22 +125,22 @@ namespace DungeonExporer.Gameplay
 
         private void SpawnNpc(Vector3 spawnFloor, DialoguePanelController dialogue)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "Npc_Cap";
-            go.transform.SetParent(transform, false);
-
             Vector3 pos;
             if (_dungeon != null && _dungeon.TryGetNpcHubPosition(out Vector3 hubPos))
                 pos = hubPos;
             else
                 pos = spawnFloor + _npcOffsetFromSpawn;
 
-            pos.y = _npcHeight;
-            go.transform.position = pos;
+            pos.y = 0f;
 
-            var rend = go.GetComponent<Renderer>();
-            if (rend != null)
-                rend.material.color = new Color(0.45f, 0.62f, 0.88f, 1f);
+            GameObject go = CharacterVisualUtility.CreateRoot("Npc_Cap", pos, _npcFacingYaw);
+            go.transform.SetParent(transform, false);
+
+            if (!CharacterVisualUtility.TryAttachModel(go, _npcModel, _npcHeight, _npcVisualYawOffset, false))
+            {
+                Debug.LogWarning("LevelGameplayBootstrap: using fallback capsule for Npc_Cap (assign _npcModel).");
+                CharacterVisualUtility.AddFallbackCapsule(go, _npcHeight, new Color(0.45f, 0.62f, 0.88f, 1f), false);
+            }
 
             var npc = go.AddComponent<NpcInteractable>();
             npc.Wire(dialogue, _inputActions, _player);
@@ -139,9 +183,7 @@ namespace DungeonExporer.Gameplay
             var col = go.GetComponent<SphereCollider>();
             col.isTrigger = true;
 
-            var rend = go.GetComponent<Renderer>();
-            if (rend != null)
-                rend.material.color = tint;
+            PickupBubbleVisual.Apply(go, itemId, healAmount, tint);
 
             var pickup = go.AddComponent<WorldPickup>();
             pickup.Configure(itemId, displayName, count, healAmount);
@@ -150,7 +192,6 @@ namespace DungeonExporer.Gameplay
         private void SpawnHazard(Vector3 position)
         {
             float cell = _dungeon != null ? _dungeon.CellSize : 2.5f;
-            // Narrow/low volume so a standing jump clears it horizontally and vertically.
             float pad = cell * 0.38f;
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -164,7 +205,12 @@ namespace DungeonExporer.Gameplay
 
             var rend = go.GetComponent<Renderer>();
             if (rend != null)
-                rend.material.color = new Color(0.55f, 0.22f, 0.28f, 1f);
+            {
+                if (_spikeTrapMaterial != null)
+                    rend.sharedMaterial = _spikeTrapMaterial;
+                else
+                    rend.material.color = new Color(0.55f, 0.22f, 0.28f, 1f);
+            }
 
             var rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;
@@ -175,15 +221,16 @@ namespace DungeonExporer.Gameplay
 
         private void SpawnEnemy(Vector3 position)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "DungeonFoe";
-            go.transform.SetParent(_lootRoot, false);
-            go.transform.position = position;
-            go.transform.localScale = new Vector3(0.85f, 0.95f, 0.85f);
+            position.y = 0f;
 
-            var rend = go.GetComponent<Renderer>();
-            if (rend != null)
-                rend.material.color = new Color(0.62f, 0.22f, 0.2f, 1f);
+            GameObject go = CharacterVisualUtility.CreateRoot("DungeonFoe", position, _enemyFacingYaw);
+            go.transform.SetParent(_lootRoot, false);
+
+            if (!CharacterVisualUtility.TryAttachModel(go, _enemyModel, _enemyHeight, _enemyVisualYawOffset, true))
+            {
+                Debug.LogWarning("LevelGameplayBootstrap: using fallback capsule for DungeonFoe (assign _enemyModel).");
+                CharacterVisualUtility.AddFallbackCapsule(go, _enemyHeight, new Color(0.62f, 0.22f, 0.2f, 1f), true);
+            }
 
             var enemy = go.AddComponent<EnemyActor>();
             enemy.Configure(_enemyMaxHealth, _enemyDefeatQuestEventId);

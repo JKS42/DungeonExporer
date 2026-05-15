@@ -29,6 +29,12 @@ namespace DungeonExporer.Dungeon
         [Tooltip("Approximate world width of one brick column; tiling is derived from wall cube size.")]
         [SerializeField] private float _brickWorldMeters = 0.34f;
 
+        [Header("Floors")]
+        [Tooltip("URP Lit material with stone floor base map. Leave empty to use flat corridor / safe / encounter colors.")]
+        [SerializeField] private Material _floorMaterial;
+        [Tooltip("Approximate world width of one floor tile in meters.")]
+        [SerializeField] private float _floorTileWorldMeters = 0.55f;
+
         [Header("Encounter gameplay")]
         [Tooltip("Quest/world event id fired the first time the player enters any <c>E</c> encounter cell volume.")]
         [SerializeField] private string _encounterEnterQuestEventId = "entered_encounter_zone";
@@ -51,12 +57,14 @@ namespace DungeonExporer.Dungeon
         private Vector2Int _spawnCell = new Vector2Int(-1, -1);
 
         private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         private Material _matWall;
         private Material _matCorridor;
         private Material _matSafe;
         private Material _matEncounter;
         private MaterialPropertyBlock _wallPropBlock;
+        private MaterialPropertyBlock _floorPropBlock;
 
         private void Awake()
         {
@@ -64,6 +72,7 @@ namespace DungeonExporer.Dungeon
             if (!ValidateGrid())
                 return;
             _wallPropBlock = new MaterialPropertyBlock();
+            _floorPropBlock = new MaterialPropertyBlock();
             EnsureMaterials();
             Build();
         }
@@ -201,23 +210,23 @@ namespace DungeonExporer.Dungeon
                     {
                         spawnCell = new Vector2(x, z);
                         _spawnCell = new Vector2Int(x, z);
-                        CreateFloor(floorsRoot, cellCenter, _matCorridor);
+                        CreateFloor(floorsRoot, cellCenter, FloorTint.Corridor);
                     }
                     else if (c == '.')
                     {
                         _walkableCells.Add(new Vector2Int(x, z));
-                        CreateFloor(floorsRoot, cellCenter, _matCorridor);
+                        CreateFloor(floorsRoot, cellCenter, FloorTint.Corridor);
                     }
                     else if (c == 'S')
                     {
                         _walkableCells.Add(new Vector2Int(x, z));
-                        CreateFloor(floorsRoot, cellCenter, _matSafe);
+                        CreateFloor(floorsRoot, cellCenter, FloorTint.Safe);
                         CreateFlavorVolume(flavorRoot, cellCenter, DungeonFlavorKind.Safe);
                     }
                     else if (c == 'E')
                     {
                         _walkableCells.Add(new Vector2Int(x, z));
-                        CreateFloor(floorsRoot, cellCenter, _matEncounter);
+                        CreateFloor(floorsRoot, cellCenter, FloorTint.Encounter);
                         CreateEncounterVolume(encounterRoot, cellCenter);
                         CreateFlavorVolume(flavorRoot, cellCenter, DungeonFlavorKind.Encounter);
                     }
@@ -361,7 +370,14 @@ namespace DungeonExporer.Dungeon
             }
         }
 
-        private void CreateFloor(Transform parent, Vector3 cellCenter, Material mat)
+        private enum FloorTint
+        {
+            Corridor,
+            Safe,
+            Encounter
+        }
+
+        private void CreateFloor(Transform parent, Vector3 cellCenter, FloorTint tint)
         {
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "Floor";
@@ -369,7 +385,31 @@ namespace DungeonExporer.Dungeon
             float half = _floorThickness * 0.5f;
             go.transform.position = cellCenter + new Vector3(0f, -half, 0f);
             go.transform.localScale = new Vector3(_cellSize, _floorThickness, _cellSize);
-            go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            MeshRenderer mr = go.GetComponent<MeshRenderer>();
+            if (_floorMaterial != null)
+            {
+                mr.sharedMaterial = _floorMaterial;
+                float tile = Mathf.Max(0.2f, _floorTileWorldMeters);
+                float t = Mathf.Max(0.25f, _cellSize / tile);
+                _floorPropBlock.Clear();
+                _floorPropBlock.SetVector(BaseMapStId, new Vector4(t, t, 0f, 0f));
+                _floorPropBlock.SetColor(BaseColorId, tint switch
+                {
+                    FloorTint.Safe => new Color(0.9f, 0.98f, 0.92f),
+                    FloorTint.Encounter => new Color(1f, 0.9f, 0.88f),
+                    _ => Color.white
+                });
+                mr.SetPropertyBlock(_floorPropBlock);
+            }
+            else
+            {
+                mr.sharedMaterial = tint switch
+                {
+                    FloorTint.Safe => _matSafe,
+                    FloorTint.Encounter => _matEncounter,
+                    _ => _matCorridor
+                };
+            }
         }
 
         private void CreateEncounterVolume(Transform parent, Vector3 cellCenter)

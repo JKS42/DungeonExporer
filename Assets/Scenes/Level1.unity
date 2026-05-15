@@ -1819,6 +1819,8 @@ MonoBehaviour:
   _gridOrigin: {x: 0, y: 0, z: 0}
   _wallMaterial: {fileID: 2100000, guid: d0e1f2031425364758697a8b9c0d1e2f, type: 2}
   _brickWorldMeters: 0.34
+  _floorMaterial: {fileID: 2100000, guid: a7b6c5d4e3f24150413243546576879aa, type: 2}
+  _floorTileWorldMeters: 0.55
   _encounterEnterQuestEventId: entered_encounter_zone
 --- !u!1 &2100000030
 GameObject:
@@ -1931,8 +1933,11 @@ MonoBehaviour:
   _player: {fileID: 2100000002}
   _inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _dungeon: {fileID: 2100000022}
+  _npcModel: {fileID: 919132149155446097, guid: d2e3f405162738495a6b7c8d9e0f1122, type: 3}
   _npcOffsetFromSpawn: {x: 2.2, y: 0, z: 2.2}
-  _npcHeight: 0.9
+  _npcHeight: 1.65
+  _npcFacingYaw: 180
+  _npcVisualYawOffset: 0
   _scatteredPebbles: 14
   _scatteredRations: 8
   _spikeTrapCount: 20
@@ -1941,8 +1946,12 @@ MonoBehaviour:
   _scatterSeed: 0
   _pickupHeight: 0.35
   _hazardHeight: 0.25
-  _enemyHeight: 0.9
+  _enemyHeight: 1.1
   _preferCorridorSpikes: 1
+  _spikeTrapMaterial: {fileID: 2100000, guid: b8c7d6e5f4a352514243546576879ab, type: 2}
+  _enemyModel: {fileID: 919132149155446097, guid: c1d2e3f405162738495a6b7c8d9e0f11, type: 3}
+  _enemyFacingYaw: 0
+  _enemyVisualYawOffset: 180
   _enemyMaxHealth: 45
   _enemyDefeatQuestEventId: defeated_dungeon_foe
 --- !u!114 &2100000054
