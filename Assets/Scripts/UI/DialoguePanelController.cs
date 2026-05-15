@@ -6,6 +6,7 @@ using DungeonExporer.Gameplay;
 using DungeonExporer.Player;
 using TMPro;
 using UnityEngine;
+using DungeonExporer.Settings;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -317,6 +318,16 @@ namespace DungeonExporer.UI
                 yield break;
             }
 
+            if (!GameSettings.LlmEnabled)
+            {
+                ApplyCannedLlmLine(BuildCannedNpcLine(def));
+                _busy = false;
+                SetHearInteractable(true);
+                if (_statusText != null)
+                    _statusText.text = "AI dialogue is off in Options.";
+                yield break;
+            }
+
             if (_statusText != null)
                 _statusText.text = "Listening… (Ollama, streaming)";
 
@@ -513,6 +524,25 @@ namespace DungeonExporer.UI
                 if (_statusText != null)
                     _statusText.text = string.Empty;
             }
+        }
+
+        private static string BuildCannedNpcLine(QuestDefinition def)
+        {
+            bool completed = QuestManager.Instance != null && QuestManager.Instance.IsQuestCompleted(def.id);
+            bool active = QuestManager.Instance != null && QuestManager.Instance.IsQuestActive(def.id);
+            if (completed)
+                return "You came back! I knew you'd handle it — I was absolutely planning that victory speech the whole time.";
+            if (active)
+                return "Keep your boots light on the crimson tiles. Wallop a squatter, then strut back like it was my idea.";
+            return "Take the drill, friend. Clear the pits, then let me pretend I orchestrated every heroic swing.";
+        }
+
+        private void ApplyCannedLlmLine(string line)
+        {
+            if (_llmBodyText != null)
+                _llmBodyText.text = line;
+            if (!string.IsNullOrWhiteSpace(line))
+                NpcConversationMemory.AppendAssistantReply(_npcConversationId, line);
         }
 
         private string BuildNpcPrompt(QuestDefinition def)

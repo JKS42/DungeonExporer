@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-05-15 — Academic deliverables documentation pack
+**Type**: dependency
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: Added **`docs/deliverables-checklist.md`**, **`prompts-used.md`**, **`llm-integration-report.md`**, **`ethical-considerations.md`**, **`video-deliverables.md`**, **`build-notes.md`**, **`docs/eval/README.md`**. Updated **README**, **AGENTS.md**, **setup.md**. Wired **`GameSettings.LlmEnabled`** for NPC canned lines and flavor skip; default **`LlmModel`** `qwen3:4b`.
+**Why**: Course brief requires documentation, prompt archive, integration report, ethics, and guides for videos/builds.
+**Impact / docs touched**: All files above; `DialoguePanelController.cs`, `DungeonFlavorNarrator.cs`, `GameSettings.cs`.
+
 ## 2026-05-15 — Fix empty Ollama NPC replies (thinking fallback + gemma default)
 **Type**: refactor
 **AI tool(s)**: Cursor + Auto

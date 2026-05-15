@@ -194,7 +194,13 @@ Save file location (Windows example): `%USERPROFILE%\AppData\LocalLow\<CompanyNa
 
 ## 11. Where to go next
 
+- [`deliverables-checklist.md`](./deliverables-checklist.md) — full submission checklist.
 - [`high-concept.md`](./high-concept.md) — design intent and scope.
 - [`ollama-plan.md`](./ollama-plan.md) — LLM data flow and prompts.
+- [`prompts-used.md`](./prompts-used.md) — prompt archive.
+- [`llm-integration-report.md`](./llm-integration-report.md) — integration report.
+- [`ethical-considerations.md`](./ethical-considerations.md) — AI transparency and opt-out.
+- [`video-deliverables.md`](./video-deliverables.md) — required video shot lists.
+- [`build-notes.md`](./build-notes.md) — export prototype/final build.
 - [`art-direction.md`](./art-direction.md) — Meshy prompts and texture recipe.
 - [`refinements-changes.md`](./refinements-changes.md) — change log.

@@ -17,9 +17,15 @@ The following docs are part of the deliverable. If a change touches their topic,
 
 | File | Owns |
 |---|---|
+| `docs/deliverables-checklist.md` | Course submission mapping (brief → repo) |
 | `docs/high-concept.md` | Game ideation, the LLM's role, justification for using a *local* model |
 | `docs/ollama-plan.md` | Model choice, inference timing, data flow, prompt structure, risks |
 | `docs/setup.md` | Install Ollama, pull models, system specs, run instructions |
+| `docs/prompts-used.md` | Prompt archive (tested prompts, success/failure, iterations) |
+| `docs/llm-integration-report.md` | 600–800 word integration report |
+| `docs/ethical-considerations.md` | Transparency, licensing, crediting, player awareness |
+| `docs/video-deliverables.md` | Recording guides for required videos |
+| `docs/build-notes.md` | Prototype vs final build export |
 | `docs/art-direction.md` | Style pillars, palette, per-asset prompts + tool settings (Meshy, etc.) |
 | `docs/refinements-changes.md` | Continuous log of scope changes + AI-assisted decisions |
 | `README.md` | Overview, install, dependencies, credits, AI tools used |

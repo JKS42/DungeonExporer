@@ -172,10 +172,10 @@ Recent events: {worldState.recentEvents (last 3)}
 
 ## 6. Player-facing kill switch
 
-`GameSettings.LlmEnabled` (toggle in the Options menu) must be honoured at every Ollama call site:
+`GameSettings.LlmEnabled` (toggle in the Options menu):
 
-- When `true`, the dialogue system queries the model normally.
-- When `false`, every LLM call short-circuits and returns a canned line (defined per-NPC / per-Room). This is the fallback for players without Ollama installed, low-spec hardware, or anyone who just wants to skip the AI.
+- When `true`, the dialogue system queries the model normally; flavor zones request narrator lines.
+- When `false`, **Hear them out** shows a canned Cap line (`DialoguePanelController`); **DungeonFlavorNarrator** skips requests. Still TODO: centralize in `OllamaHandler` for the debug test UI.
 
 The toggle defaults to `true` and persists via PlayerPrefs.
 

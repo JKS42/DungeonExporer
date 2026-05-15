@@ -46,10 +46,16 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 
 | Document | Contents |
 |---|---|
+| [`docs/deliverables-checklist.md`](docs/deliverables-checklist.md) | **Submission checklist** (brief → repo files) |
 | [`AGENTS.md`](AGENTS.md) | Conventions for AI agents working in this repo |
 | [`docs/high-concept.md`](docs/high-concept.md) | Game concept, LLM role, save model, scope |
 | [`docs/ollama-plan.md`](docs/ollama-plan.md) | Model choice, data flow, prompts, risks |
 | [`docs/setup.md`](docs/setup.md) | Install, run, controls, troubleshooting |
+| [`docs/prompts-used.md`](docs/prompts-used.md) | Prompt archive (success/failure, iterations) |
+| [`docs/llm-integration-report.md`](docs/llm-integration-report.md) | Integration report (~780 words) |
+| [`docs/ethical-considerations.md`](docs/ethical-considerations.md) | Transparency, licensing, player opt-out |
+| [`docs/video-deliverables.md`](docs/video-deliverables.md) | Shot lists for required 3–6 min videos |
+| [`docs/build-notes.md`](docs/build-notes.md) | Prototype vs final build export |
 | [`docs/art-direction.md`](docs/art-direction.md) | Style pillars, asset prompts (Meshy, Pillow) |
 | [`docs/refinements-changes.md`](docs/refinements-changes.md) | Running log of changes and AI-assisted decisions |
 
@@ -120,6 +126,16 @@ DungeonExporer/
 │   └── InputSystem_Actions.inputactions
 └── ProjectSettings/
 ```
+
+## Submission deliverables (course brief)
+
+| Item | In repo? | Notes |
+|---|---|---|
+| Documentation pack | Yes | See table above + [`deliverables-checklist.md`](docs/deliverables-checklist.md) |
+| Prototype (≥1 LLM feature) | Yes | Play Level1 in Editor |
+| Final build (.exe) | **You export** | [`build-notes.md`](docs/build-notes.md) |
+| Technical video (3–6 min) | **You record** | [`video-deliverables.md`](docs/video-deliverables.md) |
+| Showcase video (3–6 min) | **You record** | Same |
 
 ## Status (Level1 vertical slice)
 

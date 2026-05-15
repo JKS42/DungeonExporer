@@ -1,4 +1,5 @@
 using DungeonExporer.Gameplay;
+using DungeonExporer.Settings;
 using UnityEngine;
 
 namespace DungeonExporer.Dungeon
@@ -40,7 +41,7 @@ namespace DungeonExporer.Dungeon
 
         private void HandleEnter(DungeonFlavorKind kind)
         {
-            if (!isActiveAndEnabled || _ollama == null)
+            if (!isActiveAndEnabled || _ollama == null || !GameSettings.LlmEnabled)
                 return;
             if (NarrationUiGate.PauseOpen || NarrationUiGate.DialogueOpen)
                 return;
