@@ -13,10 +13,10 @@ public class OllamaHandler : MonoBehaviour
     [Header("Ollama Connection")]
     public string ollamaHost = "localhost";
     public int ollamaPort = 11434;
-    public bool useHttps = true;
+    public bool useHttps = false;
 
     [Header("Model and UI")]
-    public string defaultModel = "qwen3:4b";
+    public string defaultModel = "gemma3:4b";
     public TMP_InputField modelInputField;
     public TMP_InputField promptInputField;
     public TMP_Text responseOutputField;
@@ -29,7 +29,7 @@ public class OllamaHandler : MonoBehaviour
 
     [Header("Token limits (Ollama options.num_predict)")]
     [Tooltip("Default max tokens for streamed gameplay dialogue.")]
-    public int defaultStreamMaxTokens = 96;
+    public int defaultStreamMaxTokens = 180;
     [Tooltip("Default max tokens for non-stream test UI and short checks.")]
     public int defaultNonStreamMaxTokens = 256;
 
@@ -82,7 +82,7 @@ public class OllamaHandler : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(defaultModel))
             return defaultModel.Trim();
 
-        return "qwen3:4b";
+        return "gemma3:4b";
     }
 
     /// <summary>
@@ -122,7 +122,6 @@ public class OllamaHandler : MonoBehaviour
         private readonly object _pendingLock = new object();
         private readonly List<string> _pendingDeltas = new List<string>(8);
         private readonly List<string> _pendingRawLines = new List<string>(8);
-
         public OllamaNdjsonStreamHandler(Action<string> onDelta)
             : base()
         {
@@ -221,14 +220,28 @@ public class OllamaHandler : MonoBehaviour
             if (string.IsNullOrWhiteSpace(line))
                 return null;
 
+            string response = ExtractJsonStringField(line, "response");
+            if (!string.IsNullOrEmpty(response))
+                return response;
+
+            // qwen3 often leaves "response" empty and streams tokens in "thinking".
+            return ExtractJsonStringField(line, "thinking");
+        }
+
+        private static string ExtractJsonStringField(string line, string key)
+        {
             try
             {
-                OllamaStreamChunk chunk = JsonUtility.FromJson<OllamaStreamChunk>(line);
-                if (chunk != null)
+                if (key == "response")
                 {
-                    if (!string.IsNullOrEmpty(chunk.response))
+                    OllamaStreamChunk chunk = JsonUtility.FromJson<OllamaStreamChunk>(line);
+                    if (chunk != null && !string.IsNullOrEmpty(chunk.response))
                         return chunk.response;
-                    if (!string.IsNullOrEmpty(chunk.thinking))
+                }
+                else
+                {
+                    OllamaStreamChunk chunk = JsonUtility.FromJson<OllamaStreamChunk>(line);
+                    if (chunk != null && !string.IsNullOrEmpty(chunk.thinking))
                         return chunk.thinking;
                 }
             }
@@ -237,50 +250,57 @@ public class OllamaHandler : MonoBehaviour
                 // Fall through to manual JSON string extraction.
             }
 
-            // Try the common fields in order: response, thinking
-            string val = TryExtractJsonStringValue(line, "response");
-            if (!string.IsNullOrEmpty(val))
-                return val;
-            return TryExtractJsonStringValue(line, "thinking");
+            return TryExtractJsonStringValue(line, key);
         }
+    }
 
-        private static string TryExtractJsonStringValue(string json, string key)
+    private static string TryExtractJsonStringValue(string json, string key)
+    {
+        string keyToken = "\"" + key + "\"";
+        int keyIndex = json.IndexOf(keyToken, StringComparison.Ordinal);
+        if (keyIndex < 0)
+            return null;
+
+        int colon = json.IndexOf(':', keyIndex + keyToken.Length);
+        if (colon < 0)
+            return null;
+
+        int i = colon + 1;
+        while (i < json.Length && char.IsWhiteSpace(json[i]))
+            i++;
+
+        if (i >= json.Length || json[i] != '"')
+            return null;
+
+        int valueStart = i + 1;
+        var sb = new StringBuilder();
+        for (int pos = valueStart; pos < json.Length; pos++)
         {
-            string needle = "\"" + key + "\":\"";
-            int start = json.IndexOf(needle, StringComparison.Ordinal);
-            if (start < 0)
-                return null;
-
-            start += needle.Length;
-            var sb = new StringBuilder();
-            for (int i = start; i < json.Length; i++)
+            char c = json[pos];
+            if (c == '\\' && pos + 1 < json.Length)
             {
-                char c = json[i];
-                if (c == '\\' && i + 1 < json.Length)
+                char next = json[pos + 1];
+                switch (next)
                 {
-                    char next = json[i + 1];
-                    switch (next)
-                    {
-                        case 'n': sb.Append('\n'); break;
-                        case 'r': sb.Append('\r'); break;
-                        case 't': sb.Append('\t'); break;
-                        case '"': sb.Append('"'); break;
-                        case '\\': sb.Append('\\'); break;
-                        default: sb.Append(next); break;
-                    }
-
-                    i++;
-                    continue;
+                    case 'n': sb.Append('\n'); break;
+                    case 'r': sb.Append('\r'); break;
+                    case 't': sb.Append('\t'); break;
+                    case '"': sb.Append('"'); break;
+                    case '\\': sb.Append('\\'); break;
+                    default: sb.Append(next); break;
                 }
 
-                if (c == '"')
-                    break;
-
-                sb.Append(c);
+                pos++;
+                continue;
             }
 
-            return sb.Length > 0 ? sb.ToString() : null;
+            if (c == '"')
+                break;
+
+            sb.Append(c);
         }
+
+        return sb.ToString();
     }
 
     [Serializable]
@@ -331,7 +351,8 @@ public class OllamaHandler : MonoBehaviour
     /// <param name="saveToDialogueJson">When true, appends to the same JSON log used by the test UI.</param>
     /// <param name="updateResponseUiField">When true, writes the model reply to <see cref="responseOutputField"/>.</param>
     public void RequestGeneration(string model, string prompt, Action<string> onSuccess, Action<string> onError,
-        bool saveToDialogueJson = true, bool updateResponseUiField = true, int maxPredictTokens = 0)
+        bool saveToDialogueJson = true, bool updateResponseUiField = true, int maxPredictTokens = 0,
+        bool disableThinking = false, bool extractNpcDialogue = false, string npcDialogueName = null)
     {
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -340,16 +361,18 @@ public class OllamaHandler : MonoBehaviour
         }
 
         int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultNonStreamMaxTokens;
-        StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError, limit));
+        StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
+            limit, disableThinking, extractNpcDialogue, npcDialogueName));
     }
 
     /// <summary>
     /// Streams tokens from Ollama (<c>stream: true</c>). <paramref name="onDelta"/> receives each decoded <c>response</c> fragment;
     /// <paramref name="onComplete"/> receives the full sanitized text (same as saved to JSON when enabled).
-    /// Responses are automatically displayed in the response text field.
     /// </summary>
     public void RequestGenerationStreaming(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
-        Action<string> onError, bool saveToDialogueJson = true, int maxPredictTokens = 0)
+        Action<string> onError, bool saveToDialogueJson = true, int maxPredictTokens = 0,
+        bool updateResponseUiField = false, bool disableThinking = true, bool extractNpcDialogue = false,
+        string npcDialogueName = null)
     {
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -358,19 +381,20 @@ public class OllamaHandler : MonoBehaviour
         }
 
         int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultStreamMaxTokens;
-        // Wrap onComplete to always display the response
         Action<string> wrappedComplete = (response) =>
         {
-            SetOutputText(response);
+            if (updateResponseUiField)
+                SetOutputText(response);
             onComplete?.Invoke(response);
         };
-        // Wrap onError to always display errors
         Action<string> wrappedError = (error) =>
         {
-            SetOutputText(error);
+            if (updateResponseUiField)
+                SetOutputText(error);
             onError?.Invoke(error);
         };
-        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, wrappedComplete, wrappedError, saveToDialogueJson, limit));
+        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, wrappedComplete, wrappedError,
+            saveToDialogueJson, limit, disableThinking, extractNpcDialogue, npcDialogueName));
     }
 
     /// <summary>Aborts the in-flight HTTP request (streaming or not). The owning coroutine still runs and disposes the request in its <c>finally</c> block.</summary>
@@ -390,13 +414,14 @@ public class OllamaHandler : MonoBehaviour
     }
 
         private IEnumerator GenerateStreamingCoroutine(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
-        Action<string> onError, bool saveToDialogueJson, int maxPredictTokens)
+        Action<string> onError, bool saveToDialogueJson, int maxPredictTokens, bool disableThinking, bool extractNpcDialogue,
+        string npcDialogueName)
     {
         AbortActiveRequest();
 
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
-        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: true, maxPredictTokens);
+        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: true, maxPredictTokens, disableThinking);
 
         var streamHandler = new OllamaNdjsonStreamHandler(onDelta);
         var request = new UnityWebRequest(url, "POST");
@@ -465,14 +490,22 @@ public class OllamaHandler : MonoBehaviour
             }
 
             string responseText = SanitizeModelOutput(streamHandler.GetFullResponse());
+            if (extractNpcDialogue)
+                responseText = ExtractNpcSpokenDialogue(responseText, npcDialogueName);
 
-            if (saveToDialogueJson)
+            if (saveToDialogueJson && !string.IsNullOrWhiteSpace(responseText))
             {
                 if (SaveDialogueJson(model, prompt, responseText))
                     Debug.Log($"Ollama stream complete; saved to {GetDialogueJsonPath()}.");
                 else
                     Debug.LogWarning("Ollama stream complete, but dialogue JSON could not be written.");
             }
+            else if (saveToDialogueJson && string.IsNullOrWhiteSpace(responseText))
+            {
+                Debug.LogWarning("Ollama stream finished with no dialogue text in the response field. " +
+                                 "If using a reasoning model, ensure think=false is supported or raise num_predict.");
+            }
+
             Debug.Log("Ollama (complete): " + responseText);
             onComplete?.Invoke(responseText);
         }
@@ -485,13 +518,14 @@ public class OllamaHandler : MonoBehaviour
     }
 
     private IEnumerator GenerateCoroutine(string model, string prompt, bool saveToDialogueJson, bool updateResponseUiField,
-        Action<string> onSuccess, Action<string> onError, int maxPredictTokens)
+        Action<string> onSuccess, Action<string> onError, int maxPredictTokens, bool disableThinking = false,
+        bool extractNpcDialogue = false, string npcDialogueName = null)
     {
         AbortActiveRequest();
 
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
-        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: false, maxPredictTokens);
+        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: false, maxPredictTokens, disableThinking);
 
         var request = new UnityWebRequest(url, "POST");
         _abortableRequest = request;
@@ -508,11 +542,13 @@ public class OllamaHandler : MonoBehaviour
             if (request.result == UnityWebRequest.Result.Success)
             {
                 string responseText = SanitizeModelOutput(ExtractResponseText(request.downloadHandler.text));
+                if (extractNpcDialogue)
+                    responseText = ExtractNpcSpokenDialogue(responseText, npcDialogueName);
 
                 if (updateResponseUiField)
                     SetOutputText(responseText);
 
-                if (saveToDialogueJson)
+                if (saveToDialogueJson && !string.IsNullOrWhiteSpace(responseText))
                 {
                     if (SaveDialogueJson(model, prompt, responseText))
                         Debug.Log($"Ollama response received and saved to {GetDialogueJsonPath()}.");
@@ -541,6 +577,129 @@ public class OllamaHandler : MonoBehaviour
     }
 
     public static string SanitizeModelOutput(string text) => SanitizeForDisplay(text, stripIncompleteThinking: false);
+
+    /// <summary>
+    /// Drops qwen-style planning lines (quest labels, "we are writing as…") and keeps spoken NPC dialogue.
+    /// </summary>
+    public static string ExtractNpcSpokenDialogue(string text, string npcName = null)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        text = SanitizeModelOutput(text).Trim();
+
+        int capLine = FindNpcDialogueStart(text, npcName);
+        if (capLine >= 0)
+            text = text.Substring(capLine).TrimStart();
+
+        var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var kept = new List<string>(lines.Length);
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i].Trim();
+            if (line.Length == 0 || IsNpcMetaPlanningLine(line))
+                continue;
+            kept.Add(line);
+        }
+
+        if (kept.Count == 0)
+            return ExtractQuotedDialogue(text);
+
+        string joined = string.Join(" ", kept).Trim().Trim('"');
+        if (IsNpcMetaPlanningLine(joined))
+            return ExtractQuotedDialogue(text);
+
+        return joined;
+    }
+
+    /// <summary>Pulls quoted speech (gemma-style) when planning filters removed everything else.</summary>
+    private static string ExtractQuotedDialogue(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        var parts = new List<string>(4);
+        int i = 0;
+        while (i < text.Length)
+        {
+            if (text[i] != '"')
+            {
+                i++;
+                continue;
+            }
+
+            int start = i + 1;
+            int end = start;
+            while (end < text.Length && text[end] != '"')
+                end++;
+
+            if (end > start)
+            {
+                string segment = text.Substring(start, end - start).Trim();
+                if (segment.Length >= 8 && !IsNpcMetaPlanningLine(segment))
+                    parts.Add(segment);
+            }
+
+            i = end + 1;
+        }
+
+        if (parts.Count == 0)
+            return string.Empty;
+
+        return string.Join(" ", parts);
+    }
+
+    private static int FindNpcDialogueStart(string text, string npcName)
+    {
+        var starters = new List<string>(4) { "Cap says:", "Cap said:", "Cap:" };
+        if (!string.IsNullOrWhiteSpace(npcName))
+        {
+            string name = npcName.Trim();
+            starters.Add(name + " says:");
+            starters.Add(name + " said:");
+            starters.Add(name + ":");
+        }
+
+        for (int s = 0; s < starters.Count; s++)
+        {
+            int idx = text.LastIndexOf(starters[s], StringComparison.OrdinalIgnoreCase);
+            if (idx < 0)
+                continue;
+            return idx + starters[s].Length;
+        }
+
+        return -1;
+    }
+
+    private static bool IsNpcMetaPlanningLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return true;
+
+        string lower = line.ToLowerInvariant();
+        string[] markers =
+        {
+            "we are writing as", "we are cap,", "we are cap ", "i am writing as",
+            "quest title:", "authoritative quest", "authoritative briefing", "briefing:",
+            "current state:", "constraints:", "key points", "approach:", "facts:",
+            "quest state summary", "spoken dialogue only", "write 2–6", "write 2-6",
+            "write 2 to 6", "do not repeat the briefing", "the adventurer is considering",
+            "inventory: empty", "inventory: unknown", "no active quests",
+            "no markdown", "no bullet", "no json", "no stage directions",
+            "first-person dungeon crawler game", "first-person dungeon crawler videogame"
+        };
+
+        for (int i = 0; i < markers.Length; i++)
+        {
+            if (lower.StartsWith(markers[i], StringComparison.Ordinal) ||
+                lower.Contains("\n" + markers[i], StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>Strips model “thinking” wrappers for UI display (including partial streams).</summary>
     public static string SanitizeForDisplay(string text, bool stripIncompleteThinking = true)
@@ -599,11 +758,7 @@ public class OllamaHandler : MonoBehaviour
         return Path.Combine(outputDir, dialogueJsonFileName);
     }
 
-    private bool ShouldUseHttps()
-    {
-        // Always use HTTPS for all requests
-        return true;
-    }
+    private bool ShouldUseHttps() => useHttps;
 
     private static bool IsLocalHost(string host)
     {
@@ -651,14 +806,16 @@ public class OllamaHandler : MonoBehaviour
         {
             OllamaGenerateResponse parsedResponse = JsonUtility.FromJson<OllamaGenerateResponse>(rawResponse);
             if (parsedResponse != null && !string.IsNullOrWhiteSpace(parsedResponse.response))
-            {
                 return parsedResponse.response;
-            }
         }
         catch (Exception)
         {
             // Fall back to the raw response below.
         }
+
+        string thinking = TryExtractJsonStringValue(rawResponse, "thinking");
+        if (!string.IsNullOrWhiteSpace(thinking))
+            return thinking;
 
         return rawResponse;
     }
@@ -890,11 +1047,13 @@ public class OllamaHandler : MonoBehaviour
         return string.Empty;
     }
 
-    private static string BuildGenerateJsonBody(string model, string prompt, bool stream, int maxPredictTokens)
+    private static string BuildGenerateJsonBody(string model, string prompt, bool stream, int maxPredictTokens,
+        bool disableThinking = false)
     {
         int n = Mathf.Clamp(maxPredictTokens, 8, 8192);
+        string think = disableThinking ? ",\"think\":false" : string.Empty;
         return "{\"model\":\"" + EscapeJson(model) + "\",\"prompt\":\"" + EscapeJson(prompt) + "\",\"stream\":" +
-               (stream ? "true" : "false") + ",\"options\":{\"num_predict\":" + n + "}}";
+               (stream ? "true" : "false") + think + ",\"options\":{\"num_predict\":" + n + "}}";
     }
 
     private static string EscapeJson(string text)

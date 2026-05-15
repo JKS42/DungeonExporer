@@ -332,7 +332,6 @@ namespace DungeonExporer.UI
                 {
                     if (gen != _dialogueGeneration)
                         return;
-                    Debug.Log("DialoguePanelController onDelta: " + delta);
                     _streamBuffer.Append(delta);
 
                     // Detect and strip an early echo of the prompt (some servers echo back the prompt).
@@ -344,33 +343,26 @@ namespace DungeonExporer.UI
                         {
                             if (buf.Substring(0, checkLen) == prompt.Substring(0, checkLen))
                             {
-                                // If the full prompt was echoed, drop it completely; otherwise drop the matched prefix.
                                 if (buf.StartsWith(prompt))
-                                {
                                     _streamBuffer.Clear();
-                                }
                                 else
-                                {
                                     _streamBuffer.Remove(0, checkLen);
-                                }
                             }
 
                             _promptEchoHandled = true;
                         }
                     }
-
-                    UpdateLlmBodyText(OllamaHandler.SanitizeForDisplay(_streamBuffer.ToString()));
                 },
                 onComplete: full =>
                 {
                     if (gen != _dialogueGeneration)
                         return;
                     streamFinished = true;
-                    if (_statusText != null)
-                        _statusText.text = string.Empty;
-                    Debug.Log("DialoguePanelController onComplete: " + full);
-                    UpdateLlmBodyText(OllamaHandler.SanitizeModelOutput(full));
-                    NpcConversationMemory.AppendAssistantReply(_npcConversationId, full);
+                    string spoken = OllamaHandler.ExtractNpcSpokenDialogue(full, _displayName);
+                    if (_streamBuffer.Length == 0 && !string.IsNullOrWhiteSpace(spoken))
+                        _streamBuffer.Append(spoken);
+                    if (!string.IsNullOrWhiteSpace(spoken))
+                        NpcConversationMemory.AppendAssistantReply(_npcConversationId, spoken);
                 },
                 onError: err =>
                 {
@@ -378,17 +370,22 @@ namespace DungeonExporer.UI
                         return;
                     streamError = err;
                     streamFinished = true;
-                    Debug.Log("DialoguePanelController onError: " + err);
                     if (_statusText != null)
                         _statusText.text = err;
                 },
                 saveToDialogueJson: true,
-                maxPredictTokens: _ollama.defaultStreamMaxTokens);
+                maxPredictTokens: _ollama.defaultStreamMaxTokens,
+                updateResponseUiField: false,
+                disableThinking: true,
+                extractNpcDialogue: true,
+                npcDialogueName: _displayName);
 
-            _streamUiCoroutine = StartCoroutine(StreamRevealRoutine(gen, () => streamFinished, () => streamError));
+            _streamUiCoroutine = StartCoroutine(StreamRevealRoutine(gen, model, prompt,
+                () => streamFinished, () => streamError));
         }
 
-        private IEnumerator StreamRevealRoutine(int gen, Func<bool> isStreamFinished, Func<string> getError)
+        private IEnumerator StreamRevealRoutine(int gen, string model, string prompt,
+            Func<bool> isStreamFinished, Func<string> getError)
         {
             float revealed = 0f;
             int lastCap = 0;
@@ -417,27 +414,105 @@ namespace DungeonExporer.UI
                     }
                 }
 
-                if (isStreamFinished() && revealed >= _streamBuffer.Length)
-                    break;
+                if (isStreamFinished())
+                    revealed = Mathf.Max(revealed, _streamBuffer.Length);
 
                 revealed += _typewriterCharsPerSecond * Time.unscaledDeltaTime;
+                int showChars = Mathf.Min(_streamBuffer.Length, Mathf.FloorToInt(revealed));
+                if (showChars > 0)
+                {
+                    string raw = _streamBuffer.ToString();
+                    if (showChars < raw.Length)
+                        raw = raw.Substring(0, showChars);
+                    string partial = OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
+                    if (!string.IsNullOrWhiteSpace(partial))
+                        UpdateLlmBodyText(partial);
+                    if (_statusText != null && !string.IsNullOrEmpty(_statusText.text) &&
+                        _statusText.text.StartsWith("Still thinking", StringComparison.Ordinal))
+                    {
+                        _statusText.text = string.Empty;
+                    }
+                }
 
-                if (isStreamFinished() && _streamBuffer.Length == 0 && _statusText != null)
-                    _statusText.text = "Cap had nothing to say (empty reply from Ollama).";
+                if (isStreamFinished() && revealed >= _streamBuffer.Length)
+                    break;
 
                 yield return null;
             }
 
+            string spoken = string.Empty;
+            if (gen == _dialogueGeneration && _streamBuffer.Length > 0)
+                spoken = OllamaHandler.ExtractNpcSpokenDialogue(_streamBuffer.ToString(), _displayName);
+
+            if (gen == _dialogueGeneration &&
+                string.IsNullOrWhiteSpace(spoken) &&
+                isStreamFinished() &&
+                string.IsNullOrEmpty(getError()))
+            {
+                yield return NonStreamFallbackRoutine(gen, model, prompt, result => spoken = result);
+            }
+
             if (gen == _dialogueGeneration)
             {
-                if (_streamBuffer.Length > 0)
-                    UpdateLlmBodyText(OllamaHandler.SanitizeModelOutput(_streamBuffer.ToString()));
+                if (!string.IsNullOrWhiteSpace(spoken))
+                    UpdateLlmBodyText(spoken);
+                else if (isStreamFinished() && _statusText != null && string.IsNullOrEmpty(getError()))
+                {
+                    _statusText.text =
+                        "Cap had nothing to say. Check Ollama is running, pull gemma3:4b (or qwen3:4b), and see docs/setup.md.";
+                }
 
                 _busy = false;
                 SetHearInteractable(true);
             }
 
             _streamUiCoroutine = null;
+        }
+
+        private IEnumerator NonStreamFallbackRoutine(int gen, string model, string prompt, Action<string> assignResult)
+        {
+            if (_statusText != null)
+                _statusText.text = "Stream was empty — retrying (non-stream)…";
+
+            bool done = false;
+            string raw = null;
+            string err = null;
+            _ollama.RequestGeneration(model, prompt,
+                onSuccess: text => { raw = text; done = true; },
+                onError: e => { err = e; done = true; },
+                saveToDialogueJson: true,
+                updateResponseUiField: false,
+                maxPredictTokens: _ollama.defaultStreamMaxTokens,
+                disableThinking: true,
+                extractNpcDialogue: true,
+                npcDialogueName: _displayName);
+
+            while (!done && gen == _dialogueGeneration)
+                yield return null;
+
+            if (gen != _dialogueGeneration)
+                yield break;
+
+            if (!string.IsNullOrEmpty(err) && _statusText != null)
+            {
+                _statusText.text = err;
+                yield break;
+            }
+
+            string spoken = string.IsNullOrWhiteSpace(raw)
+                ? string.Empty
+                : OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
+            if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
+                spoken = raw.Trim();
+            if (!string.IsNullOrWhiteSpace(spoken))
+            {
+                _streamBuffer.Clear();
+                _streamBuffer.Append(spoken);
+                assignResult?.Invoke(spoken);
+                NpcConversationMemory.AppendAssistantReply(_npcConversationId, spoken);
+                if (_statusText != null)
+                    _statusText.text = string.Empty;
+            }
         }
 
         private string BuildNpcPrompt(QuestDefinition def)
@@ -457,14 +532,14 @@ namespace DungeonExporer.UI
                     : "The adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.";
 
             return
-                "You are " + _displayName + ", an NPC in a first-person dungeon crawler videogame.\n" +
+                "You are " + _displayName + ", an NPC in a cozy first-person dungeon crawler.\n" +
                 memoryBlock +
-                "Authoritative quest title: " + def.title + ".\n" +
-                "Authoritative briefing (facts): " + def.briefing + "\n" +
-                "Quest state summary from the game: " + world + "\n" +
-                inv + "\n" +
+                "Game facts (do NOT repeat these labels or list them back): " + def.title + ". " + def.briefing + "\n" +
+                world + "\n" + inv + "\n" +
                 situation + "\n" +
-                "Write 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.";
+                "Reply with ONLY what " + _displayName + " says out loud — 2 to 6 short sentences of in-character speech. " +
+                "No planning, no \"quest title\", no \"briefing\", no \"constraints\", no \"we are writing as\".\n" +
+                _displayName + ": \"";
         }
 
         private void OnAcceptClicked()

@@ -18,6 +18,30 @@
 
 ---
 
+## 2026-05-15 — Fix empty Ollama NPC replies (thinking fallback + gemma default)
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Stream parser now reads `thinking` when `response` is empty (qwen3). Non-stream retry if stream yields no dialogue; quoted-line extraction fallback; default model `gemma3:4b`; `useHttps` defaults false.
+**Why**: JSON log showed `"response": ""` because tokens were in `thinking`, and qwen planning text was filtered to nothing.
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `GameSettings.cs`, `docs/refinements-changes.md`.
+
+## 2026-05-15 — Filter qwen planning text from NPC dialogue UI
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `OllamaHandler.ExtractNpcSpokenDialogue` strips model planning lines ("Quest title:", "We are writing as Cap…"). NPC prompt now ends with `Cap: "` so the model continues in-character; stream token budget default raised to 180.
+**Why**: qwen3 was restating the prompt as its "response"; the LLM text box looked like the instructions, not spoken dialogue.
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+## 2026-05-15 — Fix Ollama stream not showing in dialogue UI
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `OllamaHandler` now respects `useHttps`, sends `think:false` for gameplay streams, parses NDJSON `response` with flexible whitespace (no `thinking` fallback for dialogue), and skips empty JSON log entries. `DialoguePanelController` drives the LLM text box from the typewriter coroutine (was updating only in callbacks that could race with sanitization / generation guards).
+**Why**: qwen3 reasoning tokens were landing in `thinking` or being stripped while prompts still logged to `ollama-dialogue.json`; the on-screen LLM area stayed blank.
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
 ## 2026-05-15 — Restore flat brick wall + flagstone floor (v1 layout)
 **Type**: refactor
 **AI tool(s)**: Cursor + Claude; Pillow

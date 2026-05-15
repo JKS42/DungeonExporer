@@ -65,10 +65,10 @@ namespace DungeonExporer.Settings
 
         public static string LlmModel
         {
-            get => PlayerPrefs.GetString(KLlmModel, "qwen3:4b");
+            get => PlayerPrefs.GetString(KLlmModel, "gemma3:4b");
             set
             {
-                PlayerPrefs.SetString(KLlmModel, string.IsNullOrWhiteSpace(value) ? "qwen3:4b" : value.Trim());
+                PlayerPrefs.SetString(KLlmModel, string.IsNullOrWhiteSpace(value) ? "gemma3:4b" : value.Trim());
                 PlayerPrefs.Save();
                 OnChanged?.Invoke();
             }
