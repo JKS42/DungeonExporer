@@ -321,6 +321,7 @@ namespace DungeonExporer.UI
                 _statusText.text = "Listening… (Ollama, streaming)";
 
             string prompt = BuildNpcPrompt(def);
+            bool _promptEchoHandled = false;
             Debug.Log($"DialoguePanelController: Requesting Ollama stream for NPC '{_npcConversationId}' (quest '{_questId}'), model={model}");
 
             bool streamFinished = false;
@@ -331,7 +332,33 @@ namespace DungeonExporer.UI
                 {
                     if (gen != _dialogueGeneration)
                         return;
+                    Debug.Log("DialoguePanelController onDelta: " + delta);
                     _streamBuffer.Append(delta);
+
+                    // Detect and strip an early echo of the prompt (some servers echo back the prompt).
+                    if (!_promptEchoHandled)
+                    {
+                        string buf = _streamBuffer.ToString();
+                        int checkLen = Math.Min(40, Math.Min(buf.Length, prompt.Length));
+                        if (checkLen >= 16)
+                        {
+                            if (buf.Substring(0, checkLen) == prompt.Substring(0, checkLen))
+                            {
+                                // If the full prompt was echoed, drop it completely; otherwise drop the matched prefix.
+                                if (buf.StartsWith(prompt))
+                                {
+                                    _streamBuffer.Clear();
+                                }
+                                else
+                                {
+                                    _streamBuffer.Remove(0, checkLen);
+                                }
+                            }
+
+                            _promptEchoHandled = true;
+                        }
+                    }
+
                     UpdateLlmBodyText(OllamaHandler.SanitizeForDisplay(_streamBuffer.ToString()));
                 },
                 onComplete: full =>
@@ -341,6 +368,7 @@ namespace DungeonExporer.UI
                     streamFinished = true;
                     if (_statusText != null)
                         _statusText.text = string.Empty;
+                    Debug.Log("DialoguePanelController onComplete: " + full);
                     UpdateLlmBodyText(OllamaHandler.SanitizeModelOutput(full));
                     NpcConversationMemory.AppendAssistantReply(_npcConversationId, full);
                 },
@@ -350,6 +378,7 @@ namespace DungeonExporer.UI
                         return;
                     streamError = err;
                     streamFinished = true;
+                    Debug.Log("DialoguePanelController onError: " + err);
                     if (_statusText != null)
                         _statusText.text = err;
                 },
@@ -693,7 +722,8 @@ namespace DungeonExporer.UI
             if (_llmBodyText == null)
                 return;
 
-            _llmBodyText.text = text ?? string.Empty;
+            string safe = BreakLongWords(text ?? string.Empty, 30);
+            _llmBodyText.text = safe;
             _llmBodyText.ForceMeshUpdate();
 
             if (_llmContentRect != null)
@@ -720,6 +750,36 @@ namespace DungeonExporer.UI
             tmp.alignment = align;
             tmp.textWrappingMode = TextWrappingModes.Normal;
             return tmp;
+        }
+
+        // Insert zero-width spaces into very long unbroken words so TMP can wrap them.
+        private static string BreakLongWords(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || maxLength <= 0)
+                return text;
+
+            var sb = new StringBuilder(text.Length + text.Length / maxLength + 8);
+            int run = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (char.IsWhiteSpace(c) || char.IsPunctuation(c))
+                {
+                    sb.Append(c);
+                    run = 0;
+                    continue;
+                }
+
+                sb.Append(c);
+                run++;
+                if (run >= maxLength)
+                {
+                    sb.Append('\u200B'); // zero-width space
+                    run = 0;
+                }
+            }
+
+            return sb.ToString();
         }
 
         private static Button MakeButton(string name, Transform parent, string label,

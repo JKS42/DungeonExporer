@@ -47,6 +47,7 @@ public class OllamaHandler : MonoBehaviour
     {
         public string response;
         public bool done;
+        public string thinking;
     }
 
     [Serializable]
@@ -118,6 +119,9 @@ public class OllamaHandler : MonoBehaviour
         private readonly Action<string> _onDelta;
         private readonly StringBuilder _lineBuffer = new StringBuilder(4096);
         private readonly StringBuilder _fullResponse = new StringBuilder(4096);
+        private readonly object _pendingLock = new object();
+        private readonly List<string> _pendingDeltas = new List<string>(8);
+        private readonly List<string> _pendingRawLines = new List<string>(8);
 
         public OllamaNdjsonStreamHandler(Action<string> onDelta)
             : base()
@@ -167,11 +171,49 @@ public class OllamaHandler : MonoBehaviour
         private void TryEmitLine(string line)
         {
             string delta = ExtractStreamDelta(line);
+            // Always record the raw line so we can inspect malformed NDJSON on the main thread.
+            lock (_pendingLock)
+            {
+                _pendingRawLines.Add(line);
+            }
+
             if (string.IsNullOrEmpty(delta))
                 return;
 
             _fullResponse.Append(delta);
-            _onDelta?.Invoke(delta);
+            // Queue deltas for main-thread draining. DownloadHandlerScript.ReceiveData
+            // may be invoked on a network thread, so avoid calling back into Unity API here.
+            lock (_pendingLock)
+            {
+                _pendingDeltas.Add(delta);
+            }
+        }
+
+        /// <summary>
+        /// Drain pending deltas into a new list. Call from the Unity main thread.
+        /// </summary>
+        public List<string> DrainPendingDeltas()
+        {
+            lock (_pendingLock)
+            {
+                if (_pendingDeltas.Count == 0)
+                    return null;
+                var copy = new List<string>(_pendingDeltas);
+                _pendingDeltas.Clear();
+                return copy;
+            }
+        }
+
+        public List<string> DrainPendingRawLines()
+        {
+            lock (_pendingLock)
+            {
+                if (_pendingRawLines.Count == 0)
+                    return null;
+                var copy = new List<string>(_pendingRawLines);
+                _pendingRawLines.Clear();
+                return copy;
+            }
         }
 
         private static string ExtractStreamDelta(string line)
@@ -182,15 +224,24 @@ public class OllamaHandler : MonoBehaviour
             try
             {
                 OllamaStreamChunk chunk = JsonUtility.FromJson<OllamaStreamChunk>(line);
-                if (chunk != null && !string.IsNullOrEmpty(chunk.response))
-                    return chunk.response;
+                if (chunk != null)
+                {
+                    if (!string.IsNullOrEmpty(chunk.response))
+                        return chunk.response;
+                    if (!string.IsNullOrEmpty(chunk.thinking))
+                        return chunk.thinking;
+                }
             }
             catch (Exception)
             {
                 // Fall through to manual JSON string extraction.
             }
 
-            return TryExtractJsonStringValue(line, "response");
+            // Try the common fields in order: response, thinking
+            string val = TryExtractJsonStringValue(line, "response");
+            if (!string.IsNullOrEmpty(val))
+                return val;
+            return TryExtractJsonStringValue(line, "thinking");
         }
 
         private static string TryExtractJsonStringValue(string json, string key)
@@ -325,7 +376,7 @@ public class OllamaHandler : MonoBehaviour
         }
     }
 
-    private IEnumerator GenerateStreamingCoroutine(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
+        private IEnumerator GenerateStreamingCoroutine(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
         Action<string> onError, bool saveToDialogueJson, int maxPredictTokens)
     {
         AbortActiveRequest();
@@ -343,11 +394,53 @@ public class OllamaHandler : MonoBehaviour
         request.SetRequestHeader("Content-Type", "application/json");
         request.timeout = Mathf.Max(5, requestTimeoutSeconds);
 
-        yield return request.SendWebRequest();
+        var operation = request.SendWebRequest();
 
         try
         {
+            // While the request is in-flight, drain any pending deltas produced by the
+            // DownloadHandlerScript on the network thread and invoke the UI callback
+            // on the main thread so it's safe to update Unity objects.
+            while (!operation.isDone)
+            {
+                var raw = streamHandler.DrainPendingRawLines();
+                if (raw != null)
+                {
+                    for (int i = 0; i < raw.Count; i++)
+                        Debug.Log("Ollama (ndjson line): " + raw[i]);
+                }
+
+                var pending = streamHandler.DrainPendingDeltas();
+                if (pending != null)
+                {
+                    for (int i = 0; i < pending.Count; i++)
+                    {
+                        Debug.Log("Ollama (stream): " + pending[i]);
+                        onDelta?.Invoke(pending[i]);
+                    }
+                }
+
+                yield return null;
+            }
+
+            // Flush any partial trailing line and process remaining deltas.
             streamHandler.FlushPartialLine();
+            var rawRemain = streamHandler.DrainPendingRawLines();
+            if (rawRemain != null)
+            {
+                for (int i = 0; i < rawRemain.Count; i++)
+                    Debug.Log("Ollama (ndjson line): " + rawRemain[i]);
+            }
+
+            var remaining = streamHandler.DrainPendingDeltas();
+            if (remaining != null)
+            {
+                for (int i = 0; i < remaining.Count; i++)
+                {
+                    Debug.Log("Ollama (stream): " + remaining[i]);
+                    onDelta?.Invoke(remaining[i]);
+                }
+            }
 
             if (request.result != UnityWebRequest.Result.Success)
             {
@@ -367,7 +460,7 @@ public class OllamaHandler : MonoBehaviour
                 else
                     Debug.LogWarning("Ollama stream complete, but dialogue JSON could not be written.");
             }
-
+            Debug.Log("Ollama (complete): " + responseText);
             onComplete?.Invoke(responseText);
         }
         finally
