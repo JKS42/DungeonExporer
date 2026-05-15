@@ -78,6 +78,34 @@
 
 ---
 
+## 2026-05-15 — Dialogue buttons: direct raycast click routing
+**Type**: fix
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: **`DialoguePanelController`** now raycasts its own canvas on mouse down and invokes the hit **Button** (bypasses broken global UI input). Dialogue canvas sort order **300**, UI layer, default sliced sprite on buttons, **`CanvasGroup`** on panel; disables the scene Ollama tester **GraphicRaycaster** while dialogue is open; **`_inputActions`** wired on **DialoguePanelController** in **Level1**. Fixed scene **Canvas** root scale/anchors (was 0 scale).
+
+**Why**: Hear / Accept / Close still did not respond to clicks after EventSystem wiring; FPS cursor lock + Input System UI module did not deliver pointer events to procedural buttons.
+
+**Impact / docs touched**: `DialoguePanelController.cs`, `UiEventSystemBootstrap.cs`, `Level1.unity`, `docs/refinements-changes.md`.
+
+**Follow-ups**: None.
+
+---
+
+## 2026-05-14 — Dialogue UI button clicks (EventSystem + input wiring)
+**Type**: fix
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Added **`UiEventSystemBootstrap`** to bind the scene **EventSystem** / **InputSystemUIInputModule** to **`InputSystem_Actions`** (UI Point/Click). **`LevelGameplayBootstrap.Awake`** calls it; **`Level1.unity`** EventSystem references now use the correct asset GUID. **`DialoguePanelController`**: toggles the whole dialogue canvas, disables the **Player** map while open, panel background no longer steals raycasts.
+
+**Why**: Buttons did nothing because the UI input module pointed at a missing default input-actions asset, so mouse clicks never reached uGUI.
+
+**Impact / docs touched**: `Assets/Scripts/UI/UiEventSystemBootstrap.cs`, `DialoguePanelController.cs`, `LevelGameplayBootstrap.cs`, `Assets/Scenes/Level1.unity`, `docs/refinements-changes.md`.
+
+**Follow-ups**: Wire the same bootstrap from **MainMenu** if menu buttons fail when starting from that scene only.
+
+---
+
 ## 2026-05-14 — Clearer Ollama HTTP errors (404 → model hint)
 **Type**: decision
 **AI tool(s)**: Cursor + GPT-5.3 Codex

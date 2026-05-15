@@ -29,8 +29,7 @@ namespace DungeonExporer.Gameplay
                 return;
             }
 
-            string model = string.IsNullOrWhiteSpace(_ollama.defaultModel) ? "qwen3:4b" : _ollama.defaultModel;
-            StartCoroutine(RunCheck(model));
+            StartCoroutine(RunCheck(_ollama.GetPreferredModelName()));
         }
 
         private IEnumerator RunCheck(string model)

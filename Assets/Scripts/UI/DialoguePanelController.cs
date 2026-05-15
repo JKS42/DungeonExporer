@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using DungeonExporer.Gameplay;
 using DungeonExporer.Player;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace DungeonExporer.UI
@@ -19,8 +22,14 @@ namespace DungeonExporer.UI
         public static bool IsOpen { get; private set; }
 
         [SerializeField] private OllamaHandler _ollama;
+        [SerializeField] private InputActionAsset _inputActions;
         [SerializeField] private float _typewriterCharsPerSecond = 56f;
 
+        private const int DialogueCanvasSortOrder = 300;
+
+        private GameObject _canvasRoot;
+        private GraphicRaycaster _dialogueRaycaster;
+        private GraphicRaycaster _sceneTesterRaycaster;
         private GameObject _rootPanel;
         private TextMeshProUGUI _titleText;
         private TextMeshProUGUI _staticBodyText;
@@ -34,19 +43,31 @@ namespace DungeonExporer.UI
         private string _questId = string.Empty;
         private string _npcConversationId = "npc";
         private bool _busy;
-        private bool _justAcceptedQuest;
         private int _dialogueGeneration;
         private readonly StringBuilder _streamBuffer = new StringBuilder(2048);
         private Coroutine _streamUiCoroutine;
         private Coroutine _acceptanceConfirmationCoroutine;
+
+        private readonly List<RaycastResult> _raycastHits = new List<RaycastResult>(8);
+        private static int _uiLayer = -1;
 
         private void Awake()
         {
             Instance = this;
             if (_ollama == null)
                 _ollama = FindFirstObjectByType<OllamaHandler>();
+            UiEventSystemBootstrap.EnsureEventSystem(_inputActions);
+            CacheSceneTesterRaycaster();
             BuildUi();
             SetOpen(false, restoreCursor: false);
+        }
+
+        private void Update()
+        {
+            if (!IsOpen)
+                return;
+
+            TryHandleDirectButtonClick();
         }
 
         private void OnDestroy()
@@ -70,7 +91,6 @@ namespace DungeonExporer.UI
             _questId = string.IsNullOrWhiteSpace(questId) ? string.Empty : questId.Trim();
             _npcConversationId = string.IsNullOrWhiteSpace(npcConversationId) ? "npc_default" : npcConversationId.Trim();
             _busy = false;
-            _justAcceptedQuest = false;
 
             if (_llmBodyText != null)
                 _llmBodyText.text = string.Empty;
@@ -84,7 +104,6 @@ namespace DungeonExporer.UI
         {
             StopStreamUiInternal();
             _busy = false;
-            _justAcceptedQuest = false;
             SetOpen(false, restoreCursor: true);
         }
 
@@ -113,17 +132,21 @@ namespace DungeonExporer.UI
         {
             IsOpen = open;
             NarrationUiGate.DialogueOpen = open;
-            if (_rootPanel != null)
-                _rootPanel.SetActive(open);
+            if (_canvasRoot != null)
+                _canvasRoot.SetActive(open);
+
+            SetSceneTesterRaycastsEnabled(!open);
 
             if (open)
             {
+                UiEventSystemBootstrap.SetPlayerMapEnabled(false);
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
-            else if (restoreCursor)
+            else
             {
-                if (!PauseMenuController.IsPaused)
+                UiEventSystemBootstrap.SetPlayerMapEnabled(true);
+                if (restoreCursor && !PauseMenuController.IsPaused)
                 {
                     Cursor.lockState = CursorLockMode.Locked;
                     Cursor.visible = false;
@@ -132,6 +155,49 @@ namespace DungeonExporer.UI
 
             if (_statusText != null)
                 _statusText.text = string.Empty;
+        }
+
+        private void CacheSceneTesterRaycaster()
+        {
+            var testerCanvas = GameObject.Find("Canvas");
+            if (testerCanvas != null)
+                _sceneTesterRaycaster = testerCanvas.GetComponent<GraphicRaycaster>();
+        }
+
+        private void SetSceneTesterRaycastsEnabled(bool enabled)
+        {
+            if (_sceneTesterRaycaster == null)
+                CacheSceneTesterRaycaster();
+            if (_sceneTesterRaycaster != null)
+                _sceneTesterRaycaster.enabled = enabled;
+        }
+
+        /// <summary>
+        /// Routes mouse clicks to dialogue buttons on this canvas only (bypasses global EventSystem ordering).
+        /// </summary>
+        private void TryHandleDirectButtonClick()
+        {
+            if (_dialogueRaycaster == null || EventSystem.current == null)
+                return;
+
+            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
+                return;
+
+            Vector2 screenPos = Mouse.current.position.ReadValue();
+
+            var pointerData = new PointerEventData(EventSystem.current) { position = screenPos };
+            _raycastHits.Clear();
+            _dialogueRaycaster.Raycast(pointerData, _raycastHits);
+
+            for (int i = 0; i < _raycastHits.Count; i++)
+            {
+                Button button = _raycastHits[i].gameObject.GetComponentInParent<Button>();
+                if (button == null || !button.isActiveAndEnabled || !button.interactable)
+                    continue;
+
+                button.onClick.Invoke();
+                return;
+            }
         }
 
         private void RefreshStaticCopy()
@@ -180,22 +246,10 @@ namespace DungeonExporer.UI
             bool active = hasQuest && QuestManager.Instance.IsQuestActive(_questId);
             bool done = hasQuest && QuestManager.Instance.IsQuestCompleted(_questId);
 
-            Debug.Log($"DialoguePanelController.RefreshButtons: questId='{_questId}', hasQuest={hasQuest}, canOffer={canOffer}, active={active}, done={done}");
-            Debug.Log($"DialoguePanelController.RefreshButtons: _acceptButton is null? {_acceptButton == null}, will SetActive({canOffer})");
-
             if (_acceptButton != null)
             {
-                bool wasActive = _acceptButton.gameObject.activeSelf;
-                bool wasInteractable = _acceptButton.interactable;
-                
                 _acceptButton.gameObject.SetActive(canOffer);
                 _acceptButton.interactable = canOffer;
-                
-                Debug.Log($"DialoguePanelController.RefreshButtons: Accept button state changed: active {wasActive}->{_acceptButton.gameObject.activeSelf}, interactable {wasInteractable}->{_acceptButton.interactable}");
-            }
-            else
-            {
-                Debug.LogWarning("DialoguePanelController.RefreshButtons: _acceptButton is NULL - button was not created!");
             }
 
             if (_hearButton != null)
@@ -216,17 +270,42 @@ namespace DungeonExporer.UI
             if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
                 return;
 
+            StartCoroutine(OnHearClickedCoroutine(def));
+        }
+
+        private IEnumerator OnHearClickedCoroutine(QuestDefinition def)
+        {
             StopStreamUiInternal();
             int gen = _dialogueGeneration;
             _busy = true;
             SetHearInteractable(false);
             if (_statusText != null)
-                _statusText.text = "Listening… (Ollama, streaming)";
+                _statusText.text = "Checking Ollama model…";
             _streamBuffer.Clear();
             if (_llmBodyText != null)
                 _llmBodyText.text = string.Empty;
 
-            string model = string.IsNullOrWhiteSpace(_ollama.defaultModel) ? "qwen3:4b" : _ollama.defaultModel;
+            string model = null;
+            string resolveError = null;
+            yield return _ollama.ResolveModelTagCoroutine(_ollama.GetPreferredModelName(),
+                resolved => model = resolved,
+                err => resolveError = err);
+
+            if (gen != _dialogueGeneration)
+                yield break;
+
+            if (string.IsNullOrEmpty(model))
+            {
+                _busy = false;
+                SetHearInteractable(true);
+                if (_statusText != null)
+                    _statusText.text = resolveError ?? "Ollama model not available.";
+                yield break;
+            }
+
+            if (_statusText != null)
+                _statusText.text = "Listening… (Ollama, streaming)";
+
             string prompt = BuildNpcPrompt(def);
 
             bool streamFinished = false;
@@ -348,24 +427,17 @@ namespace DungeonExporer.UI
 
         private void OnAcceptClicked()
         {
-            Debug.Log($"DialoguePanelController.OnAcceptClicked: attempting to start quest '{_questId}'");
-            
             if (QuestManager.Instance == null)
             {
                 if (_statusText != null)
                     _statusText.text = "Quest manager is not available.";
-                Debug.LogWarning("DialoguePanelController.OnAcceptClicked: QuestManager.Instance is null");
                 return;
             }
 
             bool startSuccess = QuestManager.Instance.TryStartQuest(_questId);
-            Debug.Log($"DialoguePanelController.OnAcceptClicked: TryStartQuest returned {startSuccess}");
 
             if (startSuccess)
             {
-                Debug.Log($"DialoguePanelController.OnAcceptClicked: quest '{_questId}' accepted successfully, refreshing UI");
-                _justAcceptedQuest = true;
-                
                 // Show a clear acceptance confirmation in the main body text area
                 string questTitle = "Quest";
                 if (QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
@@ -387,7 +459,6 @@ namespace DungeonExporer.UI
                 return;
             }
 
-            Debug.LogWarning($"DialoguePanelController.OnAcceptClicked: failed to start quest '{_questId}'");
             if (_statusText != null)
             {
                 if (QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
@@ -416,13 +487,17 @@ namespace DungeonExporer.UI
 
         private void BuildUi()
         {
-            var canvasGo = new GameObject("DialogueCanvas",
+            _canvasRoot = new GameObject("DialogueCanvas",
                 typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvasGo.transform.SetParent(transform, false);
+            _canvasRoot.transform.SetParent(transform, false);
+            var canvasGo = _canvasRoot;
 
             var canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 150;
+            canvas.sortingOrder = DialogueCanvasSortOrder;
+
+            _dialogueRaycaster = canvasGo.GetComponent<GraphicRaycaster>();
+            ApplyUiLayer(canvasGo);
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -444,10 +519,14 @@ namespace DungeonExporer.UI
 
             var panelBg = _rootPanel.AddComponent<Image>();
             panelBg.color = MenuTheme.Panel;
-            panelBg.raycastTarget = true;  // Enable raycast so panel and child buttons receive input
+            panelBg.raycastTarget = false;
             var outline = _rootPanel.AddComponent<Outline>();
             outline.effectColor = MenuTheme.PanelBorder;
             outline.effectDistance = new Vector2(3, -3);
+
+            var panelGroup = _rootPanel.AddComponent<CanvasGroup>();
+            panelGroup.interactable = true;
+            panelGroup.blocksRaycasts = true;
 
             var vlg = _rootPanel.AddComponent<VerticalLayoutGroup>();
             vlg.padding = new RectOffset(28, 28, 24, 24);
@@ -481,7 +560,9 @@ namespace DungeonExporer.UI
             _staticBodyText.textWrappingMode = TextWrappingModes.Normal;
 
             var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama, streams in)",
-                16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);            llmHint.raycastTarget = false;            var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
+                16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+            llmHint.raycastTarget = false;
+            var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
             llmHintLe.minHeight = 22f;
             llmHintLe.preferredHeight = 22f;
 
@@ -507,7 +588,25 @@ namespace DungeonExporer.UI
             _closeButton = MakeButton("Close", _rootPanel.transform, "Close",
                 MenuTheme.ButtonDanger, MenuTheme.ButtonDangerHover, Close);
 
-            _rootPanel.SetActive(false);
+            _canvasRoot.SetActive(false);
+        }
+
+        private static void ApplyUiLayer(GameObject root)
+        {
+            if (_uiLayer < 0)
+                _uiLayer = LayerMask.NameToLayer("UI");
+
+            if (_uiLayer < 0)
+                return;
+
+            ApplyUiLayerRecursive(root.transform);
+        }
+
+        private static void ApplyUiLayerRecursive(Transform t)
+        {
+            t.gameObject.layer = _uiLayer;
+            for (int i = 0; i < t.childCount; i++)
+                ApplyUiLayerRecursive(t.GetChild(i));
         }
 
         private static GameObject MakeUiObject(string name, Transform parent)
@@ -544,7 +643,7 @@ namespace DungeonExporer.UI
             var go = MakeUiObject(name, parent);
             var img = go.AddComponent<Image>();
             img.color = baseColor;
-            img.raycastTarget = true;  // Explicit raycast target for button interaction
+            img.raycastTarget = true;
 
             var le = go.AddComponent<LayoutElement>();
             le.minHeight = MenuTheme.ButtonHeight;
@@ -562,12 +661,7 @@ namespace DungeonExporer.UI
             colors.selectedColor = hoverColor;
             colors.disabledColor = baseColor * 0.5f;
             btn.colors = colors;
-            btn.onClick.AddListener(() => {
-                Debug.Log($"Button '{name}' clicked!");
-                onClick();
-            });
-            
-            Debug.Log($"MakeButton: created button '{name}': Image.raycastTarget={img.raycastTarget}, Button.targetGraphic={btn.targetGraphic?.name}, Button.interactable={btn.interactable}");
+            btn.onClick.AddListener(() => onClick());
 
             var labelTmp = MakeText("Label", go.transform, label,
                 MenuTheme.ButtonFontSize, MenuTheme.ButtonText, TextAlignmentOptions.Center);

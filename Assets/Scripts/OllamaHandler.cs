@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using DungeonExporer.Settings;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -52,6 +53,63 @@ public class OllamaHandler : MonoBehaviour
     private class OllamaApiErrorBody
     {
         public string error;
+    }
+
+    [Serializable]
+    private class OllamaTagsResponse
+    {
+        public OllamaTagEntry[] models;
+    }
+
+    [Serializable]
+    private class OllamaTagEntry
+    {
+        public string name;
+        public string model;
+    }
+
+    /// <summary>Preferred model tag: settings, tester field, then inspector default.</summary>
+    public string GetPreferredModelName()
+    {
+        string fromSettings = GameSettings.LlmModel;
+        if (!string.IsNullOrWhiteSpace(fromSettings))
+            return fromSettings.Trim();
+
+        if (modelInputField != null && !string.IsNullOrWhiteSpace(modelInputField.text))
+            return modelInputField.text.Trim();
+
+        if (!string.IsNullOrWhiteSpace(defaultModel))
+            return defaultModel.Trim();
+
+        return "qwen3:4b";
+    }
+
+    /// <summary>
+    /// Resolves <paramref name="preferredModel"/> to an exact tag from <c>GET /api/tags</c> (e.g. <c>qwen3:4b</c>).
+    /// </summary>
+    public IEnumerator ResolveModelTagCoroutine(string preferredModel, Action<string> onResolved, Action<string> onFail)
+    {
+        string preferred = string.IsNullOrWhiteSpace(preferredModel) ? GetPreferredModelName() : preferredModel.Trim();
+
+        string tagsBody = null;
+        string fetchError = null;
+        yield return FetchTagsBodyCoroutine(body => tagsBody = body, err => fetchError = err);
+
+        if (tagsBody == null)
+        {
+            onFail?.Invoke(fetchError ?? "Could not read models from Ollama.");
+            yield break;
+        }
+
+        List<string> installed = ParseInstalledModelNames(tagsBody);
+        string match = FindBestMatchingTag(installed, preferred);
+        if (!string.IsNullOrEmpty(match))
+        {
+            onResolved?.Invoke(match);
+            yield break;
+        }
+
+        onFail?.Invoke(BuildModelNotFoundMessage(preferred, installed));
     }
 
     /// <summary>Buffers NDJSON lines from <c>/api/generate</c> with <c>stream: true</c> and emits decoded <c>response</c> fragments.</summary>
@@ -244,7 +302,7 @@ public class OllamaHandler : MonoBehaviour
             {
                 string errorMessage =
                     $"Ollama stream failed: {request.error} (HTTP {request.responseCode}){BuildOllamaFailureDetail(request)}";
-                Debug.LogError(errorMessage);
+                LogOllamaRequestFailure(errorMessage, request.responseCode);
                 onError?.Invoke(errorMessage);
                 yield break;
             }
@@ -313,7 +371,7 @@ public class OllamaHandler : MonoBehaviour
                     $"Ollama request failed: {request.error} (HTTP {request.responseCode}){BuildOllamaFailureDetail(request)}";
                 if (updateResponseUiField)
                     SetOutputText(errorMessage);
-                Debug.LogError(errorMessage);
+                LogOllamaRequestFailure(errorMessage, request.responseCode);
                 onError?.Invoke(errorMessage);
             }
         }
@@ -490,6 +548,12 @@ public class OllamaHandler : MonoBehaviour
 
     public IEnumerator CheckConnectivityCoroutine(string modelToVerify, Action onOk, Action<string> onFail)
     {
+        string preferred = string.IsNullOrWhiteSpace(modelToVerify) ? GetPreferredModelName() : modelToVerify.Trim();
+        yield return ResolveModelTagCoroutine(preferred, _ => onOk?.Invoke(), onFail);
+    }
+
+    private IEnumerator FetchTagsBodyCoroutine(Action<string> onSuccess, Action<string> onFail)
+    {
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/tags";
 
@@ -501,39 +565,126 @@ public class OllamaHandler : MonoBehaviour
             if (request.result != UnityWebRequest.Result.Success)
             {
                 onFail?.Invoke(
-                    $"Cannot reach Ollama at {ollamaHost}:{ollamaPort} ({request.error}). Install from https://ollama.com and see docs/setup.md in the repo.");
+                    $"Cannot reach Ollama at {ollamaHost}:{ollamaPort} ({request.error}). Install from https://ollama.com and see docs/setup.md.");
                 yield break;
             }
 
-            string body = request.downloadHandler.text ?? string.Empty;
-            if (!TagsBodyLooksLikeModelPresent(body, modelToVerify))
-            {
-                onFail?.Invoke(
-                    $"Ollama is running but no pulled model matched '{modelToVerify}'. Try: ollama pull {modelToVerify}  (docs/setup.md).");
-                yield break;
-            }
-
-            onOk?.Invoke();
+            onSuccess?.Invoke(request.downloadHandler.text ?? string.Empty);
         }
     }
 
-    private static bool TagsBodyLooksLikeModelPresent(string body, string model)
+    private static List<string> ParseInstalledModelNames(string tagsJson)
     {
-        if (string.IsNullOrWhiteSpace(body) || string.IsNullOrWhiteSpace(model))
-            return false;
+        var names = new List<string>(8);
+        if (string.IsNullOrWhiteSpace(tagsJson))
+            return names;
 
-        if (body.IndexOf(model, StringComparison.OrdinalIgnoreCase) >= 0)
-            return true;
-
-        int colon = model.IndexOf(':');
-        if (colon > 0)
+        try
         {
-            string stem = model.Substring(0, colon);
-            if (body.IndexOf(stem, StringComparison.OrdinalIgnoreCase) >= 0)
-                return true;
+            OllamaTagsResponse parsed = JsonUtility.FromJson<OllamaTagsResponse>(tagsJson);
+            if (parsed?.models != null)
+            {
+                for (int i = 0; i < parsed.models.Length; i++)
+                {
+                    OllamaTagEntry entry = parsed.models[i];
+                    string tag = !string.IsNullOrWhiteSpace(entry.name) ? entry.name : entry.model;
+                    if (!string.IsNullOrWhiteSpace(tag) && !names.Contains(tag))
+                        names.Add(tag.Trim());
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Fall through to regex scrape.
         }
 
-        return false;
+        if (names.Count == 0)
+        {
+            const string marker = "\"name\":\"";
+            int idx = 0;
+            while (idx < tagsJson.Length)
+            {
+                int start = tagsJson.IndexOf(marker, idx, StringComparison.Ordinal);
+                if (start < 0)
+                    break;
+                start += marker.Length;
+                int end = tagsJson.IndexOf('"', start);
+                if (end < 0)
+                    break;
+                string tag = tagsJson.Substring(start, end - start);
+                if (!string.IsNullOrWhiteSpace(tag) && !names.Contains(tag))
+                    names.Add(tag);
+                idx = end + 1;
+            }
+        }
+
+        return names;
+    }
+
+    private static string FindBestMatchingTag(IReadOnlyList<string> installed, string preferred)
+    {
+        if (installed == null || installed.Count == 0 || string.IsNullOrWhiteSpace(preferred))
+            return null;
+
+        preferred = preferred.Trim();
+
+        for (int i = 0; i < installed.Count; i++)
+        {
+            if (string.Equals(installed[i], preferred, StringComparison.OrdinalIgnoreCase))
+                return installed[i];
+        }
+
+        string prefStem = preferred;
+        int colon = preferred.IndexOf(':');
+        if (colon > 0)
+            prefStem = preferred.Substring(0, colon);
+
+        string stemMatch = null;
+        for (int i = 0; i < installed.Count; i++)
+        {
+            string tag = installed[i];
+            int c2 = tag.IndexOf(':');
+            string instStem = c2 > 0 ? tag.Substring(0, c2) : tag;
+            if (!string.Equals(instStem, prefStem, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (string.Equals(tag, preferred, StringComparison.OrdinalIgnoreCase))
+                return tag;
+
+            stemMatch = tag;
+        }
+
+        return stemMatch;
+    }
+
+    private static string BuildModelNotFoundMessage(string preferred, IReadOnlyList<string> installed)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append("Model '").Append(preferred).Append("' is not installed.\nRun: ollama pull ").Append(preferred);
+        if (installed != null && installed.Count > 0)
+        {
+            sb.Append("\n\nInstalled models: ");
+            for (int i = 0; i < installed.Count; i++)
+            {
+                if (i > 0)
+                    sb.Append(", ");
+                sb.Append(installed[i]);
+            }
+            sb.Append("\n\nUse an installed name on OllamaHandler → Default Model, or pull the model above.");
+        }
+        else
+            sb.Append("\n\n(ollama list is empty — pull a model first.)");
+
+        sb.Append("\nSee docs/setup.md.");
+        return sb.ToString();
+    }
+
+    private static void LogOllamaRequestFailure(string message, long responseCode)
+    {
+        if (responseCode == 404)
+            Debug.LogWarning(message);
+        else
+            Debug.LogError(message);
     }
 
     /// <summary>

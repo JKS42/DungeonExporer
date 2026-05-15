@@ -8,10 +8,16 @@ namespace DungeonExporer.Gameplay
     /// <summary>
     /// Wires Ollama, dialogue UI, and spawns a minimal NPC + training dummy near the maze spawn.
     /// </summary>
+    [DefaultExecutionOrder(-100)]
     public sealed class LevelGameplayBootstrap : MonoBehaviour
     {
         [SerializeField] private Transform _player;
         [SerializeField] private InputActionAsset _inputActions;
+
+        private void Awake()
+        {
+            UiEventSystemBootstrap.EnsureEventSystem(_inputActions);
+        }
         [SerializeField] private DungeonLevelBuilder _dungeon;
         [SerializeField] private Vector3 _npcOffsetFromSpawn = new(2.2f, 0f, 2.2f);
         [SerializeField] private Vector3 _enemyOffsetFromSpawn = new(5f, 0.55f, 2.2f);

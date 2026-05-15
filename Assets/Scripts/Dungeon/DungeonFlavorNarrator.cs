@@ -50,7 +50,7 @@ namespace DungeonExporer.Dungeon
             _busy = true;
             _nextAllowedTime = Time.unscaledTime + _cooldownSeconds;
 
-            string model = string.IsNullOrWhiteSpace(_ollama.defaultModel) ? "qwen3:4b" : _ollama.defaultModel;
+            string model = _ollama.GetPreferredModelName();
             string kindText = kind == DungeonFlavorKind.Safe
                 ? "mint-tinted calm safe tiles where breath comes easier"
                 : "crimson encounter tiles that hum as if something listens back";
