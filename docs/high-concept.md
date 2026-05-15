@@ -1,7 +1,7 @@
 # High Concept Document — DungeonExporer
 
-> A scaffold for the High Concept Document. Fill in / refine each section as design decisions are made.
-> Last updated: 2026-05-14 (save model + LLM surface area)
+> Design intent and scope for the current build.
+> Last updated: 2026-05-15
 
 ## 1. Ideation
 
@@ -11,72 +11,72 @@
 
 ### Genre & perspective
 
-- **Genre**: 3D dungeon crawler / exploration.
-- **Perspective**: **First-person** — movement and look use a `CharacterController` plus child camera (`Assets/Scripts/Player/FirstPersonController.cs`).
-- **Tone**: **Lighthearted fantasy.** Warm, whimsical, cosy. Think: friendly tavern at the entrance, mushroom-lit caverns, NPCs that crack jokes, danger that's silly more often than grim. Visual palette is warm parchment + sun-gold + mossy green (codified in `Assets/Scripts/UI/MenuTheme.cs`). LLM system prompts must respect this tone — no grimdark, no horror.
+- **Genre**: 3D dungeon crawler / exploration with light combat and quests.
+- **Perspective**: **First-person** — `FirstPersonController` + child camera on the Player (`Assets/Scripts/Player/`).
+- **Tone**: **Lighthearted fantasy.** Warm, whimsical, cosy. Visual palette: parchment, sun-gold, mossy green, cocoa, brass (`MenuTheme.cs`). LLM prompts enforce the same tone — no grimdark, no horror.
 
-### Core loop (draft)
+### Core loop (current Level1)
 
-1. Enter a room (layout includes **safe** rest areas and **encounter** zones the dungeon builder marks in-world).
-2. Observe environment + interact with NPCs/objects.
-3. **Level1 slice**: talk to the placeholder NPC (**E** / Interact), accept a **quest** from `QuestManager`, optionally hear extra lines from **Ollama** (`DialoguePanelController` → `OllamaHandler.RequestGenerationStreaming` with NDJSON + typewriter reveal), defeat a foe on **E** encounter floor (scattered **DungeonFoe** capsules), then (after Cap’s drill) accept **Echoes in the dark** and step on any **E** encounter tile to finish it. Broader: NPC dialogue, item descriptions, and room flavor from the local LLM, conditioned on world state.
-4. Solve / fight / loot (**HP**, hazards, **inventory** pickups on Level1).
-5. Move to the next room. Loop.
+1. **Explore** a hybrid maze: narrow **`.`** corridors, large **S** safe rooms, central **E** encounter pits (`Level1_Maze.txt` → `DungeonLevelBuilder`).
+2. **Meet Cap** in the nearest **S** hub to spawn; **E** to interact — accept quests, optional **Hear them out** for Ollama dialogue.
+3. **Fight** Meshy **DungeonFoe** creatures on **E** tiles (melee, left click); complete **Cap's corridor drill** (`defeated_dungeon_foe`).
+4. **Survive** spike traps (jumpable), pick up bubble loot (pebbles, healing rations), read HUD quest hints and flavor toasts on **S** / **E** zones.
+5. **Return to Cap** for follow-up quest **Echoes in the dark** (stand on any **E** encounter volume).
+6. **Save** session with **F5** / **F9** (`GameSaveService`) — position, quests, inventory.
 
 ### Win / fail conditions
 
-*To be defined.* Likely a "reach the bottom floor" or "defeat the boss" goal.
+*To be defined for a full game.* Level1 is a **vertical slice**: two quests, no formal win screen. Player death from hazards / future combat is supported via `PlayerHealth` (fade + respawn at save position when applicable).
 
-### Save model (v1 decision)
+### Save model (v1)
 
-- **Session / run save (not roguelite permadeath for v1)** — `GameSaveService` persists player position, `QuestManager` progress, and `PlayerInventory` stacks to `Application.persistentDataPath` (auto-load if a save exists; **F5** manual save, **F9** load). This favors longer exploratory sessions over heavy meta-progression systems.
-- **Roguelite / permadeath** remains a possible later mode if design pivots; it would drop or slim full-world saves in favor of meta-unlocks.
+- **Session save** — `GameSaveService` writes `dungeon_session_save.json` to `Application.persistentDataPath` (player transform, `QuestManager` state, `PlayerInventory`). Auto-load on level start if the file exists; **F5** save, **F9** load.
+- **Roguelite / permadeath** — possible later mode; not implemented.
 
 ### Out of scope (v1)
 
 - Multiplayer.
-- Procedural mesh / level geometry generation by the LLM (LLM produces *text and behavior hints*, not geometry).
-- Voice synthesis (text only for v1, TTS is a stretch goal).
+- LLM-generated level geometry (LLM = text and flavor only).
+- Voice synthesis (text only).
+- Full enemy AI (foes are stationary damage targets).
 
 ## 2. The role of the LLM
 
-The LLM is **not** a chatbot bolted onto the game — it is woven into the gameplay layer in these specific ways:
+The LLM is woven into gameplay as **optional flavor and dialogue**, with **authoritative quest facts in C#**:
 
 | Use case | Description | Status |
 |---|---|---|
-| NPC dialogue | LLM generates NPC responses conditioned on NPC persona + world state + short per-NPC memory of recent assistant lines. | **Partial** — `DialoguePanelController` + `OllamaHandler.RequestGenerationStreaming` + `NpcConversationMemory`; quest facts remain authoritative in C#. |
-| Room narration | When the player enters **safe (`S`) or encounter (`E`)** floor cells, a short narrator line is requested (rate-limited). | **Partial** — `DungeonFlavorZone` + `DungeonFlavorNarrator`; not yet full room-by-room prose. |
-| Item / lore text | Descriptions of items and lore fragments are LLM-generated. | Planned |
-| Hint system | Optional context-aware hints when the player is stuck. | Stretch |
-| AI Director (stretch) | LLM influences encounter difficulty/pacing based on the player's recent play pattern. | Stretch |
+| NPC dialogue | Streamed lines when the player chooses **Hear them out**; quest title/briefing/objectives come from `QuestManager`. Per-NPC memory via `NpcConversationMemory`. | **In Level1** |
+| Room / tile flavor | Short lines when entering **S** or **E** volumes (`DungeonFlavorZone` → `DungeonFlavorNarrator` → HUD toast). | **In Level1** |
+| Item / lore text | Descriptions on pickup or inspect. | Planned |
+| Hint system | Context-aware hints. | Stretch |
+| AI Director | Pacing / difficulty from play pattern. | Stretch |
 
-For each use case, the prompt structure, inputs, and grounding rules are detailed in [`ollama-plan.md`](./ollama-plan.md).
+Prompt structure, endpoints, and risks: [`ollama-plan.md`](./ollama-plan.md).
 
 ## 3. Why a *local* model is appropriate
 
-A local model (run via [Ollama](https://ollama.com/)) is the right choice for this project for the following reasons:
+1. **No per-call cost** — many generations per session.
+2. **Offline play** — single-player expectation.
+3. **Privacy** — prompts stay on the machine.
+4. **No vendor rate limits** — Ollama on `localhost:11434`.
+5. **Acceptable latency** — 1–3 s for short lines on modest hardware (`qwen3:4b`).
+6. **Educational / portfolio value** — local LLM integration as a project pillar.
 
-1. **No per-call cost** — generation happens dozens of times per play session; cloud API calls would make playtesting and shipping the game expensive or impossible.
-2. **Offline play** — the game can be played without an internet connection, which matches a single-player dungeon crawler's expectations.
-3. **Privacy** — no player prompts or world state ever leaves the player's machine.
-4. **No rate limits / no vendor lock-in** — the game is not at the mercy of an external service changing terms, pricing, or availability.
-5. **Latency budget is acceptable on local hardware** — most use cases (room narration, dialogue) can tolerate 1–3 s, which a small local model on a modern GPU/CPU can meet. See `ollama-plan.md` for measured numbers.
-6. **Educational value** — local-LLM integration is the project's distinctive technical contribution.
+### Trade-offs
 
-### Trade-offs accepted
+- Smaller models vs. cloud quality — mitigated by tight prompts and authored quest text.
+- Player must install Ollama — mitigated by setup panel + [`setup.md`](./setup.md).
+- Cold-start latency — warm-up planned (see `ollama-plan.md`).
 
-- **Smaller models, lower output quality** vs. frontier cloud models — mitigated by tight prompting + retrieval of canonical lore.
-- **System requirements** — the player needs to install Ollama and have enough RAM/VRAM for the chosen model. Documented in `setup.md`.
-- **Cold-start latency** — first inference loads the model into memory. We will warm the model at game launch.
+## 4. Target platform / system requirements
 
-## 4. Target platform / system requirements (draft)
+- **OS**: Windows 10/11 (primary dev target). Linux/macOS possible for Ollama.
+- **Minimum (draft)**: 16 GB RAM, modern CPU; integrated GPU OK for `qwen3:4b` on CPU.
+- **Recommended**: 32 GB RAM, GPU with ≥ 8 GB VRAM for faster inference.
 
-- **OS**: Windows 10/11 (primary). Linux/macOS as a stretch since Ollama supports both.
-- **Min spec (draft)**: 16 GB RAM, modern CPU, integrated GPU acceptable for ~4B parameter models.
-- **Recommended**: 32 GB RAM, dedicated GPU with ≥ 8 GB VRAM for snappier inference.
-
-Final specs to be measured and recorded in `setup.md` once a model is locked in.
+Measured specs: [`setup.md`](./setup.md).
 
 ## 5. Inspirations & references
 
-*To be filled in — list comparable games (e.g. AI Dungeon, Inkle's titles, classic Roguelikes) and what we are / aren't borrowing.*
+*To be expanded.* Comparable ideas: cosy dungeon crawlers, AI-assisted narrative (AI Dungeon-style text, but local and grounded), classic grid dungeons with modern first-person presentation.

@@ -18,6 +18,15 @@
 
 ---
 
+## 2026-05-15 — Documentation sync (current Level1 build)
+**Type**: decision
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: Updated **`README.md`**, **`docs/high-concept.md`**, **`docs/setup.md`**, **`docs/ollama-plan.md`**, **`docs/art-direction.md`**, and **`AGENTS.md`** to describe the playable slice: hybrid maze, quests, Cap + Grumblemite models, combat, bubble pickups, textured environment, Ollama dialogue/flavor, controls, save keys, and project layout.
+**Why**: Docs still described an early skeleton (no combat/inventory); user requested full project documentation aligned with the game as it is now.
+**Impact / docs touched**: All required docs listed above; this log entry.
+**Follow-ups**: Keep docs in sync when consolidating Ollama clients or importing the Adventurer player mesh.
+
 ## 2026-05-15 — Meshy NPC + enemy models in gameplay spawn
 **Type**: refactor
 **AI tool(s)**: Cursor + Claude

@@ -1,15 +1,14 @@
 # DungeonExporer
 
-A 3D dungeon-exploration game where the dungeon's inhabitants, signs, and lore are generated in real time by a **local** large language model (via [Ollama](https://ollama.com)) running on the player's own machine.
-
-> 🚧 Early development. Pieces of the LLM pipeline are wired up; gameplay systems (player, dungeon, combat) have not been built yet.
+A cosy 3D dungeon-exploration game where NPC dialogue, room flavor, and quest banter are written in real time by a **local** large language model ([Ollama](https://ollama.com)) on the player's machine.
 
 ## Overview
 
 - **Engine**: Unity `6000.3.8f1` (URP).
-- **Perspective**: 3D dungeon crawler. First- or third-person — TBD.
-- **Local LLM**: Ollama with `qwen3:4b` as the default model (swappable).
-- **Why local?** No per-call cost, offline play, privacy, no rate limits. See [`docs/high-concept.md`](docs/high-concept.md) for the full rationale.
+- **Perspective**: First-person (`FirstPersonController` + `CharacterController`).
+- **Level1 slice**: Hybrid ASCII maze (`#` walls, `.` corridors, **S** safe hubs, **E** encounter pits) built at runtime by `DungeonLevelBuilder`; quest giver **Cap**, scattered loot and spike traps, Meshy **foes** on encounter tiles, melee combat, HUD, session save.
+- **Local LLM**: Default model `qwen3:4b` (swappable on scene `OllamaHandler`).
+- **Why local?** No per-call cost, offline play, privacy. See [`docs/high-concept.md`](docs/high-concept.md).
 
 ## Quick start
 
@@ -21,60 +20,77 @@ A 3D dungeon-exploration game where the dungeon's inhabitants, signs, and lore a
 ollama pull qwen3:4b
 ```
 
-4. Open this project in Unity, open `Assets/Scenes/Level1.unity`, and press **Play**. If Ollama is missing or the model is not pulled, an in-game panel links to `docs/setup.md`.
-5. **Session save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads it. A save is auto-applied on level start when that file exists (delete it to reset).
+4. Open this repo in Unity, open **`Assets/Scenes/Level1.unity`**, press **Play**.
+5. If Ollama is down or the model is missing, an in-game setup panel links to [`docs/setup.md`](docs/setup.md); you can continue without streaming dialogue.
+6. **Save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads. A save auto-loads on level start when that file exists (delete it to reset).
 
-Full step-by-step instructions in [`docs/setup.md`](docs/setup.md).
+Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
+
+## Level1 gameplay (current)
+
+| Action | Default binding (keyboard / mouse) |
+|--------|-------------------------------------|
+| Move / look | WASD + mouse |
+| Jump | Space |
+| Sprint | Left Shift |
+| Crouch | C |
+| Interact (Cap, UI) | **E** (hold where noted) |
+| Attack (melee) | **Left click** (also Enter on keyboard) |
+| Inventory panel | **I** |
+| Pause | Escape |
+| Save / load session | **F5** / **F9** |
+
+**Suggested loop:** Find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat a **DungeonFoe** on crimson **E** floor → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Hear them out** in dialogue for Ollama-streamed lines; walk over bubble pickups for pebbles / healing rations; avoid or jump spike traps.
 
 ## Documentation
 
 | Document | Contents |
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | Conventions for AI agents working in this repo |
-| [`docs/high-concept.md`](docs/high-concept.md) | Game concept, role of the LLM, why local |
-| [`docs/ollama-plan.md`](docs/ollama-plan.md) | Model choice, inference timing, data flow, prompt structure, risks |
-| [`docs/setup.md`](docs/setup.md) | Full install & run guide, system specs |
-| [`docs/art-direction.md`](docs/art-direction.md) | Style pillars, palette, asset prompts (Meshy, etc.) |
+| [`docs/high-concept.md`](docs/high-concept.md) | Game concept, LLM role, save model, scope |
+| [`docs/ollama-plan.md`](docs/ollama-plan.md) | Model choice, data flow, prompts, risks |
+| [`docs/setup.md`](docs/setup.md) | Install, run, controls, troubleshooting |
+| [`docs/art-direction.md`](docs/art-direction.md) | Style pillars, asset prompts (Meshy, Pillow) |
 | [`docs/refinements-changes.md`](docs/refinements-changes.md) | Running log of changes and AI-assisted decisions |
 
 ## Dependencies
 
-### Runtime (Unity packages & built-in)
+### Runtime (Unity)
 
 - Universal Render Pipeline (URP)
 - TextMesh Pro
-- Unity Input System
-- Newtonsoft.Json (used by `Assets/Ollama/OllamaRequester.cs`)
+- Unity Input System (`Assets/InputSystem_Actions.inputactions`)
+- Newtonsoft.Json (legacy `Assets/Ollama/OllamaRequester.cs` example)
 
-### Local LLM stack
+### Local LLM
 
-- [Ollama](https://ollama.com/) — local LLM server (HTTP on `localhost:11434`).
-- Default model: [`qwen3:4b`](https://ollama.com/library/qwen3).
-- Optional quality-tier model: [`llama3`](https://ollama.com/library/llama3).
+- [Ollama](https://ollama.com/) — `http://localhost:11434`
+- Default: [`qwen3:4b`](https://ollama.com/library/qwen3)
+- Optional: [`llama3`](https://ollama.com/library/llama3)
 
-### Embedded .NET assemblies (under `Assets/SimpleOllamaInjection/Plugins/AIExtensions/`)
+### Embedded .NET (SimpleOllamaUnity)
 
-- `Microsoft.Extensions.AI` + `Microsoft.Extensions.AI.Ollama`
-- `Microsoft.Extensions.Hosting` / `DependencyInjection` / `Logging` / `Configuration`
-- Supporting `System.*` assemblies
+Under `Assets/SimpleOllamaInjection/Plugins/AIExtensions/` — `Microsoft.Extensions.AI`, hosting, configuration, etc. Powers `Assets/SimpleOllamaInjection/SimpleOllamaUnity/Ollama.cs` (preferred long-term client; gameplay still uses `OllamaHandler` for Level1).
 
-These power the preferred Ollama client at `Assets/SimpleOllamaInjection/SimpleOllamaUnity/Ollama.cs`.
+### Art pipeline (optional, for regenerating textures)
 
-### Third-party AI SDKs in the repo
+- Python 3 + **Pillow** — `Tools/generate_dungeon_textures.py`
 
-- **SimpleOllamaUnity** by HardCodeDev — `Assets/SimpleOllamaInjection/`.
-- **Neocortex** AI-NPC SDK — `Assets/Resources/Neocortex/` *(under review; may be removed)*.
+### Third-party in repo
+
+- **SimpleOllamaUnity** (HardCodeDev) — `Assets/SimpleOllamaInjection/`
+- **Neocortex** — `Assets/Resources/Neocortex/` *(under review; API key must not be committed)*
 
 ## AI tools used during development
 
-This project uses AI assistance throughout. Every meaningful AI-assisted decision is logged in [`docs/refinements-changes.md`](docs/refinements-changes.md); art-asset prompts live in [`docs/art-direction.md`](docs/art-direction.md).
+Logged in [`docs/refinements-changes.md`](docs/refinements-changes.md); art prompts in [`docs/art-direction.md`](docs/art-direction.md).
 
 | Tool | Used for |
 |---|---|
-| **Cursor IDE** + **Claude Opus 4.7** | Code generation, refactoring, documentation drafting |
-| **Ollama** (runtime, in-game) | Generates NPC dialogue, room narration, item lore — the game itself |
-| **Meshy AI** | Text-to-3D character + prop generation (player character is the first asset) |
-| *(add others as we use them: Mixamo, ChatGPT, etc.)* | |
+| **Cursor** + Claude / GPT | Code, docs, debugging |
+| **Ollama** (runtime) | NPC dialogue stream, flavor toasts |
+| **Meshy AI** | Player, Cap, Grumblemite FBX |
+| **Python (Pillow)** | Tileable dungeon wall / floor / spike albedos |
 
 ## Project structure
 
@@ -83,43 +99,50 @@ DungeonExporer/
 ├── AGENTS.md
 ├── README.md
 ├── docs/
+├── Tools/
+│   └── generate_dungeon_textures.py
 ├── Assets/
 │   ├── Art/
-│   │   ├── Characters/Adventurer/  # Meshy-generated player (FBX + PBR maps)
-│   │   └── Environment/DungeonBrick/  # Brick albedo + URP wall material
-│   ├── Scenes/                     # MainMenu, Level1
-│   ├── Data/Dungeon/               # ASCII maze .txt for DungeonLevelBuilder
-│   ├── Scripts/                    # Settings/, UI/, Player/, Dungeon/
-│   ├── Ollama/                     # Minimal Ollama example
-│   ├── SimpleOllamaInjection/      # Preferred Ollama wrapper + plugin DLLs
-│   ├── Resources/Neocortex/        # Neocortex SDK settings (under review)
-│   └── ...
+│   │   ├── Characters/Adventurer/
+│   │   └── Environment/          # DungeonBrick, DungeonFloor, SpikeTrap
+│   ├── Models/                   # Meshy FBX: Cap (NPC), Grumblemite (foe)
+│   ├── Scenes/                   # MainMenu.unity, Level1.unity
+│   ├── Data/Dungeon/             # Level1_Maze.txt
+│   ├── Scripts/
+│   │   ├── Dungeon/              # Maze build, flavor zones, encounters
+│   │   ├── Gameplay/             # Quests, NPC, enemies, loot, save
+│   │   ├── Player/               # Movement, combat, health, inventory
+│   │   ├── UI/                   # HUD, dialogue, menus, Ollama setup
+│   │   ├── Settings/
+│   │   └── OllamaHandler.cs
+│   ├── SimpleOllamaInjection/
+│   ├── Ollama/                   # Minimal legacy example
+│   └── InputSystem_Actions.inputactions
 └── ProjectSettings/
 ```
 
-## Status
+## Status (Level1 vertical slice)
 
-- [x] Unity project skeleton
-- [x] Ollama integration (3 client variants — to be consolidated)
-- [x] Documentation scaffolding
-- [x] 3D player controller (first-person `CharacterController`)
-- [x] Walkable maze prototype (`Data/Dungeon/*.txt` + `DungeonLevelBuilder`)
-- [ ] `RoomDefinition` / `NpcDefinition` data
-- [ ] LLM-driven NPC dialogue system
-- [ ] Combat
-- [ ] Inventory
-- [ ] Save / load
+- [x] First-person movement, jump, crouch, sprint
+- [x] ASCII maze + safe / encounter zones + textured walls / floors
+- [x] Quest system (`QuestManager`) — Cap's drill + Echoes in the dark
+- [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama streaming
+- [x] Melee combat vs scattered **DungeonFoe** on **E** cells
+- [x] Pickups (bubble + icon), spike hazards (jumpable), flavor narration on **S** / **E**
+- [x] HUD (health, quest, inventory), pause menu, session save (F5/F9)
+- [x] Ollama health check + in-game setup panel
+- [ ] Consolidate Ollama clients (`OllamaHandler` → SimpleOllamaUnity)
+- [ ] Player Adventurer mesh in scene (asset exists under `Art/Characters`)
+- [ ] Enemy AI, rigged animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
+- [ ] Boot-time Ollama warm-up, full `GameSettings.LlmEnabled` kill-switch at all call sites
 
 ## Credits
 
 - Game design & code: *<your name here>*
-- Engine: [Unity Technologies](https://unity.com/)
-- Local LLM runtime: [Ollama](https://ollama.com/)
-- Ollama Unity wrapper: [SimpleOllamaUnity by HardCodeDev](https://github.com/) *(replace with the actual link when known)*
-- AI-NPC SDK: [Neocortex](https://neocortex.link/) *(under review)*
-- 3D character art (player Adventurer): generated with [Meshy AI](https://www.meshy.ai/) — full prompt in [`docs/art-direction.md`](docs/art-direction.md)
-- Dungeon wall brick albedo: procedural PNG (Python + Pillow); material + use in [`docs/art-direction.md`](docs/art-direction.md)
-- Documentation & code assistance: Cursor + Claude Opus 4.7
+- [Unity](https://unity.com/) · [Ollama](https://ollama.com/) · [SimpleOllamaUnity](https://github.com/) *(add repo URL)*
+- 3D characters: [Meshy AI](https://www.meshy.ai/) — prompts in [`docs/art-direction.md`](docs/art-direction.md)
+- Environment albedos: procedural (Pillow) — see `Tools/generate_dungeon_textures.py`
+- Documentation & code assistance: Cursor + Claude
 
 ## License
 

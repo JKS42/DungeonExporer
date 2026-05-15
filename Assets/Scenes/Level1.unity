@@ -1819,7 +1819,7 @@ MonoBehaviour:
   _gridOrigin: {x: 0, y: 0, z: 0}
   _wallMaterial: {fileID: 2100000, guid: d0e1f2031425364758697a8b9c0d1e2f, type: 2}
   _brickWorldMeters: 0.34
-  _floorMaterial: {fileID: 2100000, guid: a7b6c5d4e3f24150413243546576879aa, type: 2}
+  _floorMaterial: {fileID: 2100000, guid: f4a8c2e19b3d4f5e8a7061528394b6c7, type: 2}
   _floorTileWorldMeters: 0.55
   _encounterEnterQuestEventId: entered_encounter_zone
 --- !u!1 &2100000030
@@ -1948,7 +1948,7 @@ MonoBehaviour:
   _hazardHeight: 0.25
   _enemyHeight: 1.1
   _preferCorridorSpikes: 1
-  _spikeTrapMaterial: {fileID: 2100000, guid: b8c7d6e5f4a352514243546576879ab, type: 2}
+  _spikeTrapMaterial: {fileID: 2100000, guid: e3b7d1c09a4e5f7182638495a0b1c2d3, type: 2}
   _enemyModel: {fileID: 919132149155446097, guid: c1d2e3f405162738495a6b7c8d9e0f11, type: 3}
   _enemyFacingYaw: 0
   _enemyVisualYawOffset: 180

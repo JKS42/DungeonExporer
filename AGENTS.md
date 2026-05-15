@@ -6,7 +6,8 @@ Persistent guidance for any AI agent (Cursor, Copilot, etc.) working in this rep
 
 - **Type**: 3D dungeon exploration game.
 - **Engine**: Unity `6000.3.8f1` with the Universal Render Pipeline (URP).
-- **Distinctive feature**: a *local* LLM (via Ollama) drives in-game content — NPC dialogue, room descriptions, and/or AI-assisted gameplay flavor.
+- **Distinctive feature**: a *local* LLM (via Ollama) drives in-game dialogue and flavor text; quests, maze layout, and combat are authoritative in C#.
+- **Level1 slice**: hybrid ASCII maze, Cap NPC, scattered foes/loot/hazards, first-person combat, session save — see `README.md` and `docs/setup.md`.
 - **Input**: Unity Input System (`InputSystem_Actions.inputactions`).
 - **UI**: TextMesh Pro.
 
@@ -39,7 +40,7 @@ The following docs are part of the deliverable. If a change touches their topic,
 ## Coding conventions
 
 - **Namespaces**: `DungeonExporer.<Area>` (e.g. `DungeonExporer.Player`, `DungeonExporer.Dungeon`, `DungeonExporer.AI`).
-- **Folders**: gameplay scripts under `Assets/Scripts/<Area>/`. Keep Ollama-related code under `Assets/Scripts/AI/`.
+- **Folders**: gameplay scripts under `Assets/Scripts/<Area>/` (`Dungeon/`, `Gameplay/`, `Player/`, `UI/`). Ollama gameplay client: `Assets/Scripts/OllamaHandler.cs` (consolidation with `SimpleOllamaUnity` planned). Meshy FBX imports live under `Assets/Models/` until moved to `Assets/Art/`.
 - **One LLM client**: prefer `HardCodeDev.SimpleOllamaUnity.Ollama` going forward. Remove or wrap the duplicates (`OllamaHandler.cs`, `OllamaRequester.cs`) instead of growing them in parallel.
 - **No secrets in git**: `Assets/Resources/Neocortex/NeocortexSettings.asset` currently contains a plaintext API key — rotate it and gitignore it before adding new secrets.
 

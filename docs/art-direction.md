@@ -91,6 +91,41 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
 - **Generated**: 2026-05-15.
 - **Status**: In use on scattered maze spike hazards.
 
+### NPC quest-giver — "Cap"
+
+- **Location**: `Assets/Models/Meshy_AI_Stylized_full_body_3D_0515132850_texture_fbx/…/Meshy_AI_Stylized_full_body_3D_0515132850_texture.fbx` (rename when stabilizing imports).
+- **Tool**: [Meshy AI](https://www.meshy.ai/) — Cartoon / Sculpture-Stylized, T-pose, quad, ~12k–22k tris.
+- **Generated**: 2026-05-15.
+- **Status**: Spawned at runtime by **`LevelGameplayBootstrap`** on nearest **S** cell (`DungeonLevelBuilder.TryGetNpcHubPosition`). Target height ~1.65 m.
+
+#### Prompt used (Meshy-safe)
+
+> Stylized full-body 3D character for a cosy fantasy dungeon-crawler: friendly older quest-giver NPC named Cap, veteran dungeon guide with a storyteller vibe. Slightly stocky build, shorter than a hero adventurer, warm grandfatherly cartoon face, kind squinting eyes, neat trimmed grey beard, rosy cheeks, gentle smirk. Soft mossy-green wool coat over parchment-cream shirt, cocoa-brown trousers, sturdy tan boots. Distinctive short brimmed cap (newsboy / traveller cap) in sun-gold with a small brass pin. Leather satchel strap, brass-rimmed spectacles pushed up on forehead, rolled parchment maps peeking from coat pocket, tiny brass lantern charm on belt, wooden clipboard with blank papers in one hand (empty, no readable text). Warm palette only: parchment cream, sun-gold, mossy green, cocoa brown, brass — no black, no grimdark. Hand-painted painterly texture, soft shading, no photorealism, no shiny plastic. Readable chunky silhouette. T-pose, arms slightly out, legs slightly apart, facing forward, symmetric, full body, white background, clean game-ready quad topology.
+
+#### Negative prompt
+
+> photorealistic, young teen, child, warrior armor, huge weapon, sword drawn, action pose, running, fighting stance, monster, undead, grimdark, horror, evil grin, scary, asymmetric, multiple characters, background scenery, dungeon room, watermark, text, letters, logo, extra limbs, broken topology, low resolution, neon colours, pure black clothing
+
+### Enemy — "Grumblemite" (DungeonFoe)
+
+- **Location**: `Assets/Models/Meshy_AI_Stylized_full_body_3D_0515132512_texture_fbx/…/Meshy_AI_Stylized_full_body_3D_0515132512_texture.fbx`
+- **Tool**: Meshy AI — same preset as Cap; target ~8k–15k tris (smaller creature).
+- **Generated**: 2026-05-15.
+- **Status**: Scattered on **E** encounter cells via **`DungeonLootScatter`**; **`EnemyActor`** + combat capsule (~1.1 m height).
+
+#### Prompt used (Meshy-safe)
+
+> Stylized full-body 3D creature for a cosy fantasy dungeon-crawler: squat mischievous dungeon pest called a Grumblemite, about waist-high to a human adventurer. Chunky round body, short stubby legs, big expressive cartoon eyes (slightly cross or grumpy, not scary), small chipped horns, oversized hands with blunt claws. Worn leather chest strap, patched burlap loincloth, one broken brass ear-ring. Muted terracotta and cocoa-brown skin with mossy-green patches, parchment-cream belly, warm rust accents — danger colours only as accents, not horror. Hand-painted painterly texture, soft shading, no photorealism, no shiny plastic. Readable chunky silhouette from above. T-pose, arms slightly out, legs apart, facing forward, symmetric, full body, white background, clean game-ready quad topology.
+
+#### Negative prompt
+
+> photorealistic, realistic human, grimdark, horror, gore, zombie, skeleton, demon, dragon, giant, spider, flying, weapon in hand, action pose, asymmetric, multiple characters, background scenery, watermark, text, extra limbs, broken topology, low resolution, neon colours, pure black body, scary teeth, blood
+
+### World pickups — bubble orbs (code-driven, no mesh)
+
+- **Implementation**: `PickupBubbleVisual` — URP transparent Lit bubble + billboard quad icon (procedural cross = heal ration, pebble dot = loot).
+- **Status**: Pebbles and trail rations scattered by **`DungeonLootScatter`**.
+
 ## First-time Unity import — manual step required
 
 Because the textures were renamed for clarity, Unity's FBX importer may not auto-link them to the embedded material. After Unity finishes importing the new files, do the following **once**:
@@ -116,6 +151,8 @@ Once this is done, do **not** rename these files again — the material will ref
 | **Meshy AI** | Text-to-3D character + prop generation |
 | **Mixamo** *(planned)* | Auto-rig + animation library for humanoid characters |
 | **Unity URP** | Real-time rendering, lighting, material setup |
-| **Python (Pillow)** | Procedural tileable 2D textures (e.g. dungeon brick albedo) |
+| **Python (Pillow)** | Procedural tileable 2D textures (`Tools/generate_dungeon_textures.py`) |
 
-When we add a new asset, append it to the table above and add a section under **Assets** with the prompt and the tool's settings — same shape as the Adventurer entry. This keeps every art decision reproducible.
+When we add a new asset, append it to the table above and add a section under **Assets** with the prompt and the tool's settings — same shape as the Adventurer entry. Prefer stable paths under `Assets/Art/<Category>/<Name>/`; Meshy exports may live under `Assets/Models/` until renamed.
+
+**Import note:** Unity `.meta` GUIDs must be exactly **32** hexadecimal characters. Invalid GUIDs break materials and scene references (see `docs/setup.md` troubleshooting).
