@@ -18,6 +18,23 @@
 
 ---
 
+## 2026-05-15 — Spike traps jumpable
+**Type**: refactor
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: Scattered spike hazards use a smaller footprint (**38%** of cell width, lower cube). **`HazardVolume`** only damages when the player's feet are at or below the trap top (+ small margin), so a jump clears them.
+**Why**: Full-cell spike triggers were too wide/tall to jump over without `OnTriggerStay` hitting the whole capsule.
+**Impact / docs touched**: `LevelGameplayBootstrap.cs`, `HazardVolume.cs`, `docs/refinements-changes.md`.
+
+## 2026-05-15 — Encounter foes replace training dummy
+**Type**: scope-change
+**AI tool(s)**: Cursor + Claude
+
+**What changed**: Removed the single **training dummy** spawn. **`DungeonLootScatter`** now places up to **10** red capsule **`DungeonFoe`** enemies on **`E`** encounter cells (min distance from spawn). **`DungeonLevelBuilder`** exposes **`IsEncounterCell`** / **`IsSafeCell`**. **`EnemyActor.Configure`** + quest event **`defeated_dungeon_foe`**; **`cap_training`** copy updated. **`PlayerCombat`** melee range **3m** (scene + default).
+**Why**: Player asked to drop the dummy, confirm attacks hurt enemies, and populate encounter zones.
+**Impact / docs touched**: `LevelGameplayBootstrap.cs`, `DungeonLootScatter.cs`, `DungeonLevelBuilder.cs`, `EnemyActor.cs`, `QuestManager.cs`, `PlayerCombat.cs`, `Level1.unity`, `docs/refinements-changes.md`, `docs/high-concept.md`.
+**Follow-ups**: Enemy AI / variety; save-game must not assume a fixed dummy position.
+
 ## 2026-05-14 — Quest button interactivity diagnostics
 **Type**: refactor
 **AI tool(s)**: Cursor + GPT-5.4 mini
@@ -75,6 +92,62 @@
 **Impact / docs touched**: `Assets/Scripts/Gameplay/QuestManager.cs`, `Assets/Scripts/UI/DialoguePanelController.cs`, `docs/refinements-changes.md`.
 
 **Follow-ups**: None.
+
+---
+
+## 2026-05-15 — Hybrid maze: corridors + open S/E chambers
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: **`Level1_Maze.txt`** rebuilt as a **maze of corridors** (DFS + light braiding) with **open rectangular rooms**: large **S** safe hubs west/east, **E** encounter pits center and south. Cap still spawns on nearest **S** via **`TryGetNpcHubPosition`**.
+
+**Why**: Prior open layout read as empty halls; prior labyrinth was too tight — player asked for maze feel with distinct safe and enemy zones.
+
+**Impact / docs touched**: `Level1_Maze.txt`, `docs/refinements-changes.md`.
+
+**Follow-ups**: Hand-edit chamber sizes in the text maze if art pass needs bigger set pieces.
+
+---
+
+## 2026-05-15 — Open level layout + Cap NPC in safe hub
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Replaced the tight DFS labyrinth with a **more open** **43×21** map: large **S** safe rooms (west + east), central **E** encounter floor, sparse dividers only. **`DungeonLevelBuilder.TryGetNpcHubPosition`** places **Cap** on the nearest **S** tile to spawn (fixes NPC inside walls). **`LevelGameplayBootstrap`** uses that hub for **Npc_Cap**.
+
+**Why**: Playtest feedback: too maze-like; safe zones and quest giver felt missing after the labyrinth pass.
+
+**Impact / docs touched**: `Level1_Maze.txt`, `DungeonLevelBuilder.cs`, `LevelGameplayBootstrap.cs`, `docs/refinements-changes.md`.
+
+**Follow-ups**: Hand-paint set-piece rooms in the text maze if needed.
+
+---
+
+## 2026-05-15 — Larger procedural labyrinth maze (Level1)
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: Replaced **`Level1_Maze.txt`** with a **43×23** DFS-generated labyrinth (was **31×17**): more walls, winding corridors, dead ends, plus **S** / **E** pockets. Increased default scatter counts on **GameplaySystems** for the bigger floor area.
+
+**Why**: Level should feel more like a maze and slightly bigger to match scattered loot/hazards.
+
+**Impact / docs touched**: `Assets/Data/Dungeon/Level1_Maze.txt`, `Level1.unity`, `docs/refinements-changes.md`.
+
+**Follow-ups**: Hand-tune ASCII art for set-piece rooms; optional maze regen seed in editor tool.
+
+---
+
+## 2026-05-15 — Maze-scattered pickups and spike traps
+**Type**: scope-change
+**AI tool(s)**: Cursor + GPT-5.3 Codex
+
+**What changed**: **`DungeonLevelBuilder`** records walkable cells (`.`, `S`, `E`) and exposes **`TryPickScatterCell`**. **`DungeonLootScatter`** + **`LevelGameplayBootstrap`** spawn pebbles, rations, and spike hazards across the maze (not only near spawn). Defaults on **GameplaySystems**: 12 pebbles, 7 rations, 16 spikes, min 5 cells from **P**.
+
+**Why**: Level felt empty after the starting room; loot and danger should reward exploration of corridors and side rooms.
+
+**Impact / docs touched**: `DungeonLevelBuilder.cs`, `DungeonLootScatter.cs`, `LevelGameplayBootstrap.cs`, `Level1.unity`, `docs/refinements-changes.md`.
+
+**Follow-ups**: Tune counts per maze size; optional weighted placement (more spikes in `E` zones).
 
 ---
 

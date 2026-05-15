@@ -166,18 +166,69 @@ public class OllamaHandler : MonoBehaviour
 
         private void TryEmitLine(string line)
         {
+            string delta = ExtractStreamDelta(line);
+            if (string.IsNullOrEmpty(delta))
+                return;
+
+            _fullResponse.Append(delta);
+            _onDelta?.Invoke(delta);
+        }
+
+        private static string ExtractStreamDelta(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return null;
+
             try
             {
                 OllamaStreamChunk chunk = JsonUtility.FromJson<OllamaStreamChunk>(line);
-                if (chunk == null || string.IsNullOrEmpty(chunk.response))
-                    return;
-                _fullResponse.Append(chunk.response);
-                _onDelta?.Invoke(chunk.response);
+                if (chunk != null && !string.IsNullOrEmpty(chunk.response))
+                    return chunk.response;
             }
             catch (Exception)
             {
-                // Malformed NDJSON line; skip.
+                // Fall through to manual JSON string extraction.
             }
+
+            return TryExtractJsonStringValue(line, "response");
+        }
+
+        private static string TryExtractJsonStringValue(string json, string key)
+        {
+            string needle = "\"" + key + "\":\"";
+            int start = json.IndexOf(needle, StringComparison.Ordinal);
+            if (start < 0)
+                return null;
+
+            start += needle.Length;
+            var sb = new StringBuilder();
+            for (int i = start; i < json.Length; i++)
+            {
+                char c = json[i];
+                if (c == '\\' && i + 1 < json.Length)
+                {
+                    char next = json[i + 1];
+                    switch (next)
+                    {
+                        case 'n': sb.Append('\n'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case 't': sb.Append('\t'); break;
+                        case '"': sb.Append('"'); break;
+                        case '\\': sb.Append('\\'); break;
+                        default: sb.Append(next); break;
+                    }
+
+                    i++;
+                    continue;
+                }
+
+                if (c == '"')
+                    break;
+
+                sb.Append(c);
+            }
+
+            return sb.Length > 0 ? sb.ToString() : null;
         }
     }
 
@@ -383,14 +434,28 @@ public class OllamaHandler : MonoBehaviour
         }
     }
 
-    public static string SanitizeModelOutput(string text)
+    public static string SanitizeModelOutput(string text) => SanitizeForDisplay(text, stripIncompleteThinking: false);
+
+    /// <summary>Strips model “thinking” wrappers for UI display (including partial streams).</summary>
+    public static string SanitizeForDisplay(string text, bool stripIncompleteThinking = true)
     {
         if (string.IsNullOrEmpty(text))
             return string.Empty;
 
-        const string openTag = "<think>";
-        const string closeTag = "</think>";
-        text = StripTaggedBlocks(text, openTag, closeTag);
+        const string thinkOpen = "<" + "think" + ">";
+        const string thinkClose = "<" + "/" + "think" + ">";
+        text = StripTaggedBlocks(text, thinkOpen, thinkClose);
+        text = StripTaggedBlocks(text, "<think>", "</think>");
+
+        if (stripIncompleteThinking)
+        {
+            int thinkStart = text.IndexOf(thinkOpen, StringComparison.Ordinal);
+            if (thinkStart < 0)
+                thinkStart = text.IndexOf("<think>", StringComparison.Ordinal);
+            if (thinkStart >= 0)
+                text = text.Substring(0, thinkStart);
+        }
+
         return text.Trim();
     }
 

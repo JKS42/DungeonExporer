@@ -1932,10 +1932,19 @@ MonoBehaviour:
   _inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _dungeon: {fileID: 2100000022}
   _npcOffsetFromSpawn: {x: 2.2, y: 0, z: 2.2}
-  _enemyOffsetFromSpawn: {x: 5, y: 0.55, z: 2.2}
-  _pickupPebbleOffset: {x: 3.4, y: 0.35, z: 0.6}
-  _pickupRationOffset: {x: 4.1, y: 0.35, z: -0.4}
-  _hazardOffset: {x: 6.2, y: 0.25, z: 3.1}
+  _npcHeight: 0.9
+  _scatteredPebbles: 14
+  _scatteredRations: 8
+  _spikeTrapCount: 20
+  _encounterEnemyCount: 10
+  _minCellsFromSpawn: 6
+  _scatterSeed: 0
+  _pickupHeight: 0.35
+  _hazardHeight: 0.25
+  _enemyHeight: 0.9
+  _preferCorridorSpikes: 1
+  _enemyMaxHealth: 45
+  _enemyDefeatQuestEventId: defeated_dungeon_foe
 --- !u!114 &2100000054
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2035,7 +2044,7 @@ MonoBehaviour:
   _inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _cameraTransform: {fileID: 554397354}
   _damage: 22
-  _range: 2.4
+  _range: 3
   _cooldown: 0.38
 --- !u!114 &2100000065
 MonoBehaviour:

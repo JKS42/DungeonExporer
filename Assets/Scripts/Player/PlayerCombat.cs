@@ -13,7 +13,7 @@ namespace DungeonExporer.Player
         [SerializeField] private InputActionAsset _inputActions;
         [SerializeField] private Transform _cameraTransform;
         [SerializeField] private float _damage = 22f;
-        [SerializeField] private float _range = 2.4f;
+        [SerializeField] private float _range = 3f;
         [SerializeField] private float _cooldown = 0.38f;
 
         private InputActionMap _playerMap;

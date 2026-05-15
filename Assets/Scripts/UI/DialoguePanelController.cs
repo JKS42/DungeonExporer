@@ -34,6 +34,8 @@ namespace DungeonExporer.UI
         private TextMeshProUGUI _titleText;
         private TextMeshProUGUI _staticBodyText;
         private TextMeshProUGUI _llmBodyText;
+        private ScrollRect _llmScrollRect;
+        private RectTransform _llmContentRect;
         private TextMeshProUGUI _statusText;
         private Button _hearButton;
         private Button _acceptButton;
@@ -391,12 +393,15 @@ namespace DungeonExporer.UI
                 cap = _streamBuffer.Length;
                 int shown = Mathf.Clamp(Mathf.FloorToInt(revealed), 0, cap);
 
-                if (_llmBodyText != null && gen == _dialogueGeneration)
+                if (gen == _dialogueGeneration)
                 {
-                    if (isStreamFinished() && shown >= cap)
-                        _llmBodyText.text = OllamaHandler.SanitizeModelOutput(_streamBuffer.ToString());
-                    else if (cap > 0)
-                        _llmBodyText.text = _streamBuffer.ToString(0, shown);
+                    if (cap > 0)
+                    {
+                        string slice = _streamBuffer.ToString(0, shown);
+                        UpdateLlmBodyText(OllamaHandler.SanitizeForDisplay(slice));
+                    }
+                    else if (isStreamFinished() && _statusText != null)
+                        _statusText.text = "Cap had nothing to say (empty reply from Ollama).";
                 }
 
                 yield return null;
@@ -404,6 +409,9 @@ namespace DungeonExporer.UI
 
             if (gen == _dialogueGeneration)
             {
+                if (_streamBuffer.Length > 0)
+                    UpdateLlmBodyText(OllamaHandler.SanitizeModelOutput(_streamBuffer.ToString()));
+
                 _busy = false;
                 SetHearInteractable(true);
             }
@@ -527,7 +535,7 @@ namespace DungeonExporer.UI
             var panelRt = _rootPanel.GetComponent<RectTransform>();
             panelRt.anchorMin = new Vector2(0.5f, 0.5f);
             panelRt.anchorMax = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(800, 560);
+            panelRt.sizeDelta = new Vector2(820, 680);
             panelRt.anchoredPosition = Vector2.zero;
 
             var panelBg = _rootPanel.AddComponent<Image>();
@@ -568,24 +576,21 @@ namespace DungeonExporer.UI
                 MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
             _staticBodyText.raycastTarget = false;
             var staticBodyLe = _staticBodyText.gameObject.AddComponent<LayoutElement>();
-            staticBodyLe.minHeight = 120f;
-            staticBodyLe.flexibleHeight = 1f;
+            staticBodyLe.minHeight = 88f;
+            staticBodyLe.preferredHeight = 88f;
+            staticBodyLe.flexibleHeight = 0f;
             _staticBodyText.textWrappingMode = TextWrappingModes.Normal;
+            _staticBodyText.overflowMode = TextOverflowModes.Ellipsis;
+            _staticBodyText.maxVisibleLines = 5;
 
-            var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama, streams in)",
+            var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama — appears below)",
                 16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
             llmHint.raycastTarget = false;
             var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
             llmHintLe.minHeight = 22f;
             llmHintLe.preferredHeight = 22f;
 
-            _llmBodyText = MakeText("LlmBody", _rootPanel.transform, string.Empty,
-                MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
-            _llmBodyText.raycastTarget = false;
-            var llmBodyLe = _llmBodyText.gameObject.AddComponent<LayoutElement>();
-            llmBodyLe.minHeight = 100f;
-            llmBodyLe.flexibleHeight = 1f;
-            _llmBodyText.textWrappingMode = TextWrappingModes.Normal;
+            _llmScrollRect = BuildLlmScrollArea(_rootPanel.transform);
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
                 18f, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
@@ -635,6 +640,81 @@ namespace DungeonExporer.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
+        }
+
+        private ScrollRect BuildLlmScrollArea(Transform parent)
+        {
+            var scrollGo = MakeUiObject("LlmScroll", parent);
+            var scrollLe = scrollGo.AddComponent<LayoutElement>();
+            scrollLe.minHeight = 200f;
+            scrollLe.preferredHeight = 200f;
+            scrollLe.flexibleHeight = 1f;
+
+            var scrollBg = scrollGo.AddComponent<Image>();
+            scrollBg.color = new Color(0.22f, 0.14f, 0.08f, 0.08f);
+            scrollBg.raycastTarget = false;
+
+            var scroll = scrollGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+
+            var viewport = MakeUiObject("Viewport", scrollGo.transform);
+            var viewportRt = viewport.GetComponent<RectTransform>();
+            StretchToParent(viewportRt);
+            viewport.AddComponent<RectMask2D>();
+            var viewportImg = viewport.AddComponent<Image>();
+            viewportImg.color = Color.clear;
+            viewportImg.raycastTarget = false;
+
+            var content = MakeUiObject("Content", viewport.transform);
+            _llmContentRect = content.GetComponent<RectTransform>();
+            _llmContentRect.anchorMin = new Vector2(0f, 1f);
+            _llmContentRect.anchorMax = new Vector2(1f, 1f);
+            _llmContentRect.pivot = new Vector2(0.5f, 1f);
+            _llmContentRect.anchoredPosition = Vector2.zero;
+            _llmContentRect.sizeDelta = Vector2.zero;
+
+            var fitter = content.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            _llmBodyText = MakeText("LlmBody", content.transform, string.Empty,
+                MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
+            var llmRt = _llmBodyText.rectTransform;
+            llmRt.anchorMin = new Vector2(0f, 1f);
+            llmRt.anchorMax = new Vector2(1f, 1f);
+            llmRt.pivot = new Vector2(0.5f, 1f);
+            llmRt.anchoredPosition = Vector2.zero;
+            llmRt.sizeDelta = new Vector2(-12f, 0f);
+            _llmBodyText.textWrappingMode = TextWrappingModes.Normal;
+            _llmBodyText.overflowMode = TextOverflowModes.Overflow;
+            _llmBodyText.raycastTarget = false;
+
+            scroll.content = _llmContentRect;
+            scroll.viewport = viewportRt;
+            return scroll;
+        }
+
+        private void UpdateLlmBodyText(string text)
+        {
+            if (_llmBodyText == null)
+                return;
+
+            _llmBodyText.text = text ?? string.Empty;
+            _llmBodyText.ForceMeshUpdate();
+
+            if (_llmContentRect != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_llmContentRect);
+
+            if (_rootPanel != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_rootPanel.GetComponent<RectTransform>());
+
+            if (_llmScrollRect != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                _llmScrollRect.verticalNormalizedPosition = 0f;
+            }
         }
 
         private static TextMeshProUGUI MakeText(string name, Transform parent, string text,

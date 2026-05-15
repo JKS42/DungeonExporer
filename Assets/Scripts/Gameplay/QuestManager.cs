@@ -54,10 +54,10 @@ namespace DungeonExporer.Gameplay
             {
                 id = "cap_training",
                 title = "Cap's corridor drill",
-                briefing = "Cap wants you to wallop the training dummy down the hall, then come back so they can pretend they planned it all along.",
-                completionSummary = "You flattened the training dummy. Cap is grinning like a cat in a creamery — go on, let them talk your ear off.",
-                objectiveEvents = new[] { "defeated_training_dummy" },
-                objectiveHudHints = new[] { "Defeat the training dummy down the hall, then check in with Cap." }
+                briefing = "Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.",
+                completionSummary = "You cleared the encounter pits. Cap is grinning like a cat in a creamery — go on, let them talk your ear off.",
+                objectiveEvents = new[] { "defeated_dungeon_foe" },
+                objectiveHudHints = new[] { "Defeat a foe on crimson encounter floor (E), then check in with Cap." }
             });
 
             Register(new QuestDefinition

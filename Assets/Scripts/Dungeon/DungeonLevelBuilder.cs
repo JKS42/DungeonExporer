@@ -39,7 +39,16 @@ namespace DungeonExporer.Dungeon
         /// <summary>True after <see cref="Build"/> placed the player at the maze <c>P</c> cell.</summary>
         public bool HasRecordedPlayerSpawn { get; private set; }
 
+        /// <summary>Walkable floor cells (<c>.</c>, <c>S</c>, <c>E</c>) after the last successful <see cref="Build"/>.</summary>
+        public IReadOnlyList<Vector2Int> WalkableCells => _walkableCells;
+
+        public Vector2Int SpawnCell => _spawnCell;
+
+        public float CellSize => _cellSize;
+
         private string[] _gridRows = System.Array.Empty<string>();
+        private readonly List<Vector2Int> _walkableCells = new List<Vector2Int>(256);
+        private Vector2Int _spawnCell = new Vector2Int(-1, -1);
 
         private static readonly int BaseMapStId = Shader.PropertyToID("_BaseMap_ST");
 
@@ -173,6 +182,8 @@ namespace DungeonExporer.Dungeon
             int width = w;
 
             Vector2? spawnCell = null;
+            _walkableCells.Clear();
+            _spawnCell = new Vector2Int(-1, -1);
 
             for (int z = 0; z < height; z++)
             {
@@ -189,19 +200,23 @@ namespace DungeonExporer.Dungeon
                     else if (c == 'P')
                     {
                         spawnCell = new Vector2(x, z);
+                        _spawnCell = new Vector2Int(x, z);
                         CreateFloor(floorsRoot, cellCenter, _matCorridor);
                     }
                     else if (c == '.')
                     {
+                        _walkableCells.Add(new Vector2Int(x, z));
                         CreateFloor(floorsRoot, cellCenter, _matCorridor);
                     }
                     else if (c == 'S')
                     {
+                        _walkableCells.Add(new Vector2Int(x, z));
                         CreateFloor(floorsRoot, cellCenter, _matSafe);
                         CreateFlavorVolume(flavorRoot, cellCenter, DungeonFlavorKind.Safe);
                     }
                     else if (c == 'E')
                     {
+                        _walkableCells.Add(new Vector2Int(x, z));
                         CreateFloor(floorsRoot, cellCenter, _matEncounter);
                         CreateEncounterVolume(encounterRoot, cellCenter);
                         CreateFlavorVolume(flavorRoot, cellCenter, DungeonFlavorKind.Encounter);
@@ -218,12 +233,109 @@ namespace DungeonExporer.Dungeon
             }
         }
 
-        private Vector3 CellCenterWorld(int x, int z)
+        public Vector3 CellCenterWorld(int x, int z)
         {
             float cx = _gridOrigin.x + (x + 0.5f) * _cellSize;
             float cz = _gridOrigin.z + (z + 0.5f) * _cellSize;
             return new Vector3(cx, 0f, cz);
         }
+
+        public Vector3 CellCenterWorld(Vector2Int cell) => CellCenterWorld(cell.x, cell.y);
+
+        /// <summary>
+        /// Picks a random walkable cell at least <paramref name="minChebyshevCellsFromSpawn"/> away from <c>P</c>,
+        /// excluding cells already present in <paramref name="reserved"/>.
+        /// </summary>
+        public bool TryPickScatterCell(
+            System.Random rng,
+            int minChebyshevCellsFromSpawn,
+            HashSet<Vector2Int> reserved,
+            System.Predicate<Vector2Int> extraFilter,
+            out Vector3 worldPosition)
+        {
+            worldPosition = default;
+            if (_walkableCells.Count == 0 || rng == null)
+                return false;
+
+            int attempts = _walkableCells.Count * 4;
+            for (int i = 0; i < attempts; i++)
+            {
+                Vector2Int cell = _walkableCells[rng.Next(_walkableCells.Count)];
+                if (reserved != null && reserved.Contains(cell))
+                    continue;
+                if (_spawnCell.x >= 0 && ChebyshevDistance(cell, _spawnCell) < minChebyshevCellsFromSpawn)
+                    continue;
+                if (extraFilter != null && !extraFilter(cell))
+                    continue;
+
+                worldPosition = CellCenterWorld(cell);
+                reserved?.Add(cell);
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool IsCorridorCell(Vector2Int cell) => GetCellSymbol(cell) == '.';
+
+        public bool IsEncounterCell(Vector2Int cell) => GetCellSymbol(cell) == 'E';
+
+        public bool IsSafeCell(Vector2Int cell) => GetCellSymbol(cell) == 'S';
+
+        public char GetCellSymbol(Vector2Int cell)
+        {
+            if (cell.y < 0 || cell.y >= _gridRows.Length)
+                return '#';
+            string row = _gridRows[cell.y];
+            if (cell.x < 0 || cell.x >= row.Length)
+                return '#';
+            return row[cell.x];
+        }
+
+        /// <summary>
+        /// World position for the quest NPC: center of the nearest <c>S</c> safe cell to spawn, else open floor near spawn.
+        /// </summary>
+        public bool TryGetNpcHubPosition(out Vector3 worldPosition, int maxChebyshevFromSpawn = 14)
+        {
+            worldPosition = default;
+            if (_walkableCells.Count == 0 || _spawnCell.x < 0)
+                return false;
+
+            Vector2Int? bestSafe = null;
+            int bestSafeDist = int.MaxValue;
+            Vector2Int? bestOpen = null;
+            int bestOpenDist = int.MaxValue;
+
+            for (int i = 0; i < _walkableCells.Count; i++)
+            {
+                Vector2Int cell = _walkableCells[i];
+                int dist = ChebyshevDistance(cell, _spawnCell);
+                if (dist > maxChebyshevFromSpawn)
+                    continue;
+
+                char symbol = GetCellSymbol(cell);
+                if (symbol == 'S' && dist < bestSafeDist)
+                {
+                    bestSafeDist = dist;
+                    bestSafe = cell;
+                }
+                else if (symbol == '.' && dist < bestOpenDist)
+                {
+                    bestOpenDist = dist;
+                    bestOpen = cell;
+                }
+            }
+
+            Vector2Int? chosen = bestSafe ?? bestOpen;
+            if (!chosen.HasValue)
+                return false;
+
+            worldPosition = CellCenterWorld(chosen.Value);
+            return true;
+        }
+
+        private static int ChebyshevDistance(Vector2Int a, Vector2Int b) =>
+            Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
 
         private void CreateWall(Transform parent, Vector3 cellCenter)
         {
