@@ -52,38 +52,41 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
 
 - **Location**: `Assets/Art/Environment/DungeonBrick/`
 - **Files**:
-  - `DungeonBrick_Albedo.png` — 1024×1024 **stylized irregular stone blocks**, dark mortar, top-left highlights (cartoon dungeon wall).
-  - `DungeonBrickWall.mat` — URP Lit; `DungeonLevelBuilder._wallMaterial` with UV scale via `MaterialPropertyBlock`.
-- **Tool**: **Python 3 + Pillow** — `make_stone_wall()` in `Tools/generate_dungeon_textures.py`.
-- **Generated**: 2026-05-15 (stone pass; replaces running-bond brick).
+  - `DungeonBrick_Albedo.png` — 1024×1024 **flat running-bond brick**, light mortar (no moss/highlights in albedo).
+  - `DungeonBrickWall.mat` — URP Lit, **matte** (`Smoothness` 0); `DungeonLevelBuilder._wallMaterial` with UV scale via `MaterialPropertyBlock`.
+- **Tool**: **Python 3 + Pillow** — `make_brick_wall()` in `Tools/generate_dungeon_textures.py`.
+- **Generated**: 2026-05-15 (flat brick pass).
 - **Status**: In use on **Level1** walls.
 
 #### “Prompt” / recipe (reproduce the same look)
 
-> Tileable **stylized fantasy dungeon wall** (reference: large hand-drawn stone blocks): **few, big irregular stones**, **thick dark charcoal-brown mortar**, warm **grey/taupe** faces, strong **top-left highlights** and **bottom-right shade**, **pockmarks** and **edge chips**. Not running-bond brick; readable at gameplay scale.
+> Tileable **flat running-bond brick wall**: warm **cocoa/red-brown** bricks, **light parchment mortar**, no baked highlights or moss. Distinct from floor flagstone.
 
 #### Generation notes (Pillow)
 
 | Setting | Value |
 |---|---|
-| Script | `make_stone_wall()` |
+| Script | `make_brick_wall()` |
 | Canvas | 1024 × 1024, RGB PNG |
-| Layout | ~7×9 jittered irregular quads per tile |
-| Palette | Mortar ~RGB(108,98,86); stones varied warm grey-brown |
+| Layout | 14 rows × 9 cols, staggered bond, 5px joints |
+| Palette | Mortar ~RGB(198,186,168); bricks warm brown |
+| World scale | `_brickWorldMeters` ≈ **0.34** |
 
 ### Dungeon floor — tileable stone slab albedo
 
 - **Location**: `Assets/Art/Environment/DungeonFloor/`
 - **Files**:
-  - `DungeonFloor_Albedo.png` — 1024×1024 large **irregular stone slabs**, worn centres, grout gaps.
-  - `DungeonFloor.mat` — URP Lit; **`DungeonLevelBuilder._floorMaterial`** with per-cell tint (safe / encounter) via `MaterialPropertyBlock`.
-- **Tool**: **Python 3 + Pillow** — `make_stone_floor()` in `Tools/generate_dungeon_textures.py`.
-- **Generated**: 2026-05-15 (stone slab pass).
+  - `DungeonFloor_Albedo.png` — 1024×1024 **flat 8×8 flagstone** grid, rounded tiles, grout gaps.
+  - `DungeonFloor.mat` — URP Lit, **matte**; **`DungeonLevelBuilder._floorMaterial`** with per-cell tint (safe / encounter) via `MaterialPropertyBlock`.
+- **Tool**: **Python 3 + Pillow** — `make_flagstone_floor()` in `Tools/generate_dungeon_textures.py`.
+- **Generated**: 2026-05-15 (flat flagstone pass).
 - **Status**: In use on **Level1** walkable floors.
 
 #### Recipe
 
-> Tileable **fantasy dungeon floor**: large **irregular paving slabs**, dark **grout**, lighter worn patches on slab centres, fine grit and short cracks. Warm grey-brown stone — readable at gameplay scale.
+> Tileable **flat flagstone floor**: **8×8 rounded tiles**, warm **grey-brown** stone, darker **grout** — clearly different from wall brick. No wear arcs or speckle in albedo.
+
+| World scale | `_floorTileWorldMeters` ≈ **0.55** |
 
 ### Spike trap — tileable hazard albedo
 

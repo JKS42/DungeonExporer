@@ -1818,9 +1818,9 @@ MonoBehaviour:
   _floorThickness: 0.22
   _gridOrigin: {x: 0, y: 0, z: 0}
   _wallMaterial: {fileID: 2100000, guid: d0e1f2031425364758697a8b9c0d1e2f, type: 2}
-  _brickWorldMeters: 1.35
+  _brickWorldMeters: 0.34
   _floorMaterial: {fileID: 2100000, guid: f4a8c2e19b3d4f5e8a7061528394b6c7, type: 2}
-  _floorTileWorldMeters: 1.25
+  _floorTileWorldMeters: 0.55
   _buildCeiling: 1
   _ceilingThickness: 0.32
   _ceilingMaterial: {fileID: 0}

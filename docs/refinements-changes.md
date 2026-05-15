@@ -18,6 +18,22 @@
 
 ---
 
+## 2026-05-15 — Restore flat brick wall + flagstone floor (v1 layout)
+**Type**: refactor
+**AI tool(s)**: Cursor + Claude; Pillow
+
+**What changed**: Reverted texture recipes to **running-bond brick** (`make_brick_wall`) vs **8×8 flagstone** (`make_flagstone_floor`) — flat fills only, separate palettes. Regenerated albedos. Restored **`_brickWorldMeters` 0.34** and **`_floorTileWorldMeters` 0.55** on **Dungeon** / builder defaults.
+**Why**: User wanted floor and walls as different materials, flat like the first procedural pass.
+**Impact / docs touched**: `Tools/generate_dungeon_textures.py`, PNGs, `DungeonLevelBuilder.cs`, `Level1.unity`, `docs/art-direction.md`, `docs/refinements-changes.md`.
+
+## 2026-05-15 — Flat matte wall & floor textures
+**Type**: refactor
+**AI tool(s)**: Cursor + Claude; Pillow
+
+**What changed**: Simplified **`make_stone_wall()`** / **`make_stone_floor()`** — flat slab fills, no baked highlights, grit, or blur. **`DungeonBrickWall.mat`** and **`DungeonFloor.mat`**: `Smoothness` 0, specular/reflections off. Regenerated albedos.
+**Why**: User preferred flat materials over complex painted albedos + glossy URP Lit.
+**Impact / docs touched**: `Tools/generate_dungeon_textures.py`, PNGs, both `.mat` files, `docs/art-direction.md`, `docs/refinements-changes.md`.
+
 ## 2026-05-15 — Stylized cartoon stone wall texture
 **Type**: scope-change
 **AI tool(s)**: Cursor + Claude; Pillow
