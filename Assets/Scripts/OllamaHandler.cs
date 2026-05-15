@@ -13,7 +13,7 @@ public class OllamaHandler : MonoBehaviour
     [Header("Ollama Connection")]
     public string ollamaHost = "localhost";
     public int ollamaPort = 11434;
-    public bool useHttps = false;
+    public bool useHttps = true;
 
     [Header("Model and UI")]
     public string defaultModel = "qwen3:4b";
@@ -331,7 +331,7 @@ public class OllamaHandler : MonoBehaviour
     /// <param name="saveToDialogueJson">When true, appends to the same JSON log used by the test UI.</param>
     /// <param name="updateResponseUiField">When true, writes the model reply to <see cref="responseOutputField"/>.</param>
     public void RequestGeneration(string model, string prompt, Action<string> onSuccess, Action<string> onError,
-        bool saveToDialogueJson = true, bool updateResponseUiField = false, int maxPredictTokens = 0)
+        bool saveToDialogueJson = true, bool updateResponseUiField = true, int maxPredictTokens = 0)
     {
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -346,6 +346,7 @@ public class OllamaHandler : MonoBehaviour
     /// <summary>
     /// Streams tokens from Ollama (<c>stream: true</c>). <paramref name="onDelta"/> receives each decoded <c>response</c> fragment;
     /// <paramref name="onComplete"/> receives the full sanitized text (same as saved to JSON when enabled).
+    /// Responses are automatically displayed in the response text field.
     /// </summary>
     public void RequestGenerationStreaming(string model, string prompt, Action<string> onDelta, Action<string> onComplete,
         Action<string> onError, bool saveToDialogueJson = true, int maxPredictTokens = 0)
@@ -357,7 +358,19 @@ public class OllamaHandler : MonoBehaviour
         }
 
         int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultStreamMaxTokens;
-        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, onComplete, onError, saveToDialogueJson, limit));
+        // Wrap onComplete to always display the response
+        Action<string> wrappedComplete = (response) =>
+        {
+            SetOutputText(response);
+            onComplete?.Invoke(response);
+        };
+        // Wrap onError to always display errors
+        Action<string> wrappedError = (error) =>
+        {
+            SetOutputText(error);
+            onError?.Invoke(error);
+        };
+        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, wrappedComplete, wrappedError, saveToDialogueJson, limit));
     }
 
     /// <summary>Aborts the in-flight HTTP request (streaming or not). The owning coroutine still runs and disposes the request in its <c>finally</c> block.</summary>
@@ -588,12 +601,8 @@ public class OllamaHandler : MonoBehaviour
 
     private bool ShouldUseHttps()
     {
-        if (IsLocalHost(ollamaHost))
-        {
-            return false;
-        }
-
-        return useHttps;
+        // Always use HTTPS for all requests
+        return true;
     }
 
     private static bool IsLocalHost(string host)

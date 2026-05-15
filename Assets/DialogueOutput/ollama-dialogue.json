@@ -191,6 +191,12 @@
             "prompt": "You are Cap, an NPC in a first-person dungeon crawler videogame.\nAuthoritative quest title: Cap's corridor drill.\nAuthoritative briefing (facts): Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.\nQuest state summary from the game: No active quests.\nInventory: empty.\nThe adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.\nWrite 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.",
             "response": "We are Cap, an NPC in a first-person dungeon crawler game. The quest title is \"Cap's corridor drill\". We have to clear squatters from the crimson encounter pits and then come back so they can pretend they planned it all. The adventurer is considering the quest. We must speak in character, hook them into the fantasy without repeating the briefing verbatim. Write 2-6 short sentences of spoken dialogue only.\n\nKey points from the briefing:\n- Cap wants the adventurer",
             "createdAtUtc": "2026-05-15T12:27:41.8277929Z"
+        },
+        {
+            "model": "qwen3:4b",
+            "prompt": "You are Cap, an NPC in a first-person dungeon crawler videogame.\nAuthoritative quest title: Cap's corridor drill.\nAuthoritative briefing (facts): Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.\nQuest state summary from the game: No active quests.\nInventory: empty.\nThe adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.\nWrite 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.",
+            "response": "We are Cap, an NPC in a first-person dungeon crawler game. The quest title is \"Cap's corridor drill\". We need to clear squatters from the crimson encounter pits and then come back so they can pretend they planned it all. The adventurer is considering the quest. We must speak in character, hook them into the fantasy, and write 2-6 short sentences of spoken dialogue only.\n\nKey points:\n- We are Cap: authoritative, probably a bit of a tough",
+            "createdAtUtc": "2026-05-15T12:57:00.7192354Z"
         }
     ]
 }
