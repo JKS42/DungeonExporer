@@ -264,11 +264,23 @@ namespace DungeonExporer.UI
 
         private void OnHearClicked()
         {
-            if (_ollama == null || _busy)
+            if (_ollama == null)
+            {
+                Debug.LogWarning("DialoguePanelController.OnHearClicked: OllamaHandler is null. Ensure an OllamaHandler exists in the scene and is assigned.");
                 return;
+            }
+
+            if (_busy)
+            {
+                Debug.Log("DialoguePanelController.OnHearClicked: Busy; ignoring click.");
+                return;
+            }
 
             if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
+            {
+                Debug.LogWarning($"DialoguePanelController.OnHearClicked: No quest definition for id '{_questId}'.");
                 return;
+            }
 
             StartCoroutine(OnHearClickedCoroutine(def));
         }
@@ -307,6 +319,7 @@ namespace DungeonExporer.UI
                 _statusText.text = "Listening… (Ollama, streaming)";
 
             string prompt = BuildNpcPrompt(def);
+            Debug.Log($"DialoguePanelController: Requesting Ollama stream for NPC '{_npcConversationId}' (quest '{_questId}'), model={model}");
 
             bool streamFinished = false;
             string streamError = null;
