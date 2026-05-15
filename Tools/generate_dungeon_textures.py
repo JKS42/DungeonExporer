@@ -22,6 +22,10 @@ def jitter(rgb: tuple[int, int, int], amount: int, rng: random.Random) -> tuple[
     return tuple(clamp(c + rng.randint(-amount, amount)) for c in rgb)
 
 
+def darken(rgb: tuple[int, int, int], amount: int, rng: random.Random) -> tuple[int, int, int]:
+    return tuple(clamp(c - rng.randint(amount // 2, amount)) for c in rgb)
+
+
 def _stone_color(rng: random.Random, wall: bool = True) -> tuple[int, int, int]:
     """Warm fantasy dungeon stone — cocoa / grey-brown, not cold concrete."""
     if wall:
@@ -49,75 +53,102 @@ def _irregular_quad(
     return points
 
 
+def _wall_stone_fill(rng: random.Random) -> tuple[int, int, int]:
+    """Warm grey / taupe blocks like stylized dungeon art."""
+    palette = [
+        (168, 158, 142),
+        (152, 142, 128),
+        (178, 168, 152),
+        (140, 132, 118),
+        (162, 150, 136),
+    ]
+    return jitter(palette[rng.randint(0, len(palette) - 1)], 14, rng)
+
+
+def _draw_stylized_stone(draw: ImageDraw.ImageDraw, pts: list[tuple[float, float]], fill: tuple[int, int, int], rng: random.Random) -> None:
+    """Cartoon stone: fill, dark outline, top-left highlight, bottom-right shade, pits, chips."""
+    outline = (32, 28, 24)
+    draw.polygon(pts, fill=fill, outline=outline)
+
+    minx = min(p[0] for p in pts)
+    maxx = max(p[0] for p in pts)
+    miny = min(p[1] for p in pts)
+    maxy = max(p[1] for p in pts)
+    w = maxx - minx
+    h = maxy - miny
+
+    hi = jitter(fill, 38, rng)
+    sh = darken(fill, 36, rng)
+    draw.line([(minx, miny), (minx + w * 0.82, miny)], fill=hi, width=rng.randint(4, 6))
+    draw.line([(minx, miny), (minx, miny + h * 0.82)], fill=hi, width=rng.randint(3, 5))
+    draw.line([(maxx, maxy), (minx + w * 0.18, maxy)], fill=sh, width=rng.randint(3, 5))
+    draw.line([(maxx, maxy), (maxx, miny + h * 0.18)], fill=sh, width=rng.randint(3, 5))
+
+    cx = (minx + maxx) * 0.5
+    cy = (miny + maxy) * 0.5
+    for _ in range(rng.randint(2, 7)):
+        px = cx + rng.uniform(-w * 0.35, w * 0.35)
+        py = cy + rng.uniform(-h * 0.35, h * 0.35)
+        r = rng.randint(3, 9)
+        draw.ellipse([px - r, py - r, px + r, py + r], fill=(48, 42, 36))
+
+    if rng.random() > 0.35:
+        x0 = cx + rng.uniform(-w * 0.25, w * 0.25)
+        y0 = cy + rng.uniform(-h * 0.25, h * 0.25)
+        length = rng.randint(18, 55)
+        angle = rng.uniform(0, math.pi)
+        draw.line(
+            [
+                (x0, y0),
+                (x0 + math.cos(angle) * length, y0 + math.sin(angle) * length),
+            ],
+            fill=(58, 50, 44),
+            width=rng.randint(2, 3),
+        )
+
+    for _ in range(rng.randint(0, 2)):
+        chip_x = rng.choice([minx, maxx])
+        chip_y = rng.uniform(miny, maxy)
+        draw.line(
+            [(chip_x, chip_y), (chip_x + rng.randint(-12, 12), chip_y + rng.randint(-8, 8))],
+            fill=sh,
+            width=2,
+        )
+
+
 def make_stone_wall(path: Path, seed: int = 42) -> None:
-    """Hewn fantasy dungeon wall — irregular stone blocks in wide mortar."""
+    """Stylized fantasy wall — large irregular blocks, dark mortar (reference-inspired)."""
     rng = random.Random(seed)
-    mortar = (108, 98, 86)
+    mortar = (34, 30, 26)
     img = Image.new("RGB", (SIZE, SIZE), mortar)
     draw = ImageDraw.Draw(img)
 
-    cols, rows = 7, 9
+    cols, rows = 5, 6
+    cell_w = SIZE / cols
+    cell_h = SIZE / rows
+    mortar_gap = 16
+
     for row in range(-1, rows + 1):
+        row_offset = (cell_w * 0.48) if row % 2 else 0.0
         for col in range(-1, cols + 1):
-            cell_w = SIZE / cols
-            cell_h = SIZE / rows
-            cx = col * cell_w + cell_w * 0.5 + rng.uniform(-cell_w * 0.22, cell_w * 0.22)
-            cy = row * cell_h + cell_h * 0.5 + rng.uniform(-cell_h * 0.22, cell_h * 0.22)
-            w = cell_w * rng.uniform(0.78, 1.05)
-            h = cell_h * rng.uniform(0.75, 1.02)
+            cx = col * cell_w + cell_w * 0.5 + row_offset + rng.uniform(-22, 22)
+            cy = row * cell_h + cell_h * 0.5 + rng.uniform(-18, 18)
+            w = cell_w * rng.uniform(0.82, 1.08) - mortar_gap
+            h = cell_h * rng.uniform(0.8, 1.06) - mortar_gap
             pts = _irregular_quad(cx, cy, w, h, rng)
-            base = _stone_color(rng, wall=True)
-            fill = jitter(base, 20, rng)
-            draw.polygon(pts, fill=fill, outline=jitter(mortar, 8, rng))
+            fill = _wall_stone_fill(rng)
+            _draw_stylized_stone(draw, pts, fill, rng)
 
-            # chiselled top-left highlight
-            hx = sum(p[0] for p in pts) / 4
-            hy = sum(p[1] for p in pts) / 4
-            draw.line(
-                [(pts[0][0], pts[0][1]), (pts[1][0], pts[1][1])],
-                fill=jitter(fill, 28, rng),
-                width=rng.randint(2, 4),
-            )
-            draw.line(
-                [(pts[0][0], pts[0][1]), (pts[3][0], pts[3][1])],
-                fill=jitter(fill, 22, rng),
-                width=rng.randint(1, 3),
-            )
-
-    # deeper mortar grain
+    # subtle mortar noise (keep gaps dark)
     px = img.load()
-    for _ in range(8000):
+    for _ in range(5000):
         x, y = rng.randint(0, SIZE - 1), rng.randint(0, SIZE - 1)
         r, g, b = px[x, y]
-        d = rng.randint(-14, 10)
-        px[x, y] = (clamp(r + d), clamp(g + d), clamp(b + d))
+        if r < 60:
+            d = rng.randint(-8, 8)
+            px[x, y] = (clamp(r + d), clamp(g + d), clamp(b + d))
 
-    # moss in creases
-    moss = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    md = ImageDraw.Draw(moss)
-    for _ in range(22):
-        cx = rng.randint(0, SIZE)
-        cy = rng.randint(0, SIZE)
-        r = rng.randint(14, 40)
-        md.ellipse(
-            [cx - r, cy - r, cx + r, cy + r],
-            fill=(62, 88, 54, rng.randint(30, 75)),
-        )
-    moss = moss.filter(ImageFilter.GaussianBlur(radius=5))
-    img = Image.alpha_composite(img.convert("RGBA"), moss).convert("RGB")
-
-    cd = ImageDraw.Draw(img)
-    for _ in range(55):
-        x, y = rng.randint(0, SIZE), rng.randint(0, SIZE)
-        length = rng.randint(10, 55)
-        angle = rng.uniform(0, math.pi)
-        cd.line(
-            [(x, y), (x + math.cos(angle) * length, y + math.sin(angle) * length)],
-            fill=(78, 66, 56),
-            width=1,
-        )
-
-    img = img.filter(ImageFilter.GaussianBlur(radius=0.55))
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.35))
     img.save(path, "PNG")
     print(f"wrote {path}")
 
@@ -227,6 +258,11 @@ def main() -> None:
     make_stone_wall(brick_dir / "DungeonBrick_Albedo.png")
     make_stone_floor(floor_dir / "DungeonFloor_Albedo.png")
     make_spike_trap(spike_dir / "SpikeTrap_Albedo.png")
+
+
+def regenerate_wall_only() -> None:
+    """Regenerate wall albedo only (keeps existing floor)."""
+    make_stone_wall(ART / "DungeonBrick" / "DungeonBrick_Albedo.png")
 
 
 if __name__ == "__main__":

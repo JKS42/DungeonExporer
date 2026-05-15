@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-05-15 — Stylized cartoon stone wall texture
+**Type**: scope-change
+**AI tool(s)**: Cursor + Claude; Pillow
+
+**What changed**: Rewrote **`make_stone_wall()`** in `Tools/generate_dungeon_textures.py` — large irregular blocks, thick dark mortar, top-left highlights, pockmarks/chips (reference image). Regenerated **`DungeonBrick_Albedo.png`** only; floor texture unchanged. Default **`_brickWorldMeters`** **1.35** for larger visible blocks.
+**Why**: User wanted walls to match stylized reference while keeping existing floor.
+**Impact / docs touched**: `Tools/generate_dungeon_textures.py`, `DungeonBrick_Albedo.png`, `DungeonLevelBuilder.cs`, `Level1.unity`, `docs/art-direction.md`, `docs/refinements-changes.md`.
+
 ## 2026-05-15 — Taller walls, stone ceiling, dungeon lighting
 **Type**: scope-change
 **AI tool(s)**: Cursor + Claude

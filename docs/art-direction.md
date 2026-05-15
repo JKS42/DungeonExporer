@@ -52,7 +52,7 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
 
 - **Location**: `Assets/Art/Environment/DungeonBrick/`
 - **Files**:
-  - `DungeonBrick_Albedo.png` — 1024×1024 **irregular hewn stone blocks** (fantasy dungeon wall).
+  - `DungeonBrick_Albedo.png` — 1024×1024 **stylized irregular stone blocks**, dark mortar, top-left highlights (cartoon dungeon wall).
   - `DungeonBrickWall.mat` — URP Lit; `DungeonLevelBuilder._wallMaterial` with UV scale via `MaterialPropertyBlock`.
 - **Tool**: **Python 3 + Pillow** — `make_stone_wall()` in `Tools/generate_dungeon_textures.py`.
 - **Generated**: 2026-05-15 (stone pass; replaces running-bond brick).
@@ -60,7 +60,7 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
 
 #### “Prompt” / recipe (reproduce the same look)
 
-> Tileable **fantasy dungeon stone wall**: irregular **hewn blocks**, wide **warm grey-brown mortar**, chiselled edge highlights, subtle **moss** in creases, hairline **cracks**. Cosy palette (cocoa / parchment grey) — not modern brick, not photoreal concrete, not grimdark.
+> Tileable **stylized fantasy dungeon wall** (reference: large hand-drawn stone blocks): **few, big irregular stones**, **thick dark charcoal-brown mortar**, warm **grey/taupe** faces, strong **top-left highlights** and **bottom-right shade**, **pockmarks** and **edge chips**. Not running-bond brick; readable at gameplay scale.
 
 #### Generation notes (Pillow)
 

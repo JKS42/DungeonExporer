@@ -28,7 +28,7 @@ namespace DungeonExporer.Dungeon
         [Tooltip("URP Lit material with brick base map. Leave empty to use a flat procedural color.")]
         [SerializeField] private Material _wallMaterial;
         [Tooltip("Approximate world width of one brick column; tiling is derived from wall cube size.")]
-        [SerializeField] private float _brickWorldMeters = 1.05f;
+        [SerializeField] private float _brickWorldMeters = 1.35f;
 
         [Header("Floors")]
         [Tooltip("URP Lit material with stone floor base map. Leave empty to use flat corridor / safe / encounter colors.")]
