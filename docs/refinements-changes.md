@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-05-15 — Dialogue reply now renders from stream callbacks
+**Type**: fix
+**AI tool(s)**: Cursor + GPT-5.4 mini
+
+**What changed**: `DialoguePanelController` now writes Ollama stream deltas directly into the visible dialogue body as they arrive, and also writes the final sanitized reply on completion so the text box cannot stay blank if the typewriter coroutine lags or exits early.
+**Why**: The hear-ollama button was launching the request, but the AI reply was not reliably appearing in the on-screen text area.
+**Impact / docs touched**: `Assets/Scripts/UI/DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
 ## 2026-05-15 — Spike traps jumpable
 **Type**: refactor
 **AI tool(s)**: Cursor + Claude

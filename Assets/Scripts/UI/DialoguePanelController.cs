@@ -332,6 +332,7 @@ namespace DungeonExporer.UI
                     if (gen != _dialogueGeneration)
                         return;
                     _streamBuffer.Append(delta);
+                    UpdateLlmBodyText(OllamaHandler.SanitizeForDisplay(_streamBuffer.ToString()));
                 },
                 onComplete: full =>
                 {
@@ -340,6 +341,7 @@ namespace DungeonExporer.UI
                     streamFinished = true;
                     if (_statusText != null)
                         _statusText.text = string.Empty;
+                    UpdateLlmBodyText(OllamaHandler.SanitizeModelOutput(full));
                     NpcConversationMemory.AppendAssistantReply(_npcConversationId, full);
                 },
                 onError: err =>
@@ -390,19 +392,9 @@ namespace DungeonExporer.UI
                     break;
 
                 revealed += _typewriterCharsPerSecond * Time.unscaledDeltaTime;
-                cap = _streamBuffer.Length;
-                int shown = Mathf.Clamp(Mathf.FloorToInt(revealed), 0, cap);
 
-                if (gen == _dialogueGeneration)
-                {
-                    if (cap > 0)
-                    {
-                        string slice = _streamBuffer.ToString(0, shown);
-                        UpdateLlmBodyText(OllamaHandler.SanitizeForDisplay(slice));
-                    }
-                    else if (isStreamFinished() && _statusText != null)
-                        _statusText.text = "Cap had nothing to say (empty reply from Ollama).";
-                }
+                if (isStreamFinished() && _streamBuffer.Length == 0 && _statusText != null)
+                    _statusText.text = "Cap had nothing to say (empty reply from Ollama).";
 
                 yield return null;
             }

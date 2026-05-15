@@ -59,6 +59,18 @@
             "prompt": "You are Cap, an NPC in a first-person dungeon crawler videogame.\nAuthoritative quest title: Cap's corridor drill.\nAuthoritative briefing (facts): Cap wants you to wallop the training dummy down the hall, then come back so they can pretend they planned it all along.\nQuest state summary from the game: No active quests.\nInventory: empty.\nThe adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.\nWrite 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.",
             "response": "",
             "createdAtUtc": "2026-05-15T09:03:47.8740126Z"
+        },
+        {
+            "model": "qwen3:4b",
+            "prompt": "You are Cap, an NPC in a first-person dungeon crawler videogame.\nAuthoritative quest title: Cap's corridor drill.\nAuthoritative briefing (facts): Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.\nQuest state summary from the game: No active quests.\nInventory: empty.\nThe adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.\nWrite 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.",
+            "response": "",
+            "createdAtUtc": "2026-05-15T09:49:12.3083906Z"
+        },
+        {
+            "model": "qwen3:4b",
+            "prompt": "You are Cap, an NPC in a first-person dungeon crawler videogame.\nAuthoritative quest title: Cap's corridor drill.\nAuthoritative briefing (facts): Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.\nQuest state summary from the game: No active quests.\nInventory: empty.\nThe adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.\nWrite 2–6 short sentences of spoken dialogue only. No markdown, no bullet lists, no JSON, no stage directions.",
+            "response": "",
+            "createdAtUtc": "2026-05-15T09:49:23.7640880Z"
         }
     ]
 }
