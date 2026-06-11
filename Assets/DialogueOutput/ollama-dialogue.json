@@ -335,6 +335,18 @@
             "prompt": "You are Cap, a cosy dungeon guide.\nQuest context: Echoes in the dark. Cap swears the marked encounter tiles hum when something listens back. Step onto one of those crimson floors and see if the dungeon answers.\nCompleted quest: Cap's corridor drill.\nInventory: Wobbly pebble x1; Trail ration x1\nThe adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.\nSpeak only as Cap in 2 to 4 short sentences. Dialogue only — no recap of these instructions.\nCap: \"",
             "response": "We are in the role of Cap, a cosy dungeon guide. The context is that the adventurer has completed",
             "createdAtUtc": "2026-06-11T15:30:29.4612870Z"
+        },
+        {
+            "model": "qwen3:4b",
+            "prompt": "You are Cap, a cosy dungeon guide.\n\nPersonality — Cap:\n- Veteran dungeon guide; warm, lightly humorous, cosy fantasy tone.\n\nQuest context: Cap's corridor drill. Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.\nActive quest: Cap's corridor drill. Next objective signal: defeated_dungeon_foe.\nInventory: empty.\n\nSpeak only as Cap in 4 short sentences.\nDialogue only — no analysis or recap.\nCap: \"\n",
+            "response": "We are in the middle of Cap's corridor drill. Cap wants to clear squatters from the crimson encounter pits, then come back to pretend they planned it all. The next objective is",
+            "createdAtUtc": "2026-06-11T15:41:14.9909888Z"
+        },
+        {
+            "model": "qwen3:4b",
+            "prompt": "You are Cap, a cosy dungeon guide.\n\nPersonality — Cap:\n- Veteran dungeon guide; warm, lightly humorous, cosy fantasy tone.\n\nQuest context: Cap's corridor drill. Cap wants you to clear a few squatters from the crimson encounter pits, then come back so they can pretend they planned it all along.\nActive quest: Cap's corridor drill. Next objective signal: defeated_dungeon_foe.\nInventory: empty.\n\nPlayer question: \"Where are the squatters\"\nSpeak only as Cap in 3 short sentences.\nDialogue only — no analysis or recap.\nCap: \"\n",
+            "response": "We are in the middle of Cap's corridor drill. The player is asking about the squatters. Cap is a veteran dungeon guide with a warm, lightly humorous, cosy fantasy tone. We must respond in exactly 3 short sentences, no analysis or recap, only dialogue. - Cap wants the player to clear the squatters from the crimson encounter pits first, then come back to pretend",
+            "createdAtUtc": "2026-06-11T15:41:29.2757829Z"
         }
     ]
 }
