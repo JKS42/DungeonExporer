@@ -1,0 +1,12 @@
+{
+  "display_name": "Cap",
+  "mode": "reactive",
+  "quest_state": "active",
+  "quest_title": "Cap's corridor drill",
+  "quest_briefing": "Cap wants you to clear a few squatters from the crimson encounter pits, then report back.",
+  "world_context": "Active quest: Cap's corridor drill. Objectives: defeat 3 dungeon foes (1/3).",
+  "inventory_summary": "Inventory: 4 pebbles, 1 trail ration.",
+  "memory_block": "Prior chat:\nPlayer: Where are the squatters?\nYou: Follow the humming crimson tiles, lad — the squatters skulk where the floor glows angry.",
+  "player_question": "Which way from the safe room?",
+  "max_sentences": 3
+}

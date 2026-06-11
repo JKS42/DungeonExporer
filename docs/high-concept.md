@@ -69,7 +69,7 @@ Prompt structure, endpoints, and risks: [`ollama-plan.md`](./ollama-plan.md).
 
 - Smaller models vs. cloud quality — mitigated by tight prompts and authored quest text.
 - Player must install Ollama — mitigated by setup panel + [`setup.md`](./setup.md).
-- Cold-start latency — warm-up planned (see `ollama-plan.md`).
+- Cold-start latency — mitigated by Main Menu warm-up (`OllamaMenuWarmup`; see `ollama-plan.md`).
 
 ## 4. Target platform / system requirements
 

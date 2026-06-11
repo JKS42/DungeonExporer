@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DungeonExporer.Gameplay;
 using DungeonExporer.Settings;
 using TMPro;
 using UnityEngine;
@@ -30,6 +31,7 @@ namespace DungeonExporer.UI
         private void Start()
         {
             EnsureSettingsApplier();
+            EnsureOllamaWarmup();
             BuildCanvas();
             BuildBackground();
             _mainPanel = BuildMainPanel();
@@ -46,6 +48,15 @@ namespace DungeonExporer.UI
                 var go = new GameObject("SettingsApplier");
                 go.AddComponent<SettingsApplier>();
             }
+        }
+
+        private static void EnsureOllamaWarmup()
+        {
+            if (FindFirstObjectByType<OllamaMenuWarmup>() != null)
+                return;
+
+            var go = new GameObject("OllamaMenuWarmup");
+            go.AddComponent<OllamaMenuWarmup>();
         }
 
         private void BuildCanvas()

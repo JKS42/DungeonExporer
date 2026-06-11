@@ -26,7 +26,7 @@ namespace DungeonExporer.Gameplay
                 return string.Empty;
 
             var sb = new StringBuilder();
-            sb.AppendLine("Recent conversation (build on it; do not repeat the same joke):");
+            sb.AppendLine("Prior chat:");
             for (int i = 0; i < list.Count; i++)
             {
                 Turn turn = list[i];
@@ -53,7 +53,9 @@ namespace DungeonExporer.Gameplay
                 return;
 
             string cleaned = OllamaHandler.SanitizeModelOutput(raw ?? string.Empty).Trim();
-            if (cleaned.Length == 0)
+            if (!isPlayer)
+                cleaned = OllamaHandler.ExtractNpcSpokenDialogue(cleaned);
+            if (cleaned.Length == 0 || (!isPlayer && OllamaHandler.IsNpcMetaPlanningLine(cleaned)))
                 return;
 
             if (cleaned.Length > MaxSnippetChars)

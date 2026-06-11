@@ -187,7 +187,7 @@ DungeonExporer/
 | `Cannot connect to localhost:11434` | Ollama not running | Start Ollama service. |
 | Thinking tags in UI | Reasoning model | Output is sanitized; update `OllamaHandler` / `clearThinking` if leakage persists. |
 | Spikes always damage | Not jumping over strip | Traps are narrow; damage only when feet are low (`HazardVolume`). |
-| First LLM call very slow | Cold model | Normal once per session; warm-up planned. |
+| First LLM call very slow | Cold model | Wait on the Main Menu a few seconds (auto warm-up), or run `ollama run <model>` once before play. |
 | Compile: Newtonsoft | Missing package | Install `com.unity.nuget.newtonsoft-json` or ignore legacy `OllamaRequester`. |
 
 Save file location (Windows example): `%USERPROFILE%\AppData\LocalLow\<CompanyName>\<ProductName>\dungeon_session_save.json` — exact path logged on **F5** in the Console.

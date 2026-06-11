@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using DungeonExporer.AI;
 using DungeonExporer.Gameplay;
 using DungeonExporer.Player;
 using TMPro;
@@ -99,7 +100,7 @@ namespace DungeonExporer.UI
             _displayName = displayName ?? "Stranger";
             _questId = string.IsNullOrWhiteSpace(questId) ? string.Empty : questId.Trim();
             _npcConversationId = string.IsNullOrWhiteSpace(npcConversationId) ? "npc_default" : npcConversationId.Trim();
-            _busy = false;
+            ReleaseDialogueInputLock();
 
             if (_llmBodyText != null)
                 _llmBodyText.text = string.Empty;
@@ -137,7 +138,7 @@ namespace DungeonExporer.UI
         public void Close()
         {
             StopVoicePresentation();
-            _busy = false;
+            ReleaseDialogueInputLock();
             SetOpen(false, restoreCursor: true);
         }
 
@@ -172,8 +173,24 @@ namespace DungeonExporer.UI
                 _askCoroutine = null;
             }
 
+            ReleaseDialogueInputLock();
+        }
+
+        private void LockDialogueInputForLlm()
+        {
+            _busy = true;
+            SetHearInteractable(false);
+            SetAskInteractable(false);
+        }
+
+        private void ReleaseDialogueInputLock()
+        {
+            _busy = false;
             SetHearInteractable(true);
-            SetAskInteractable(true);
+            if (GameSettings.LlmEnabled)
+                SetAskInteractable(true);
+            if (_statusText != null)
+                _statusText.text = string.Empty;
         }
 
         private void SetOpen(bool open, bool restoreCursor)
@@ -365,43 +382,36 @@ namespace DungeonExporer.UI
             if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
                 yield break;
 
-            _busy = true;
-            SetHearInteractable(false);
-            SetAskInteractable(false);
+            LockDialogueInputForLlm();
             _ollama?.AbortActiveRequest();
             NpcConversationMemory.AppendUserMessage(_npcConversationId, question);
 
             if (_statusText != null)
                 _statusText.text = "Cap is thinking…";
 
-            string spoken = string.Empty;
-            yield return FetchReactiveLineCoroutine(def, question, gen, reply => spoken = reply);
-
-            if (gen != _dialogueGeneration)
+            try
             {
-                _busy = false;
+                string spoken = string.Empty;
+                yield return FetchReactiveLineCoroutine(def, question, gen, reply => spoken = reply);
+
+                if (gen != _dialogueGeneration)
+                    yield break;
+
+                string answer = !string.IsNullOrWhiteSpace(spoken)
+                    ? spoken
+                    : "Hmm. My whiskers are tangled — try asking that again in a simpler way.";
+
+                Debug.Log($"[Ask Cap] Player: \"{question}\"\n{_displayName}: \"{answer}\"");
+
+                NpcConversationMemory.AppendAssistantReply(_npcConversationId, answer);
+                AppendLlmExchange(question, answer);
+            }
+            finally
+            {
+                if (gen == _dialogueGeneration && IsOpen)
+                    ReleaseDialogueInputLock();
                 _askCoroutine = null;
-                yield break;
             }
-
-            if (!string.IsNullOrWhiteSpace(spoken))
-            {
-                NpcConversationMemory.AppendAssistantReply(_npcConversationId, spoken);
-                AppendLlmExchange(question, spoken);
-            }
-            else
-            {
-                string fallback = "Hmm. My whiskers are tangled — try asking that again in a simpler way.";
-                NpcConversationMemory.AppendAssistantReply(_npcConversationId, fallback);
-                AppendLlmExchange(question, fallback);
-            }
-
-            _busy = false;
-            SetHearInteractable(true);
-            SetAskInteractable(true);
-            if (_statusText != null)
-                _statusText.text = string.Empty;
-            _askCoroutine = null;
         }
 
         private IEnumerator FetchReactiveLineCoroutine(QuestDefinition def, string question, int gen, Action<string> onSpoken)
@@ -447,17 +457,25 @@ namespace DungeonExporer.UI
                 extractNpcDialogue: true,
                 npcDialogueName: _displayName);
 
-            while (!done && gen == _dialogueGeneration)
+            while (!done)
                 yield return null;
 
-            if (!string.IsNullOrEmpty(err) && _statusText != null && IsOpen)
-                _statusText.text = err;
+            if (gen != _dialogueGeneration)
+            {
+                onSpoken?.Invoke(string.Empty);
+                yield break;
+            }
+
+            if (!string.IsNullOrEmpty(err))
+            {
+                Debug.LogWarning($"[Ask Cap] Ollama error for \"{question}\": {err}");
+                if (_statusText != null && IsOpen)
+                    _statusText.text = err;
+            }
 
             spoken = string.IsNullOrWhiteSpace(raw)
                 ? string.Empty
                 : OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
-            if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
-                spoken = raw.Trim();
 
             onSpoken?.Invoke(spoken);
         }
@@ -473,6 +491,7 @@ namespace DungeonExporer.UI
             {
                 if (gen == _dialogueGeneration)
                     ApplyVoiceLine(cached);
+                ReleaseDialogueInputLock();
                 yield break;
             }
 
@@ -491,59 +510,53 @@ namespace DungeonExporer.UI
             if (NpcDialogueCache.TryGet(key, out cached))
             {
                 ApplyVoiceLine(cached);
-                if (_statusText != null)
-                    _statusText.text = string.Empty;
+                ReleaseDialogueInputLock();
                 yield break;
             }
 
-            _busy = true;
-            SetHearInteractable(false);
-            SetAskInteractable(false);
-            yield return FetchNpcLineCoroutine(def, key, gen, spoken =>
+            LockDialogueInputForLlm();
+            try
             {
-                if (gen != _dialogueGeneration)
-                    return;
-                if (!string.IsNullOrWhiteSpace(spoken))
-                    ApplyVoiceLine(spoken);
-            });
-            if (gen == _dialogueGeneration)
+                yield return FetchNpcLineCoroutine(def, key, gen, spoken =>
+                {
+                    if (gen != _dialogueGeneration)
+                        return;
+                    if (!string.IsNullOrWhiteSpace(spoken))
+                        ApplyVoiceLine(spoken);
+                });
+            }
+            finally
             {
-                _busy = false;
-                SetHearInteractable(true);
-                SetAskInteractable(true);
-                if (_statusText != null)
-                    _statusText.text = string.Empty;
+                if (gen == _dialogueGeneration && IsOpen)
+                    ReleaseDialogueInputLock();
             }
         }
 
         private IEnumerator RefreshNpcVoiceRoutine(QuestDefinition def, string cacheKey)
         {
             int gen = _dialogueGeneration;
-            _busy = true;
-            SetHearInteractable(false);
-            SetAskInteractable(false);
+            LockDialogueInputForLlm();
             NpcDialogueCache.EndFetch(cacheKey);
             NpcDialogueCache.Invalidate(cacheKey);
             if (_statusText != null)
                 _statusText.text = "Cap is thinking up another line…";
 
-            yield return FetchNpcLineCoroutine(def, cacheKey, gen, spoken =>
+            try
             {
-                if (gen != _dialogueGeneration)
-                    return;
-                if (!string.IsNullOrWhiteSpace(spoken))
-                    ApplyVoiceLine(spoken);
-                else
-                    ShowInstantFallbackLine(BuildCannedNpcLine(def));
-            });
-
-            if (gen == _dialogueGeneration)
+                yield return FetchNpcLineCoroutine(def, cacheKey, gen, spoken =>
+                {
+                    if (gen != _dialogueGeneration)
+                        return;
+                    if (!string.IsNullOrWhiteSpace(spoken))
+                        ApplyVoiceLine(spoken);
+                    else
+                        ShowInstantFallbackLine(BuildCannedNpcLine(def));
+                });
+            }
+            finally
             {
-                _busy = false;
-                SetHearInteractable(true);
-                SetAskInteractable(true);
-                if (_statusText != null)
-                    _statusText.text = string.Empty;
+                if (gen == _dialogueGeneration && IsOpen)
+                    ReleaseDialogueInputLock();
             }
         }
 
@@ -622,8 +635,15 @@ namespace DungeonExporer.UI
                 extractNpcDialogue: true,
                 npcDialogueName: _displayName);
 
-            while (!done && gen == _dialogueGeneration)
+            while (!done)
                 yield return null;
+
+            if (gen != _dialogueGeneration)
+            {
+                NpcDialogueCache.EndFetch(cacheKey);
+                onSpoken?.Invoke(string.Empty);
+                yield break;
+            }
 
             if (!string.IsNullOrEmpty(err) && _statusText != null && IsOpen)
                 _statusText.text = err;
@@ -631,8 +651,6 @@ namespace DungeonExporer.UI
             spoken = string.IsNullOrWhiteSpace(raw)
                 ? string.Empty
                 : OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
-            if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
-                spoken = raw.Trim();
 
             if (!string.IsNullOrWhiteSpace(spoken))
                 NpcDialogueCache.Put(cacheKey, spoken);
@@ -680,7 +698,8 @@ namespace DungeonExporer.UI
 
         private void ApplyVoiceLine(string line)
         {
-            if (string.IsNullOrWhiteSpace(line))
+            line = OllamaHandler.ExtractNpcSpokenDialogue(line, _displayName);
+            if (string.IsNullOrWhiteSpace(line) || OllamaHandler.IsNpcMetaPlanningLine(line))
                 return;
             UpdateLlmBodyText(line);
             NpcConversationMemory.AppendAssistantReply(_npcConversationId, line);
@@ -692,25 +711,17 @@ namespace DungeonExporer.UI
             string inv = PlayerInventory.Instance != null ? PlayerInventory.Instance.BuildSummaryForPrompt() : "Inventory: unknown.";
             bool completed = QuestManager.Instance != null && QuestManager.Instance.IsQuestCompleted(_questId);
             bool active = QuestManager.Instance != null && QuestManager.Instance.IsQuestActive(_questId);
-
             string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
-            string memoryBlock = string.IsNullOrEmpty(memory) ? string.Empty : memory + "\n";
 
-            string situation = completed
-                ? "The adventurer has returned after finishing this quest (or its objectives). React in warm, cosy fantasy banter — thanks, jokes, or loose ends. Do not assign new formal objectives or numbered tasks."
-                : active
-                    ? "The adventurer accepted your quest and is working on it. Offer a short tip or color commentary; stay consistent with the briefing."
-                    : "The adventurer is considering your quest. Speak in character and hook them into the fantasy; do not repeat the briefing verbatim.";
-
-            return
-                "You are " + _displayName + ", an NPC in a cozy first-person dungeon crawler.\n" +
-                memoryBlock +
-                "Game facts (do NOT repeat these labels or list them back): " + def.title + ". " + def.briefing + "\n" +
-                world + "\n" + inv + "\n" +
-                situation + "\n" +
-                "Reply with ONLY what " + _displayName + " says out loud — 2 to 6 short sentences of in-character speech. " +
-                "No planning, no \"quest title\", no \"briefing\", no \"constraints\", no \"we are writing as\".\n" +
-                _displayName + ": \"";
+            return CapPersonalityPromptBuilder.BuildVoicePrompt(
+                _displayName,
+                def.title,
+                def.briefing,
+                world,
+                inv,
+                memory,
+                active,
+                completed);
         }
 
         private string BuildReactiveNpcPrompt(QuestDefinition def, string question)
@@ -718,18 +729,19 @@ namespace DungeonExporer.UI
             string world = QuestManager.Instance != null ? QuestManager.Instance.BuildPromptContext() : string.Empty;
             string inv = PlayerInventory.Instance != null ? PlayerInventory.Instance.BuildSummaryForPrompt() : "Inventory: unknown.";
             string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
-            string memoryBlock = string.IsNullOrEmpty(memory) ? string.Empty : memory + "\n";
+            bool completed = QuestManager.Instance != null && QuestManager.Instance.IsQuestCompleted(_questId);
+            bool active = QuestManager.Instance != null && QuestManager.Instance.IsQuestActive(_questId);
 
-            return
-                "You are " + _displayName + ", an NPC in a cozy first-person dungeon crawler.\n" +
-                memoryBlock +
-                "Game facts (do NOT repeat these labels): " + def.title + ". " + def.briefing + "\n" +
-                world + "\n" + inv + "\n" +
-                "The player just asked: \"" + question + "\"\n" +
-                "Answer their question in character. Stay cosy and helpful; never assign new formal quest objectives.\n" +
-                "Reply with ONLY what " + _displayName + " says out loud — 1 to 4 short sentences. " +
-                "No planning, no meta commentary.\n" +
-                _displayName + ": \"";
+            return CapPersonalityPromptBuilder.BuildReactivePrompt(
+                _displayName,
+                def.title,
+                def.briefing,
+                world,
+                inv,
+                memory,
+                question,
+                active,
+                completed);
         }
 
         private void AppendLlmExchange(string question, string answer)
@@ -746,8 +758,9 @@ namespace DungeonExporer.UI
             }
 
             sb.Append("You: ").AppendLine(question.Trim());
-            if (!string.IsNullOrWhiteSpace(answer))
-                sb.Append(_displayName).Append(": ").Append(answer.Trim());
+            string spoken = OllamaHandler.ExtractNpcSpokenDialogue(answer, _displayName);
+            if (!string.IsNullOrWhiteSpace(spoken) && !OllamaHandler.IsNpcMetaPlanningLine(spoken))
+                sb.Append(_displayName).Append(": ").Append(spoken.Trim());
 
             UpdateLlmBodyText(sb.ToString().TrimEnd());
         }

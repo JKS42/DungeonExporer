@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using DungeonExporer.Dungeon;
+using DungeonExporer.Player;
 using DungeonExporer.Settings;
 using DungeonExporer.UI;
 using UnityEngine;
@@ -69,6 +70,11 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private Texture2D _enemyAlbedo;
         [SerializeField] private float _enemyMaxHealth = 45f;
         [SerializeField] private string _enemyDefeatQuestEventId = "defeated_dungeon_foe";
+        [SerializeField] private float _enemyAggroRange = 12f;
+        [SerializeField] private float _enemyAttackRange = 2.4f;
+        [SerializeField] private float _enemyMoveSpeed = 2.6f;
+        [SerializeField] private float _enemyDamage = 14f;
+        [SerializeField] private float _enemyAttackCooldown = 1.1f;
 
         private Transform _lootRoot;
         private readonly HashSet<Vector2Int> _scatterReserved = new HashSet<Vector2Int>();
@@ -133,6 +139,8 @@ namespace DungeonExporer.Gameplay
             if (_player == null)
                 _player = GameObject.Find("Player")?.transform;
 
+            EnsurePlayerCombat();
+
             if (_inputActions == null)
                 Debug.LogWarning("LevelGameplayBootstrap: assign the same Input Actions asset as the player (InputSystem_Actions).");
 
@@ -154,6 +162,22 @@ namespace DungeonExporer.Gameplay
             BeginTrapPlanPrefetch();
             BeginContentPlanPrefetch();
             StartCoroutine(PlaceDungeonWhenReady());
+        }
+
+        private void EnsurePlayerCombat()
+        {
+            if (_player == null)
+                return;
+
+            PlayerCombat combat = _player.GetComponent<PlayerCombat>();
+            if (combat == null)
+                combat = _player.gameObject.AddComponent<PlayerCombat>();
+
+            Transform camera = _player.GetComponentInChildren<Camera>()?.transform;
+            if (camera == null && Camera.main != null)
+                camera = Camera.main.transform;
+
+            combat.Wire(_inputActions, camera);
         }
 
         private void BeginContentPlanPrefetch()
@@ -409,6 +433,14 @@ namespace DungeonExporer.Gameplay
 
             var enemy = go.AddComponent<EnemyActor>();
             enemy.Configure(_enemyMaxHealth, _enemyDefeatQuestEventId);
+
+            var melee = go.AddComponent<EnemyMeleeAI>();
+            melee.Configure(
+                _enemyAggroRange,
+                _enemyAttackRange,
+                _enemyMoveSpeed,
+                _enemyDamage,
+                _enemyAttackCooldown);
         }
     }
 }

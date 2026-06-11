@@ -1,12 +1,29 @@
 # Prompt Archive — DungeonExporer
 
 > Record of prompts tested for Ollama integration.  
-> Last updated: 2026-05-15  
+> Last updated: 2026-06-11  
 > Raw log (debug): `Assets/DialogueOutput/ollama-dialogue.json`
 
 ---
 
 ## 1. Active prompts (in code)
+
+### 1.0 Cap personality template (Jinja2 — design source)
+
+**File:** [`prompts/cap_personality.jinja2`](../prompts/cap_personality.jinja2)
+
+Jinja2 template that defines Cap’s **personality bible** (macros) and assembles voice-line / Ask Cap prompts. **Runtime:** mirrored to `Assets/Resources/Prompts/cap_personality.jinja2` and rendered by `CapPersonalityPromptBuilder` + `CapJinja2PromptRenderer` (used from `DialoguePanelController`).
+
+**Example context:** [`prompts/cap_example_context.json`](../prompts/cap_example_context.json)
+
+```bash
+pip install jinja2
+python -c "import json; from pathlib import Path; from jinja2 import Template; r=Path('prompts'); print(Template((r/'cap_personality.jinja2').read_text(encoding='utf-8')).render(**json.loads((r/'cap_example_context.json').read_text(encoding='utf-8'))))"
+```
+
+**Context variables:** `display_name`, `mode` (`voice` | `reactive`), `quest_title`, `quest_briefing`, `quest_state` (`considering` | `active` | `completed`), optional `world_context`, `inventory_summary`, `memory_block`, `player_question` (reactive), `max_sentences`, `situation` (override).
+
+---
 
 ### 1.1 NPC dialogue — Cap (`DialoguePanelController.BuildNpcPrompt`)
 

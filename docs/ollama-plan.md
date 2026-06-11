@@ -42,7 +42,7 @@
 
 ### Pre-warming
 
-The Ollama server keeps a model loaded for ~5 minutes after the last request. To avoid first-prompt latency, the game will issue a tiny warm-up prompt at boot (e.g. on the Main Menu).
+The Ollama server keeps a model loaded for ~5 minutes after the last request. **Implemented:** `OllamaMenuWarmup` on the Main Menu calls `OllamaHandler.WarmupModelCoroutine` (8-token completion, `think: false`) when `GameSettings.LlmEnabled` is true, so Level1 dialogue/planning hits a hot model.
 
 ## 3. Data flow
 
@@ -67,6 +67,7 @@ NpcInteractable (range + Interact / E)
    ├─► proximity prefetch → NpcDialogueCache
    ▼
 DialoguePanelController
+   │  Cap prompts: CapPersonalityPromptBuilder renders Resources/Prompts/cap_personality.jinja2
    │  Authoritative: QuestManager title, briefing, objective hints, completionSummary
    │  Prompt context: inventory summary, quest state, NpcConversationMemory (player + Cap turns)
    │  UI: quest block + LLM block + player input + Ask Cap / Another line / Accept / Close

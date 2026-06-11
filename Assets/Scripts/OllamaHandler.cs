@@ -369,6 +369,51 @@ public class OllamaHandler : MonoBehaviour
     }
 
     /// <summary>
+    /// Loads the preferred model into memory with a tiny completion (for Main Menu cold-start).
+    /// </summary>
+    public IEnumerator WarmupModelCoroutine(Action onSuccess = null, Action<string> onFail = null)
+    {
+        if (!GameSettings.LlmEnabled)
+        {
+            onSuccess?.Invoke();
+            yield break;
+        }
+
+        string model = null;
+        string resolveError = null;
+        yield return ResolveModelTagCoroutine(GetPreferredModelName(),
+            resolved => model = resolved,
+            err => resolveError = err);
+
+        if (string.IsNullOrEmpty(model))
+        {
+            onFail?.Invoke(resolveError ?? "Model unavailable for warm-up.");
+            yield break;
+        }
+
+        bool done = false;
+        string error = null;
+        RequestGeneration(model, "Reply with exactly: ok",
+            onSuccess: _ => done = true,
+            onError: e => { error = e; done = true; },
+            saveToDialogueJson: false,
+            updateResponseUiField: false,
+            maxPredictTokens: 8,
+            disableThinking: true);
+
+        while (!done)
+            yield return null;
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            onFail?.Invoke(error);
+            yield break;
+        }
+
+        onSuccess?.Invoke();
+    }
+
+    /// <summary>
     /// Streams tokens from Ollama (<c>stream: true</c>). <paramref name="onDelta"/> receives each decoded <c>response</c> fragment;
     /// <paramref name="onComplete"/> receives the full sanitized text (same as saved to JSON when enabled).
     /// </summary>
@@ -589,39 +634,99 @@ public class OllamaHandler : MonoBehaviour
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
-        text = SanitizeModelOutput(text).Trim();
+        string original = SanitizeModelOutput(text).Trim();
 
-        int capLine = FindNpcDialogueStart(text, npcName);
-        if (capLine >= 0)
-            text = text.Substring(capLine).TrimStart();
+        string fromQuote = ExtractPromptContinuationSpeech(original);
+        if (!string.IsNullOrWhiteSpace(fromQuote))
+            return fromQuote;
 
-        var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        int anchor = FindNpcDialogueStart(original, npcName);
+        if (anchor >= 0)
+        {
+            string afterAnchor = CleanupSpokenLine(original.Substring(anchor));
+            fromQuote = ExtractPromptContinuationSpeech(afterAnchor) ?? afterAnchor;
+            if (!string.IsNullOrWhiteSpace(fromQuote) && !IsNpcMetaPlanningLine(fromQuote))
+                return fromQuote;
+        }
+
+        string quoted = ExtractQuotedDialogue(original);
+        if (!string.IsNullOrWhiteSpace(quoted))
+            return quoted;
+
+        var lines = original.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         var kept = new List<string>(lines.Length);
         for (int i = 0; i < lines.Length; i++)
         {
-            string line = lines[i].Trim();
+            string line = CleanupSpokenLine(lines[i]);
             if (line.Length == 0 || IsNpcMetaPlanningLine(line))
                 continue;
             kept.Add(line);
         }
 
-        if (kept.Count == 0)
-            return ExtractQuotedDialogue(text);
+        if (kept.Count > 0)
+        {
+            string joined = string.Join(" ", kept);
+            if (!IsNpcMetaPlanningLine(joined))
+                return joined;
+        }
 
-        string joined = string.Join(" ", kept).Trim().Trim('"');
-        if (IsNpcMetaPlanningLine(joined))
-            return ExtractQuotedDialogue(text);
+        string sentences = ExtractInCharacterSentences(original);
+        if (!string.IsNullOrWhiteSpace(sentences))
+            return sentences;
 
-        return joined;
+        return string.Empty;
     }
 
-    /// <summary>Pulls quoted speech (gemma-style) when planning filters removed everything else.</summary>
+    /// <summary>True when text looks like model planning rather than spoken NPC lines.</summary>
+    public static bool IsNpcMetaPlanningLine(string line) => LooksLikeNpcMetaPlanning(line);
+
+    /// <summary>Prompts end with <c>Name: "</c>; model output should be dialogue inside the quote.</summary>
+    private static string ExtractPromptContinuationSpeech(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        text = text.Trim();
+        if (text.StartsWith("\"", StringComparison.Ordinal))
+        {
+            int end = text.IndexOf('"', 1);
+            if (end > 1)
+            {
+                string inner = CleanupSpokenLine(text.Substring(1, end - 1));
+                if (!IsNpcMetaPlanningLine(inner))
+                    return inner;
+            }
+        }
+
+        int close = text.IndexOf('"');
+        if (close > 0)
+        {
+            string beforeClose = CleanupSpokenLine(text.Substring(0, close));
+            if (beforeClose.Length >= 12 && !IsNpcMetaPlanningLine(beforeClose))
+                return beforeClose;
+        }
+
+        if (!text.Contains('"') && text.Length >= 8 && !IsNpcMetaPlanningLine(text))
+            return CleanupSpokenLine(text);
+
+        return string.Empty;
+    }
+
+    private static string CleanupSpokenLine(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        return text.Trim().Trim('"').Trim();
+    }
+
+    /// <summary>Pulls the last quoted speech segment that is not planning/meta.</summary>
     private static string ExtractQuotedDialogue(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
-        var parts = new List<string>(4);
+        string best = string.Empty;
         int i = 0;
         while (i < text.Length)
         {
@@ -638,23 +743,50 @@ public class OllamaHandler : MonoBehaviour
 
             if (end > start)
             {
-                string segment = text.Substring(start, end - start).Trim();
+                string segment = CleanupSpokenLine(text.Substring(start, end - start));
                 if (segment.Length >= 8 && !IsNpcMetaPlanningLine(segment))
-                    parts.Add(segment);
+                    best = segment;
             }
 
             i = end + 1;
         }
 
-        if (parts.Count == 0)
+        return best;
+    }
+
+    private static string ExtractInCharacterSentences(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
-        return string.Join(" ", parts);
+        var kept = new List<string>(4);
+        var chunk = new StringBuilder();
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            chunk.Append(c);
+            if (c != '.' && c != '!' && c != '?')
+                continue;
+
+            string sentence = CleanupSpokenLine(chunk.ToString());
+            chunk.Clear();
+            if (sentence.Length >= 8 && !IsNpcMetaPlanningLine(sentence))
+                kept.Add(sentence);
+        }
+
+        string tail = CleanupSpokenLine(chunk.ToString());
+        if (tail.Length >= 8 && !IsNpcMetaPlanningLine(tail))
+            kept.Add(tail);
+
+        if (kept.Count == 0)
+            return string.Empty;
+
+        return string.Join(" ", kept);
     }
 
     private static int FindNpcDialogueStart(string text, string npcName)
     {
-        var starters = new List<string>(4) { "Cap says:", "Cap said:", "Cap:" };
+        var starters = new List<string>(4) { "Cap says:", "Cap said:" };
         if (!string.IsNullOrWhiteSpace(npcName))
         {
             string name = npcName.Trim();
@@ -662,19 +794,39 @@ public class OllamaHandler : MonoBehaviour
             starters.Add(name + " said:");
             starters.Add(name + ":");
         }
-
-        for (int s = 0; s < starters.Count; s++)
+        else
         {
-            int idx = text.LastIndexOf(starters[s], StringComparison.OrdinalIgnoreCase);
-            if (idx < 0)
-                continue;
-            return idx + starters[s].Length;
+            starters.Add("Cap:");
         }
 
-        return -1;
+        int best = -1;
+        for (int s = 0; s < starters.Count; s++)
+        {
+            string starter = starters[s];
+            int searchFrom = text.Length;
+            while (searchFrom > 0)
+            {
+                int idx = text.LastIndexOf(starter, searchFrom - 1, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0)
+                    break;
+
+                int after = idx + starter.Length;
+                if (starter.EndsWith(":", StringComparison.Ordinal) && after < text.Length && text[after] == '\'')
+                {
+                    searchFrom = idx;
+                    continue;
+                }
+
+                if (idx > best)
+                    best = after;
+                break;
+            }
+        }
+
+        return best;
     }
 
-    private static bool IsNpcMetaPlanningLine(string line)
+    private static bool LooksLikeNpcMetaPlanning(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
             return true;
@@ -682,23 +834,25 @@ public class OllamaHandler : MonoBehaviour
         string lower = line.ToLowerInvariant();
         string[] markers =
         {
-            "we are writing as", "we are cap,", "we are cap ", "i am writing as",
+            "we are writing as", "we are building on", "we are cap,", "we are cap ", "i am writing as",
+            "recent conversation", "the player asked", "the player just asked", "player question:",
             "quest title:", "authoritative quest", "authoritative briefing", "briefing:",
-            "current state:", "constraints:", "key points", "approach:", "facts:",
+            "current state:", "current situation involves", "constraints:", "key points", "approach:",
+            "game facts", "cap's role", "npc in a cozy", "npc in a cosy",
             "quest state summary", "spoken dialogue only", "write 2–6", "write 2-6",
-            "write 2 to 6", "do not repeat the briefing", "the adventurer is considering",
+            "write 2 to 6", "do not repeat the briefing", "do not repeat these labels",
+            "the adventurer is considering", "the adventurer accepted your quest",
             "inventory: empty", "inventory: unknown", "no active quests",
-            "no markdown", "no bullet", "no json", "no stage directions",
-            "first-person dungeon crawler game", "first-person dungeon crawler videogame"
+            "no markdown", "no bullet", "no json", "no stage directions", "no planning",
+            "first-person dungeon crawler", "dungeon crawler game", "cozy first-person dungeon",
+            "build on it; do not repeat", "answer their question in character",
+            "reply with only what", "output 1-3 short sentences of dialogue"
         };
 
         for (int i = 0; i < markers.Length; i++)
         {
-            if (lower.StartsWith(markers[i], StringComparison.Ordinal) ||
-                lower.Contains("\n" + markers[i], StringComparison.Ordinal))
-            {
+            if (lower.Contains(markers[i], StringComparison.Ordinal))
                 return true;
-            }
         }
 
         return false;

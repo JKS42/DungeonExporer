@@ -150,7 +150,8 @@ DungeonExporer/
 - [ ] Consolidate Ollama clients (`OllamaHandler` → SimpleOllamaUnity)
 - [ ] Player Adventurer mesh in scene (asset exists under `Art/Characters`)
 - [ ] Enemy AI, rigged animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
-- [ ] Boot-time Ollama warm-up, full `GameSettings.LlmEnabled` kill-switch at all call sites
+- [x] Boot-time Ollama warm-up (Main Menu via `OllamaMenuWarmup`)
+- [ ] Full `GameSettings.LlmEnabled` kill-switch at all call sites
 
 ## Credits
 

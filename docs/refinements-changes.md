@@ -18,6 +18,78 @@
 
 ---
 
+## 2026-06-11 — Cap Jinja2 template wired into Ask Cap / voice prompts
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `CapPersonalityPromptBuilder` loads `Resources/Prompts/cap_personality.jinja2` and renders it via `CapJinja2PromptRenderer`; `DialoguePanelController` uses it for voice lines and reactive Ask Cap instead of hard-coded C# strings.
+**Why**: Single personality source (Jinja2) for offline iteration and in-game Ollama prompts.
+**Impact / docs touched**: `CapPersonalityPromptBuilder.cs`, `CapJinja2PromptRenderer.cs`, `Assets/Resources/Prompts/cap_personality.jinja2`, `DialoguePanelController.cs`, `docs/prompts-used.md`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Cap personality Jinja2 template
+**Type**: dependency
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `prompts/cap_personality.jinja2` (personality macros + voice/reactive prompt assembly) and `prompts/cap_example_context.json` for offline rendering with the Jinja2 CLI.
+**Why**: Centralise Cap’s character voice outside Unity for prompt iteration; mirrors `DialoguePanelController` rules.
+**Impact / docs touched**: `prompts/cap_personality.jinja2`, `prompts/cap_example_context.json`, `docs/prompts-used.md`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Melee hit VFX on enemies
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `CombatHitVfx` spawns a short spark burst at the hit point; `EnemyActor` flashes warm (hit) or red-orange (lethal) via material property blocks. `PlayerCombat` passes impact position from sphere cast / overlap.
+**Why**: Player attacks had no visual feedback on connect.
+**Impact / docs touched**: `CombatHitVfx.cs`, `EnemyActor.cs`, `PlayerCombat.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Strip LLM planning text from Cap dialogue
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Stronger `ExtractNpcSpokenDialogue` filters (meta phrase detection, sentence split, fixed `Cap's` false anchor); removed raw-model fallback in dialogue fetch; memory/prompt tweaks so Ask Cap shows only spoken lines.
+**Why**: Reactive Q&A leaked planning prose ("We are building on the recent conversation…") into Cap's voice panel.
+**Impact / docs touched**: `OllamaHandler.cs`, `NpcConversationMemory.cs`, `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Fix Ask Cap input staying disabled
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `DialoguePanelController` now reliably re-enables the Ask Cap field after Cap's voice line loads or an Ollama call ends (`ReleaseDialogueInputLock`, try/finally on dialogue coroutines, wait for aborted requests to finish).
+**Why**: The text box and Ask button could stay greyed out when level-load Ollama requests aborted Cap's fetch or a coroutine exited without clearing `_busy`.
+**Impact / docs touched**: `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Main Menu Ollama warm-up
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `OllamaHandler.WarmupModelCoroutine` sends a tiny completion to load the model; `OllamaMenuWarmup` runs it from the Main Menu when AI dialogue is enabled (`MainMenuController.EnsureOllamaWarmup`).
+**Why**: Cold first inference was slow once the player entered Level1; warming on the menu hides load time behind title-screen idle.
+**Impact / docs touched**: `OllamaHandler.cs`, `OllamaMenuWarmup.cs`, `MainMenuController.cs`, `docs/ollama-plan.md`, `README.md`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Debug log for Ask Cap LLM replies
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `DialoguePanelController.AskCapRoutine` logs the player question and NPC answer to the Unity console; Ollama errors on reactive Q&A are logged with `Debug.LogWarning`.
+**Why**: Easier to inspect model output during development without reading the dialogue JSON file.
+**Impact / docs touched**: `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Player melee hit detection fix
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `PlayerCombat` now uses a sphere cast plus a close-range overlap probe so attacks connect with short dungeon foes; `LevelGameplayBootstrap` ensures `PlayerCombat` is on the player with input/camera wired.
+**Why**: Thin camera raycasts passed over ~1.1 m enemies, so player attacks rarely registered despite the Attack binding existing.
+**Impact / docs touched**: `PlayerCombat.cs`, `LevelGameplayBootstrap.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Enemy melee AI (face + chase + attack)
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `EnemyMeleeAI` — foes aggro when the player is within range, rotate to face them, walk toward them (capsule-cast against walls), and deal melee damage on a cooldown. Wired from `LevelGameplayBootstrap.SpawnEnemy` with inspector-tunable ranges, speed, and damage.
+**Why**: Encounter enemies were static damage sponges; close-range threat makes combat two-way.
+**Impact / docs touched**: `EnemyMeleeAI.cs`, `LevelGameplayBootstrap.cs`, `docs/refinements-changes.md`.
+
 ## 2026-06-11 — Reactive Cap chat, AI loot/enemies/signs
 **Type**: scope-change
 **AI tool(s)**: Cursor + Auto
