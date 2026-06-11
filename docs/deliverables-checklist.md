@@ -1,7 +1,7 @@
 # Project Deliverables Checklist
 
 > Maps the brief (**Structure & Deliverables**) to files in this repo.  
-> Last updated: 2026-05-15
+> Last updated: 2026-06-11
 
 Use this page when submitting the project. Items marked **you** must be produced outside the repo (videos, builds, name in credits).
 
@@ -27,7 +27,7 @@ Use this page when submitting the project. Items marked **you** must be produced
 
 | Requirement | Status | Notes |
 |---|---|---|
-| Prototype with ≥1 LLM feature | Done in repo | **Level1** — NPC “Hear them out” stream + zone flavor toasts via Ollama |
+| Prototype with ≥1 LLM feature | Done in repo | **Level1** — Cap voice + **Ask Cap** (Jinja2 → Ollama), zone flavor, trap/content JSON plans |
 | Final build (stable, refined) | **You** export | See [`build-notes.md`](./build-notes.md) |
 
 **How to produce a build:** Unity → **File → Build Settings** → add `Level1` (and `MainMenu` if used) → **Build**. Test on a machine with Ollama + `qwen3:4b` pulled.
@@ -74,7 +74,9 @@ Suggested capture: OBS / Xbox Game Bar; show Task Manager or `ollama list` brief
 ## Quick pre-submission pass
 
 - [ ] Replace *your name* in [`README.md`](../README.md) Credits.
-- [ ] Confirm `ollama pull qwen3:4b` on demo PC; match `OllamaHandler` default model.
+- [ ] Confirm `ollama pull qwen3:4b` on demo PC; match `GameSettings.LlmModel` / `OllamaHandler` default model.
+- [ ] Confirm `pip install jinja2` and Python on PATH for Cap dialogue in builds.
+- [ ] Playtest two-way combat (foe chase) + Ask Cap before recording showcase video.
 - [ ] Record both videos using [`video-deliverables.md`](./video-deliverables.md).
 - [ ] Export Windows (or target) build per [`build-notes.md`](./build-notes.md).
 - [ ] Zip repo or submit Git link + build + videos per course instructions.

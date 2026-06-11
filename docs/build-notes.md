@@ -1,7 +1,7 @@
 # Prototype & Final Build Notes
 
 > For academic submission: what counts as prototype vs. final, and how to export.  
-> Last updated: 2026-05-15
+> Last updated: 2026-06-11
 
 ## Prototype (requirement met in repo)
 
@@ -11,7 +11,7 @@ The brief asks for a prototype demonstrating **at least one functional LLM-drive
 
 | Feature | Evidence |
 |---|---|
-| LLM NPC dialogue | Level1 → Cap → **Hear them out** → Ollama stream |
+| LLM NPC dialogue | Level1 → Cap → auto voice + **Ask Cap** (Jinja2 prompt → Ollama) |
 | LLM environment flavor | Enter **S** / **E** zones → HUD toast |
 | Health check + setup panel | Start without Ollama → guided continue |
 
@@ -24,7 +24,8 @@ Historical prototype issues (empty responses, planning text in UI) are documente
 
 The **final build** should be a **stable player executable** (or WebGL if allowed) that includes:
 
-- Level1 gameplay loop (quests, combat, save/load)
+- Level1 gameplay loop (quests, two-way melee combat, save/load)
+- Python 3 + Jinja2 on the target machine (Cap prompts) or document graceful degrade
 - Documented Ollama integration (or graceful degrade)
 - No debug-only blockers (Console errors acceptable only if explained)
 
@@ -38,6 +39,8 @@ The **final build** should be a **stable player executable** (or WebGL if allowe
 6. Test on a **clean machine** with:
    - `ollama pull qwen3:4b`
    - Ollama service running
+   - `pip install jinja2` and Python on PATH
+   - Wait on Main Menu for Ollama warm-up before Level1
 7. Zip `DungeonExporer.exe` + `DungeonExporer_Data` folder
 
 ### What not to ship
@@ -48,13 +51,13 @@ The **final build** should be a **stable player executable** (or WebGL if allowe
 
 ### Version label
 
-Tag submission build in README or release notes, e.g. **Final build — 2026-05-15 — Level1 slice**.
+Tag submission build in README or release notes, e.g. **Final build — 2026-06-11 — Level1 slice**.
 
 ## Assessor quick test (no Unity)
 
 1. Install Ollama + `qwen3:4b`
 2. Run exported `.exe`
-3. Cap → Hear them out → verify streamed text
+3. Main Menu → brief pause (warm-up) → Level1 → Cap → verify voice line + **Ask Cap**
 4. Toggle LLM off in Options → verify canned line
 
 ## Related docs

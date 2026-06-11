@@ -1,7 +1,7 @@
 # Ethical Considerations — DungeonExporer
 
 > Transparency, licensing, crediting, and player awareness for AI use in this project.  
-> Last updated: 2026-05-15
+> Last updated: 2026-06-11
 
 ## 1. Transparency
 
@@ -10,9 +10,9 @@
 | Feature | AI? | Player-visible? |
 |---|---|---|
 | Quest titles, objectives, rewards | **No** — authored in `QuestManager` | Yes (HUD / dialogue panel) |
-| NPC “Hear them out” lines | **Yes** — Ollama | Labelled in UI: *“Hear them out (Ollama, streams)”* |
+| NPC voice + **Ask Cap** lines | **Yes** — Ollama (prompt from Jinja2 template) | Dialogue panel shows LLM block; quest facts are authored separately |
 | Safe / encounter floor toasts | **Yes** — Ollama | Short HUD flavor line; no label (ambient) |
-| Level layout, combat, pickups | **No** | — |
+| Level layout, combat AI, pickup effects | **No** | Foe chase/melee and player attacks are C#; LLM may suggest *where* foes/loot/signs spawn |
 | 3D characters (Cap, foes) | **Generated asset** (Meshy) | Visual only; not runtime LLM |
 | Wall / floor textures | **Procedural** (Pillow script) | Not generative AI at runtime |
 
@@ -31,7 +31,7 @@
 
 1. **First run:** If Ollama or the model is missing, a setup panel explains the requirement and links to [`setup.md`](./setup.md). **Continue** allows play without AI dialogue.
 2. **Options:** **LLM / AI dialogue** toggle (`GameSettings.LlmEnabled`). When off:
-   - **Hear them out** shows a short canned Cap line (no network call).
+   - Cap voice / **Ask Cap** show a short canned Cap line (no network call).
    - Zone flavor narration is skipped.
 3. **Quest clarity:** Objectives and acceptance do not depend on model output; players are not penalized for disabling AI.
 

@@ -13,7 +13,7 @@ This report summarizes technical decisions, integration strategy, performance co
 
 ### 2.1 Why Ollama and a local model
 
-We chose Ollama over cloud APIs for four reasons aligned with the project brief: **no per-token cost** during iteration and playtesting; **offline play** after the model is pulled; **privacy** (prompts stay on the player machine); and **pedagogical clarity** for demonstrating integration in a technical video. The recommended model is **`gemma3:4b`** for spoken NPC lines (reliable in-character output on modest hardware). **`qwen3:4b`** remains supported but tends to emit planning text; **`llama3`** is an optional quality tier on stronger GPUs.
+We chose Ollama over cloud APIs for four reasons aligned with the project brief: **no per-token cost** during iteration and playtesting; **offline play** after the model is pulled; **privacy** (prompts stay on the player machine); and **pedagogical clarity** for demonstrating integration in a technical video. The default PlayerPrefs model is **`qwen3:4b`**; **`gemma3:4b`** is the `OllamaHandler` inspector fallback for reliable in-character speech on modest hardware. **`llama3`** is an optional quality tier on stronger GPUs. Planning-text leakage from reasoning models is mitigated in post-processing, not only by model choice.
 
 ### 2.2 Client architecture
 
@@ -50,7 +50,7 @@ Six LLM touchpoints ship in Level1:
 
 Both dialogue and flavor respect UI gates (`NarrationUiGate`) so prompts do not fire during pause or dialogue overlap.
 
-Prompt templates are documented in `docs/prompts-used.md`. Dialogue prompts were iterated from verbose “authoritative quest” blocks (which caused qwen3 to echo instructions) to a shorter template ending with `Cap: "` to force in-character completion.
+Cap personality and voice/reactive prompts live in **`prompts/cap_personality.jinja2`**, rendered at runtime by **`prompts/render_cap_prompt.py`** (Python + Jinja2) via `CapPersonalityPromptBuilder`. This separates prompt iteration from Unity builds and mirrors the cosy-fantasy rules in one file. Earlier C#-embedded templates (which caused qwen3 to echo “Quest title:” blocks) are archived in `docs/prompts-used.md` §2.
 
 Options menu exposes **`GameSettings.LlmEnabled`**; when false, NPC lines use canned text, flavor narration is skipped, and trap placement falls back to purely procedural scatter — supporting players who disable AI or lack hardware headroom.
 
@@ -58,19 +58,22 @@ Options menu exposes **`GameSettings.LlmEnabled`**; when false, NPC lines use ca
 
 Playtest feedback emphasized that **no player will wait 15 seconds** for optional AI. The architecture front-loads work:
 
+- **Main Menu warm-up** (`OllamaMenuWarmup` → `WarmupModelCoroutine`, 8-token completion) reduces cold-start latency before Level1.
 - **Proximity prefetch** for NPC voice while walking toward Cap (`NpcDialogueCache`).
-- **Level-load prefetch** for trap JSON while loot and enemies spawn immediately; traps apply when the plan arrives (timeout 8 s) or fall back to procedural placement.
+- **Level-load prefetch** for trap/content JSON while loot and enemies spawn immediately; validated placement when plans arrive (timeout ~8 s) or procedural fill.
 - **Non-streaming** NPC requests with tight `num_predict` (~80 via `defaultNpcMaxTokens`) reduce perceived stall versus click-to-stream UX.
-- **Token caps** (~72 flavor, ~80 NPC, ~160 trap JSON) bound worst-case latency.
+- **Token caps** (~72 flavor, ~80 NPC, ~240 content JSON) bound worst-case latency.
 - Work runs on **coroutines**; the main thread only updates UI and spawns validated entities.
 
-Cold-start model load remains the main P95 risk; future work includes menu warm-up and benchmarks in `docs/eval/`.
+**Known limit:** `OllamaHandler` is single-flight — concurrent level-load planners and dialogue can abort each other (`HTTP 0`); C# falls back to procedural scatter. A request queue is future work. Benchmarks belong in `docs/eval/` (TODO).
 
 ## 5. Gameplay impact
 
-The LLM supports the **cosy fantasy** tone described in `docs/high-concept.md`. Static quest text stays readable for assessment; AI lines and trap variety reward players who install Ollama. Safe (**S**) and encounter (**E**) zones gain moment-to-moment mood; trap types (spike, ember, slime) change damage cadence without altering maze geometry.
+The LLM supports the **cosy fantasy** tone described in `docs/high-concept.md`. Static quest text stays readable for assessment; AI lines, signs, and trap variety reward players who install Ollama. Safe (**S**) and encounter (**E**) zones gain moment-to-moment mood; trap types (spike, ember, slime) change damage cadence without altering maze geometry.
 
-Trade-offs: small models occasionally break character or return invalid JSON; C# validation and procedural fill preserve fairness. The static quest panel remains the source of truth for objectives. Trap placement makes the AI feel **present in the run** rather than a hidden menu feature.
+Combat (`PlayerCombat`, `EnemyMeleeAI`) and loot are **not** LLM-driven — only placement flavor and sign copy come from the content planner. Two-way melee keeps progression authoritative in C# while AI adds ambience.
+
+Trade-offs: small models occasionally break character or return invalid JSON; C# validation, `ExtractNpcSpokenDialogue`, and procedural fill preserve fairness. Cap prompts additionally require **Python + Jinja2** on the player machine. The static quest panel remains the source of truth for objectives.
 
 ## 6. Development workflow
 
@@ -87,4 +90,4 @@ Every meaningful change is logged in `docs/refinements-changes.md` with date, ra
 
 ## 7. Conclusion
 
-DungeonExporer demonstrates a **pragmatic local LLM integration**: tight scopes, authored quest authority, validated trap cells, front-loaded inference, health checks, and player opt-out. The architecture is intentionally simple (HTTP generate + sanitize + JSON parse) so evaluators can trace data flow in a short technical video. Consolidating on SimpleOllamaUnity, adding warm-up, and expanding evaluation sets are the natural next steps beyond this vertical slice.
+DungeonExporer demonstrates a **pragmatic local LLM integration**: Jinja2 Cap prompts, authored quest authority, validated trap/content cells, menu warm-up, health checks, and player opt-out. The architecture is intentionally simple (HTTP generate + sanitize + JSON parse + external template render) so evaluators can trace data flow in a short technical video. Consolidating on SimpleOllamaUnity, serializing concurrent requests, and expanding evaluation sets are the natural next steps beyond this vertical slice.

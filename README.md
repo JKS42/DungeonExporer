@@ -40,7 +40,7 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 | Pause | Escape |
 | Save / load session | **F5** / **F9** |
 
-**Suggested loop:** Find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat a **DungeonFoe** on crimson **E** floor → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Hear them out** in dialogue for Ollama-streamed lines; walk over bubble pickups for pebbles / healing rations; avoid or jump spike traps.
+**Suggested loop:** Find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with hit sparks) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions (personality from `prompts/cap_personality.jinja2`); **Another line** for a new Ollama voice; bubble pickups; jump spike traps. Wait a few seconds on the **Main Menu** so Ollama can warm up before Level1.
 
 ## Documentation
 
@@ -73,6 +73,7 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 - [Ollama](https://ollama.com/) — `http://localhost:11434`
 - Default: [`qwen3:4b`](https://ollama.com/library/qwen3)
 - Optional: [`llama3`](https://ollama.com/library/llama3)
+- **Python 3** + **Jinja2** — renders Cap dialogue prompts from [`prompts/cap_personality.jinja2`](prompts/cap_personality.jinja2) at runtime (`pip install jinja2`)
 
 ### Embedded .NET (SimpleOllamaUnity)
 
@@ -94,7 +95,8 @@ Logged in [`docs/refinements-changes.md`](docs/refinements-changes.md); art prom
 | Tool | Used for |
 |---|---|
 | **Cursor** + Claude / GPT | Code, docs, debugging |
-| **Ollama** (runtime) | NPC dialogue stream, flavor toasts |
+| **Ollama** (runtime) | NPC voice, Ask Cap Q&A, flavor toasts, level-load JSON plans |
+| **Python + Jinja2** | Cap personality prompt template (`prompts/render_cap_prompt.py`) |
 | **Meshy AI** | Player, Cap, Grumblemite FBX |
 | **Python (Pillow)** | Tileable dungeon wall / floor / spike albedos |
 
@@ -105,6 +107,7 @@ DungeonExporer/
 ├── AGENTS.md
 ├── README.md
 ├── docs/
+├── prompts/                      # cap_personality.jinja2, render_cap_prompt.py
 ├── Tools/
 │   └── generate_dungeon_textures.py
 ├── Assets/
@@ -116,10 +119,12 @@ DungeonExporer/
 │   ├── Data/Dungeon/             # Level1_Maze.txt
 │   ├── Scripts/
 │   │   ├── Dungeon/              # Maze build, flavor zones, encounters
-│   │   ├── Gameplay/             # Quests, NPC, enemies, loot, save
-│   │   ├── Player/               # Movement, combat, health, inventory
+│   │   ├── AI/                   # CapPersonalityPromptBuilder (Jinja2)
+│   │   ├── Gameplay/             # Quests, NPC, EnemyMeleeAI, loot, save, warm-up
+│   │   ├── Player/               # Movement, PlayerCombat, health, inventory
 │   │   ├── UI/                   # HUD, dialogue, menus, Ollama setup
 │   │   ├── Settings/
+│   │   ├── StreamingAssets/Prompts/  # Jinja2 mirror for standalone builds
 │   │   └── OllamaHandler.cs
 │   ├── SimpleOllamaInjection/
 │   ├── Ollama/                   # Minimal legacy example
@@ -143,13 +148,15 @@ DungeonExporer/
 - [x] ASCII maze + safe / encounter zones + textured walls / floors
 - [x] Quest system (`QuestManager`) — Cap's drill + Echoes in the dark
 - [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama streaming
-- [x] Melee combat vs scattered **DungeonFoe** on **E** cells
+- [x] Two-way melee combat — `PlayerCombat` + `EnemyMeleeAI` (chase, attack) + `CombatHitVfx`
+- [x] **Ask Cap** reactive Q&A (Jinja2 personality → Ollama)
 - [x] Pickups (bubble + icon), spike hazards (jumpable), flavor narration on **S** / **E**
 - [x] HUD (health, quest, inventory), pause menu, session save (F5/F9)
 - [x] Ollama health check + in-game setup panel
 - [ ] Consolidate Ollama clients (`OllamaHandler` → SimpleOllamaUnity)
 - [ ] Player Adventurer mesh in scene (asset exists under `Art/Characters`)
-- [ ] Enemy AI, rigged animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
+- [ ] Rigged enemy animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
+- [ ] Serialize concurrent Ollama requests (trap/content planners vs dialogue)
 - [x] Boot-time Ollama warm-up (Main Menu via `OllamaMenuWarmup`)
 - [ ] Full `GameSettings.LlmEnabled` kill-switch at all call sites
 

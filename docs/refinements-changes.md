@@ -18,6 +18,31 @@
 
 ---
 
+## 2026-06-11 — Cap dialogue UI: overwrite each LLM response
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `SetLlmExchange` (was append) replaces the LLM body text on each Ask Cap reply. Voice lines and Ask Cap answers use `NpcConversationMemory.ReplaceAssistantReply` so re-rolls overwrite the latest Cap turn instead of stacking in the panel or memory.
+**Why**: User request — each new Cap response should replace the previous one, not scroll a growing log.
+**Impact / docs touched**: `DialoguePanelController.cs`, `NpcConversationMemory.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-11 — Documentation sync (combat, Jinja2 Cap, warm-up)
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Updated `README.md`, `high-concept.md`, `ollama-plan.md`, `setup.md`, `prompts-used.md`, `llm-integration-report.md`, `deliverables-checklist.md`, `build-notes.md`, and `ethical-considerations.md` to reflect two-way melee (`PlayerCombat`, `EnemyMeleeAI`, `CombatHitVfx`), Ask Cap + Jinja2-only Cap prompts, Main Menu Ollama warm-up, dialogue sanitization fixes, and single-flight Ollama abort behavior.
+**Why**: AGENTS.md requires docs to stay current with meaningful gameplay and LLM pipeline changes.
+**Impact / docs touched**: All files listed above; this entry.
+**Follow-ups**: Add `docs/eval/` benchmark prompt set.
+
+## 2026-06-11 — Cap prompts: real Jinja2 only (drop C# renderer)
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Removed `CapJinja2PromptRenderer` and embedded C# fallback; `CapPersonalityPromptBuilder` now shells out to `prompts/render_cap_prompt.py` + Jinja2. Canonical template: `prompts/cap_personality.jinja2` (mirrored to `StreamingAssets/Prompts/` for builds). Removed `Assets/Resources/Prompts/` copy.
+**Why**: User requested a single Jinja2 source of truth without duplicating template logic in C#.
+**Impact / docs touched**: `CapPersonalityPromptBuilder.cs`, `prompts/render_cap_prompt.py`, `Assets/StreamingAssets/Prompts/`, `docs/prompts-used.md`, `docs/setup.md`, `docs/ollama-plan.md`, `docs/refinements-changes.md`.
+
 ## 2026-06-11 — Cap Jinja2 template wired into Ask Cap / voice prompts
 **Type**: scope-change
 **AI tool(s)**: Cursor + Auto

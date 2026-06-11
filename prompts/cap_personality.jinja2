@@ -1,13 +1,13 @@
 {#-
   Cap — LLM personality & prompt template (Jinja2)
 
-  Source of truth for Cap's voice. Unity loads the mirrored copy at runtime:
-  Assets/Resources/Prompts/cap_personality.jinja2 (`CapPersonalityPromptBuilder`).
-  Keep this file in sync with that copy when Cap's tone or rules change.
+  Source of truth for Cap's voice. Unity renders this file with real Jinja2 via
+  prompts/render_cap_prompt.py (`CapPersonalityPromptBuilder`). Mirror copies for
+  standalone builds live under Assets/StreamingAssets/Prompts/.
 
-  Render example (from repo root; requires Python + Jinja2):
+  Render example (from repo root):
     pip install jinja2
-    python -c "import json; from pathlib import Path; from jinja2 import Template; r=Path('prompts'); print(Template((r/'cap_personality.jinja2').read_text(encoding='utf-8')).render(**json.loads((r/'cap_example_context.json').read_text(encoding='utf-8'))))"
+    python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_example_context.json
 
   Expected context keys:
     display_name      (default: Cap)

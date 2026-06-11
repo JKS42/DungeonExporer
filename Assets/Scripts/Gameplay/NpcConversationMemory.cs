@@ -47,6 +47,40 @@ namespace DungeonExporer.Gameplay
             AppendTurn(npcId, false, rawReply);
         }
 
+        /// <summary>Overwrites the latest assistant turn, or appends if none exists (voice re-rolls).</summary>
+        public static void ReplaceAssistantReply(string npcId, string rawReply)
+        {
+            if (string.IsNullOrWhiteSpace(npcId))
+                return;
+
+            string cleaned = OllamaHandler.SanitizeModelOutput(rawReply ?? string.Empty).Trim();
+            cleaned = OllamaHandler.ExtractNpcSpokenDialogue(cleaned);
+            if (cleaned.Length == 0 || OllamaHandler.IsNpcMetaPlanningLine(cleaned))
+                return;
+
+            if (cleaned.Length > MaxSnippetChars)
+                cleaned = cleaned.Substring(0, MaxSnippetChars) + "…";
+
+            if (!_history.TryGetValue(npcId, out List<Turn> list) || list.Count == 0)
+            {
+                AppendAssistantReply(npcId, cleaned);
+                return;
+            }
+
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                if (!list[i].IsPlayer)
+                {
+                    list[i].Text = cleaned;
+                    return;
+                }
+            }
+
+            list.Add(new Turn { IsPlayer = false, Text = cleaned });
+            while (list.Count > MaxTurnsPerNpc)
+                list.RemoveAt(0);
+        }
+
         private static void AppendTurn(string npcId, bool isPlayer, string raw)
         {
             if (string.IsNullOrWhiteSpace(npcId))

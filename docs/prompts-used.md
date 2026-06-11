@@ -12,46 +12,40 @@
 
 **File:** [`prompts/cap_personality.jinja2`](../prompts/cap_personality.jinja2)
 
-Jinja2 template that defines Cap’s **personality bible** (macros) and assembles voice-line / Ask Cap prompts. **Runtime:** mirrored to `Assets/Resources/Prompts/cap_personality.jinja2` and rendered by `CapPersonalityPromptBuilder` + `CapJinja2PromptRenderer` (used from `DialoguePanelController`).
+Jinja2 template that defines Cap’s **personality bible** (macros) and assembles voice-line / Ask Cap prompts. **Runtime:** `CapPersonalityPromptBuilder` calls **real Jinja2** through [`prompts/render_cap_prompt.py`](../prompts/render_cap_prompt.py) (no C# template engine). Standalone builds mirror `prompts/` into `Assets/StreamingAssets/Prompts/`.
 
 **Example context:** [`prompts/cap_example_context.json`](../prompts/cap_example_context.json)
 
 ```bash
 pip install jinja2
-python -c "import json; from pathlib import Path; from jinja2 import Template; r=Path('prompts'); print(Template((r/'cap_personality.jinja2').read_text(encoding='utf-8')).render(**json.loads((r/'cap_example_context.json').read_text(encoding='utf-8'))))"
+python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_example_context.json
 ```
 
 **Context variables:** `display_name`, `mode` (`voice` | `reactive`), `quest_title`, `quest_briefing`, `quest_state` (`considering` | `active` | `completed`), optional `world_context`, `inventory_summary`, `memory_block`, `player_question` (reactive), `max_sentences`, `situation` (override).
 
 ---
 
-### 1.1 NPC dialogue — Cap (`DialoguePanelController.BuildNpcPrompt`)
+### 1.1 NPC voice line — Cap (`mode: voice`)
 
-**Purpose:** Streamed in-character speech when the player clicks **Hear them out**. Quest title, briefing, and objectives remain **authored in C#** (`QuestDefinition`); the model only improvises banter.
+**Purpose:** In-character speech when the dialogue panel opens (prefetch) or the player clicks **Another line**. Quest title, briefing, and objectives remain **authored in C#** (`QuestDefinition`); the model only improvises banter.
 
-**Template (current):**
+**Builder:** `CapPersonalityPromptBuilder.BuildVoicePrompt` → Jinja2 §1.0.
 
-```
-You are {displayName}, an NPC in a cozy first-person dungeon crawler.
-{memoryBlock — optional: last lines Cap already spoke}
-Game facts (do NOT repeat these labels or list them back): {quest.title}. {quest.briefing}
-{QuestManager.BuildPromptContext()}
-{PlayerInventory.BuildSummaryForPrompt()}
-{situation — one of: considering / active / completed quest}
-Reply with ONLY what {displayName} says out loud — 2 to 6 short sentences of in-character speech.
-No planning, no "quest title", no "briefing", no "constraints", no "we are writing as".
-{displayName}: "
-```
+**Context:** `display_name`, `quest_title`, `quest_briefing`, `quest_state` (`considering` | `active` | `completed`), `inventory_summary`, `memory_block`, optional `situation` override, `max_sentences`.
 
-**Situation strings:**
+**Model / API:** Non-streaming `RequestGeneration`, `think: false`, `num_predict` ≈ 80 (`defaultNpcMaxTokens`). Output passed through `ExtractNpcSpokenDialogue` before UI / memory.
 
-| State | Instruction |
-|---|---|
-| Not started | Hook them into the fantasy; do not repeat briefing verbatim. |
-| Active | Short tip or color commentary; stay consistent with briefing. |
-| Completed | Warm thanks / jokes; no new formal objectives. |
+---
 
-**Model / API:** `POST /api/generate`, `stream: true`, `think: false`, `num_predict` ≈ 180 (stream default on `OllamaHandler`).
+### 1.1b Ask Cap — reactive Q&A (`mode: reactive`)
+
+**Purpose:** Player-typed questions in the dialogue panel (**Ask Cap**).
+
+**Builder:** `CapPersonalityPromptBuilder.BuildReactivePrompt` → Jinja2 §1.0 with `player_question`.
+
+**Memory:** `NpcConversationMemory` stores sanitized Cap turns + player questions for follow-ups.
+
+**Model / API:** Same as §1.1 (non-streaming). Console debug: `[Ask Cap] Player: "…" / Cap: "…"`.
 
 ---
 
@@ -78,7 +72,13 @@ Free-form prompts typed in the Level1 test panel. Used for connectivity checks, 
 
 ## 2. Superseded prompts (iterations)
 
-### 2.1 Early Cap prompt (failed — empty or meta replies)
+### 2.1 C#-embedded Cap template (superseded 2026-06-11)
+
+Hard-coded strings in `DialoguePanelController` (and briefly `CapJinja2PromptRenderer`) replaced by **`prompts/cap_personality.jinja2`** + Python Jinja2 renderer. See §1.0.
+
+---
+
+### 2.2 Early Cap prompt (failed — empty or meta replies)
 
 Used before streaming fixes and `Cap: "` suffix (see `ollama-dialogue.json` 2026-05-15 entries).
 
@@ -106,7 +106,7 @@ Write 2–6 short sentences of spoken dialogue only. No markdown...
 
 ---
 
-### 2.2 Planned chat-style template (`ollama-plan.md`)
+### 2.3 Planned chat-style template (`ollama-plan.md`)
 
 Not yet wired to gameplay; target for `SimpleOllamaUnity` migration:
 
@@ -142,7 +142,9 @@ Not yet wired to gameplay; target for `SimpleOllamaUnity` migration:
 | Cap dialogue (old template) | Empty UI | `response` empty, content in `thinking` | `think: false`, stream parser fallback |
 | Cap dialogue | Planning text in LLM box | qwen3 meta-reasoning | `ExtractNpcSpokenDialogue`, `Cap: "` suffix |
 | Cap + memory polluted | Repeated "We are Cap..." | Bad replies stored in memory | Sanitize before `AppendAssistantReply`; dev: clear PlayerPrefs / memory |
-| Long briefing in prompt | Model lists "Quest title:" | Weak instruction following | "do NOT repeat labels"; separate static quest UI block |
+| Long briefing in prompt | Model lists "Quest title:" | Weak instruction following | Jinja2 personality + `ExtractNpcSpokenDialogue`; separate static quest UI block |
+| Ask Cap greyed out | `_busy` not cleared after abort | Voice fetch interrupted | `ReleaseDialogueInputLock` + try/finally in coroutines |
+| Missing Python/Jinja2 | Empty Cap prompt | Subprocess render failed | `pip install jinja2`; see `docs/setup.md` |
 
 ---
 
@@ -158,7 +160,7 @@ Not yet wired to gameplay; target for `SimpleOllamaUnity` migration:
 
 ## 6. How to add a new prompt
 
-1. Implement in code under `Assets/Scripts/` (prefer single builder method).
+1. Implement in code under `Assets/Scripts/` or `prompts/*.jinja2` (prefer single builder / template).
 2. Log a row in this file (template + purpose).
 3. Add success/failure notes after playtesting.
 4. If behavior changes scope or risks, update [`ollama-plan.md`](./ollama-plan.md) and [`refinements-changes.md`](./refinements-changes.md).

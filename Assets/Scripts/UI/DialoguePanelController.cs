@@ -403,8 +403,8 @@ namespace DungeonExporer.UI
 
                 Debug.Log($"[Ask Cap] Player: \"{question}\"\n{_displayName}: \"{answer}\"");
 
-                NpcConversationMemory.AppendAssistantReply(_npcConversationId, answer);
-                AppendLlmExchange(question, answer);
+                NpcConversationMemory.ReplaceAssistantReply(_npcConversationId, answer);
+                SetLlmExchange(question, answer);
             }
             finally
             {
@@ -702,7 +702,7 @@ namespace DungeonExporer.UI
             if (string.IsNullOrWhiteSpace(line) || OllamaHandler.IsNpcMetaPlanningLine(line))
                 return;
             UpdateLlmBodyText(line);
-            NpcConversationMemory.AppendAssistantReply(_npcConversationId, line);
+            NpcConversationMemory.ReplaceAssistantReply(_npcConversationId, line);
         }
 
         private string BuildNpcPrompt(QuestDefinition def)
@@ -744,19 +744,12 @@ namespace DungeonExporer.UI
                 completed);
         }
 
-        private void AppendLlmExchange(string question, string answer)
+        private void SetLlmExchange(string question, string answer)
         {
             if (_llmBodyText == null)
                 return;
 
             var sb = new StringBuilder();
-            string existing = _llmBodyText.text ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(existing))
-            {
-                sb.AppendLine(existing.TrimEnd());
-                sb.AppendLine();
-            }
-
             sb.Append("You: ").AppendLine(question.Trim());
             string spoken = OllamaHandler.ExtractNpcSpokenDialogue(answer, _displayName);
             if (!string.IsNullOrWhiteSpace(spoken) && !OllamaHandler.IsNpcMetaPlanningLine(spoken))

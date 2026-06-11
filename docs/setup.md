@@ -1,7 +1,7 @@
 # Setup Guide — DungeonExporer
 
 > Install, run, and playtest the current Level1 slice.
-> Last updated: 2026-05-15
+> Last updated: 2026-06-11
 
 ## 1. System requirements
 
@@ -28,6 +28,7 @@
 | Unity Editor | **6000.3.8f1** (`ProjectSettings/ProjectVersion.txt`) | Engine |
 | [Git](https://git-scm.com/) | latest | Source control |
 | [Ollama](https://ollama.com/download) | latest | Local LLM |
+| Python 3 + Jinja2 | **required for Cap dialogue** | Renders `prompts/cap_personality.jinja2` via `render_cap_prompt.py` (`pip install jinja2`) |
 | Python 3 + Pillow | optional | Regenerate dungeon textures (`Tools/generate_dungeon_textures.py`) |
 | IDE | Visual Studio 2022 / Rider / VS Code | C# |
 
@@ -76,7 +77,16 @@ ollama list
 ollama run qwen3:4b "Say hello in five words."
 ```
 
-The scene **`OllamaHandler`** component's **Default Model** must match a name from `ollama list` exactly (e.g. `qwen3:4b`).
+The scene **`OllamaHandler`** component's **Default Model** must match a name from `ollama list` exactly (e.g. `qwen3:4b`). Gameplay reads `GameSettings.LlmModel` first (PlayerPrefs default `qwen3:4b`).
+
+### Cap prompt rendering (Python + Jinja2)
+
+```powershell
+pip install jinja2
+python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_example_context.json
+```
+
+Unity invokes the same script at runtime when building Ask Cap / voice prompts. Without Python and Jinja2, Cap dialogue prompts are empty (authored quest UI still works).
 
 ## 6. Open the project in Unity
 
@@ -99,9 +109,10 @@ The scene **`OllamaHandler`** component's **Default Model** must match a name fr
 
 ### Boot flow
 
+- **Main Menu** (`OllamaMenuWarmup`): when LLM is enabled, issues a short warm-up completion so Level1 hits a hot model.
 - **`OllamaFirstRunHealthCheck`**: pings Ollama and checks the model tag; on failure, **`OllamaSetupPanelController`** offers a link to this guide and **Continue** (play without streaming).
 - **`DungeonLevelBuilder`**: builds maze from `Assets/Data/Dungeon/Level1_Maze.txt`, places player at **P**.
-- **`LevelGameplayBootstrap`**: spawns **Cap**, scatters pebbles, rations, spike traps, and foes on **E** cells.
+- **`LevelGameplayBootstrap`**: spawns **Cap**; Ollama JSON plans for loot, foes, signs, and traps (with procedural fill); attaches **`EnemyMeleeAI`** to foes.
 - **`GameSaveService`**: auto-loads `dungeon_session_save.json` if present.
 
 ### Controls (keyboard & mouse)
@@ -129,12 +140,13 @@ The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walka
 ### Playtest checklist
 
 1. Find **Cap** (safe **S** room near spawn).
-2. **E** → accept **Cap's corridor drill**.
-3. Optional: **Hear them out** — streamed Ollama line in the dialogue panel.
-4. Go to crimson **E** floors; **left-click** a **DungeonFoe** until it dies (~2 hits).
+2. **E** → accept **Cap's corridor drill**; read Cap's auto voice line (Ollama prefetch).
+3. Optional: type a question → **Ask Cap**; **Another line** for a fresh voice roll.
+4. Go to crimson **E** floors; foes **chase and melee** — **left-click** to attack (spark VFX) until a **DungeonFoe** dies (~2 hits).
 5. Return to Cap to complete the quest; accept **Echoes in the dark** if offered.
 6. Step onto an **E** encounter tile (trigger volume) for the second quest.
-7. Walk through bubble pickups; jump narrow spike strips.
+7. Walk through bubble pickups; jump narrow spike strips; read corridor **signs**.
+8. **F5** / **F9** save and load; toggle **LLM / AI dialogue** in Options to verify canned Cap line when off.
 
 ### Ollama tester UI
 
@@ -156,6 +168,7 @@ DungeonExporer/
 ├── AGENTS.md
 ├── README.md
 ├── docs/
+├── prompts/                       # cap_personality.jinja2, render_cap_prompt.py
 ├── Tools/generate_dungeon_textures.py
 ├── Assets/
 │   ├── Scenes/MainMenu.unity, Level1.unity
@@ -164,11 +177,13 @@ DungeonExporer/
 │   ├── Art/Characters/Adventurer/
 │   ├── Art/Environment/           # Brick, floor, spike materials
 │   ├── Scripts/
+│   │   ├── AI/                    # CapPersonalityPromptBuilder
 │   │   ├── Dungeon/               # DungeonLevelBuilder, flavor, encounters
-│   │   ├── Gameplay/              # Bootstrap, quests, NPC, enemies, save
-│   │   ├── Player/
+│   │   ├── Gameplay/              # Bootstrap, EnemyMeleeAI, quests, save, warm-up
+│   │   ├── Player/                # PlayerCombat, health, inventory
 │   │   ├── UI/
 │   │   └── OllamaHandler.cs
+│   ├── StreamingAssets/Prompts/   # Jinja2 mirror for builds
 │   ├── SimpleOllamaInjection/
 │   └── InputSystem_Actions.inputactions
 └── ProjectSettings/
@@ -188,6 +203,10 @@ DungeonExporer/
 | Thinking tags in UI | Reasoning model | Output is sanitized; update `OllamaHandler` / `clearThinking` if leakage persists. |
 | Spikes always damage | Not jumping over strip | Traps are narrow; damage only when feet are low (`HazardVolume`). |
 | First LLM call very slow | Cold model | Wait on the Main Menu a few seconds (auto warm-up), or run `ollama run <model>` once before play. |
+| Cap dialogue empty / prompt error | Python or Jinja2 missing | Install Python 3 and run `pip install jinja2`. Cap prompts render from `prompts/cap_personality.jinja2` only. |
+| Ask Cap field stays greyed out | Stuck `_busy` after aborted LLM | Fixed in `DialoguePanelController` (try/finally + `ReleaseDialogueInputLock`); pull latest. |
+| Cap shows planning text | qwen3 meta / raw fallback | `ExtractNpcSpokenDialogue` + Jinja2 rules; no raw-model fallback in voice coroutines. |
+| Console: `Request aborted HTTP 0` | Parallel Ollama calls | Expected when trap/content planners overlap dialogue; planners use procedural fallback. |
 | Compile: Newtonsoft | Missing package | Install `com.unity.nuget.newtonsoft-json` or ignore legacy `OllamaRequester`. |
 
 Save file location (Windows example): `%USERPROFILE%\AppData\LocalLow\<CompanyName>\<ProductName>\dungeon_session_save.json` — exact path logged on **F5** in the Console.

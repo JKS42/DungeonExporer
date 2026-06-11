@@ -26,7 +26,7 @@
 
 ### Win / fail conditions
 
-*To be defined for a full game.* Level1 is a **vertical slice**: two quests, no formal win screen. Player death from hazards / future combat is supported via `PlayerHealth` (fade + respawn at save position when applicable).
+*To be defined for a full game.* Level1 is a **vertical slice**: two quests, no formal win screen. Player death from spike traps or **DungeonFoe** melee is supported via `PlayerHealth` (fade + respawn at save position when applicable).
 
 ### Save model (v1)
 
@@ -38,7 +38,7 @@
 - Multiplayer.
 - LLM-generated level geometry (maze ASCII stays authored; LLM may suggest trap *cells* on that grid, validated in C#).
 - Voice synthesis (text only).
-- Full enemy AI (foes are stationary damage targets).
+- Rigged enemy animation (foes use `EnemyMeleeAI` — aggro, chase, melee — on static Meshy meshes).
 
 ## 2. The role of the LLM
 
