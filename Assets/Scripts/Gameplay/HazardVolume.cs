@@ -16,6 +16,25 @@ namespace DungeonExporer.Gameplay
         private float _nextTick;
         private Collider _volume;
 
+        public void Configure(DungeonTrapType trapType)
+        {
+            switch (trapType)
+            {
+                case DungeonTrapType.Ember:
+                    _damagePerTick = 12f;
+                    _tickInterval = 0.32f;
+                    break;
+                case DungeonTrapType.Slime:
+                    _damagePerTick = 6f;
+                    _tickInterval = 0.75f;
+                    break;
+                default:
+                    _damagePerTick = 10f;
+                    _tickInterval = 0.45f;
+                    break;
+            }
+        }
+
         private void Awake()
         {
             _volume = GetComponent<Collider>();

@@ -1,4 +1,7 @@
+using System.Collections;
+using System.Collections.Generic;
 using DungeonExporer.Dungeon;
+using DungeonExporer.Settings;
 using DungeonExporer.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -17,6 +20,21 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private Transform _player;
         [SerializeField] private InputActionAsset _inputActions;
         [SerializeField] private DungeonLevelBuilder _dungeon;
+        [SerializeField] private OllamaHandler _ollama;
+
+        [Header("AI trap placement")]
+        [Tooltip("When enabled and Ollama is available, Cap's model chooses trap cells (validated in C#).")]
+        [SerializeField] private bool _useAiTrapPlacement = true;
+        [SerializeField] private int _aiMaxTraps = 12;
+        [SerializeField] private float _aiTrapPlanTimeoutSeconds = 8f;
+
+        [Header("AI loot / enemies / signs")]
+        [Tooltip("When enabled and Ollama is available, Cap's model chooses loot, foes, and sign text (validated in C#).")]
+        [SerializeField] private bool _useAiContentPlacement = true;
+        [SerializeField] private int _aiMaxLoot = 14;
+        [SerializeField] private int _aiMaxEnemies = 8;
+        [SerializeField] private int _aiMaxSigns = 6;
+        [SerializeField] private float _aiContentPlanTimeoutSeconds = 8f;
 
         [Header("NPC")]
         [Tooltip("Meshy Cap model (FBX under Assets/Models). Auto-assigned in the editor from GameplayModelPaths.NpcCapFbx.")]
@@ -53,11 +71,18 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private string _enemyDefeatQuestEventId = "defeated_dungeon_foe";
 
         private Transform _lootRoot;
+        private readonly HashSet<Vector2Int> _scatterReserved = new HashSet<Vector2Int>();
+        private DungeonTrapPlan _cachedTrapPlan;
+        private bool _trapPlanDone;
+        private DungeonContentPlan _cachedContentPlan;
+        private bool _contentPlanDone;
 
         private void Awake()
         {
             UiEventSystemBootstrap.EnsureEventSystem(_inputActions);
             ResolveModelsIfMissing();
+            if (_ollama == null)
+                _ollama = FindFirstObjectByType<OllamaHandler>();
         }
 
         private void Reset()
@@ -126,7 +151,87 @@ namespace DungeonExporer.Gameplay
             _lootRoot.SetParent(transform, false);
 
             SpawnNpc(origin, dialogue);
-            ScatterWorldContent();
+            BeginTrapPlanPrefetch();
+            BeginContentPlanPrefetch();
+            StartCoroutine(PlaceDungeonWhenReady());
+        }
+
+        private void BeginContentPlanPrefetch()
+        {
+            _contentPlanDone = false;
+            _cachedContentPlan = null;
+
+            if (!_useAiContentPlacement || !GameSettings.LlmEnabled || _ollama == null || _dungeon == null)
+            {
+                _contentPlanDone = true;
+                return;
+            }
+
+            StartCoroutine(DungeonContentPlanner.FetchPlanCoroutine(
+                _ollama,
+                _dungeon,
+                _aiMaxLoot,
+                _aiMaxEnemies,
+                _aiMaxSigns,
+                _minCellsFromSpawn,
+                plan =>
+                {
+                    _cachedContentPlan = plan;
+                    _contentPlanDone = true;
+                },
+                () => { _contentPlanDone = true; }));
+        }
+
+        private IEnumerator PlaceDungeonWhenReady()
+        {
+            float contentWaited = 0f;
+            while (!_contentPlanDone && contentWaited < _aiContentPlanTimeoutSeconds)
+            {
+                contentWaited += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            ScatterLootAndEnemies(_cachedContentPlan);
+            SpawnSigns(_cachedContentPlan);
+
+            if (_cachedContentPlan != null && !string.IsNullOrWhiteSpace(_cachedContentPlan.CapNote))
+                DungeonFlavorHudBridge.PublishFlavorToast?.Invoke(_cachedContentPlan.CapNote.Trim(), 5f);
+
+            float trapWaited = 0f;
+            while (!_trapPlanDone && trapWaited < _aiTrapPlanTimeoutSeconds)
+            {
+                trapWaited += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            ScatterTraps(_cachedTrapPlan);
+
+            if (_cachedTrapPlan != null && !string.IsNullOrWhiteSpace(_cachedTrapPlan.CapNote))
+                DungeonFlavorHudBridge.PublishFlavorToast?.Invoke(_cachedTrapPlan.CapNote.Trim(), 6f);
+        }
+
+        private void BeginTrapPlanPrefetch()
+        {
+            _trapPlanDone = false;
+            _cachedTrapPlan = null;
+
+            if (!_useAiTrapPlacement || !GameSettings.LlmEnabled || _ollama == null || _dungeon == null)
+            {
+                _trapPlanDone = true;
+                return;
+            }
+
+            StartCoroutine(DungeonTrapPlanner.FetchPlanCoroutine(
+                _ollama,
+                _dungeon,
+                _aiMaxTraps,
+                _minCellsFromSpawn,
+                plan =>
+                {
+                    _cachedTrapPlan = plan;
+                    _trapPlanDone = true;
+                },
+                () => { _trapPlanDone = true; }));
         }
 
         private void SpawnNpc(Vector3 spawnFloor, DialoguePanelController dialogue)
@@ -162,7 +267,7 @@ namespace DungeonExporer.Gameplay
             npc.Wire(dialogue, _inputActions, _player);
         }
 
-        private void ScatterWorldContent()
+        private void ScatterLootAndEnemies(DungeonContentPlan aiPlan)
         {
             if (_dungeon == null)
             {
@@ -170,22 +275,53 @@ namespace DungeonExporer.Gameplay
                 return;
             }
 
-            var config = new DungeonLootScatter.ScatterConfig
-            {
-                pebbleCount = _scatteredPebbles,
-                rationCount = _scatteredRations,
-                spikeTrapCount = _spikeTrapCount,
-                encounterEnemyCount = _encounterEnemyCount,
-                minCellsFromSpawn = _minCellsFromSpawn,
-                randomSeed = _scatterSeed,
-                pickupHeight = _pickupHeight,
-                hazardHeight = _hazardHeight,
-                enemyHeight = _enemyHeight,
-                preferCorridorsForHazards = _preferCorridorSpikes
-            };
+            _scatterReserved.Clear();
+            var config = BuildScatterConfig();
+            config.spikeTrapCount = 0;
 
-            DungeonLootScatter.Scatter(_dungeon, _lootRoot, config, SpawnPickup, SpawnHazard, SpawnEnemy);
+            IReadOnlyList<PlannedLoot> loot = aiPlan != null ? aiPlan.Loot : null;
+            IReadOnlyList<PlannedEnemy> enemies = aiPlan != null ? aiPlan.Enemies : null;
+            DungeonLootScatter.ScatterLoot(_dungeon, config, loot, _scatterReserved, SpawnPickup);
+            DungeonLootScatter.ScatterEnemies(_dungeon, config, enemies, _scatterReserved, SpawnEnemy);
         }
+
+        private void SpawnSigns(DungeonContentPlan aiPlan)
+        {
+            if (_dungeon == null || aiPlan == null || aiPlan.Signs.Count == 0)
+                return;
+
+            float cell = _dungeon.CellSize;
+            for (int i = 0; i < aiPlan.Signs.Count; i++)
+            {
+                PlannedSign sign = aiPlan.Signs[i];
+                Vector3 pos = _dungeon.CellCenterWorld(sign.Cell);
+                DungeonSignPost.Create(_lootRoot, pos, sign.Text, cell);
+            }
+        }
+
+        private void ScatterTraps(DungeonTrapPlan aiPlan)
+        {
+            if (_dungeon == null)
+                return;
+
+            var config = BuildScatterConfig();
+            IReadOnlyList<PlannedTrap> traps = aiPlan != null ? aiPlan.Traps : null;
+            DungeonLootScatter.ScatterTraps(_dungeon, config, traps, _scatterReserved, SpawnHazard);
+        }
+
+        private DungeonLootScatter.ScatterConfig BuildScatterConfig() => new DungeonLootScatter.ScatterConfig
+        {
+            pebbleCount = _scatteredPebbles,
+            rationCount = _scatteredRations,
+            spikeTrapCount = _spikeTrapCount,
+            encounterEnemyCount = _encounterEnemyCount,
+            minCellsFromSpawn = _minCellsFromSpawn,
+            randomSeed = _scatterSeed,
+            pickupHeight = _pickupHeight,
+            hazardHeight = _hazardHeight,
+            enemyHeight = _enemyHeight,
+            preferCorridorsForHazards = _preferCorridorSpikes
+        };
 
         private void SpawnPickup(Vector3 position, string itemId, string displayName, int count, float healAmount,
             Color tint)
@@ -205,13 +341,18 @@ namespace DungeonExporer.Gameplay
             pickup.Configure(itemId, displayName, count, healAmount);
         }
 
-        private void SpawnHazard(Vector3 position)
+        private void SpawnHazard(Vector3 position, DungeonTrapType trapType = DungeonTrapType.Spike)
         {
             float cell = _dungeon != null ? _dungeon.CellSize : 2.5f;
             float pad = cell * 0.38f;
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "SpikeHazard";
+            go.name = trapType switch
+            {
+                DungeonTrapType.Ember => "EmberTrap",
+                DungeonTrapType.Slime => "SlimeTrap",
+                _ => "SpikeHazard"
+            };
             go.transform.SetParent(_lootRoot, false);
             go.transform.position = position;
             go.transform.localScale = new Vector3(pad, 0.22f, pad);
@@ -222,17 +363,25 @@ namespace DungeonExporer.Gameplay
             var rend = go.GetComponent<Renderer>();
             if (rend != null)
             {
-                if (_spikeTrapMaterial != null)
+                if (trapType == DungeonTrapType.Spike && _spikeTrapMaterial != null)
                     rend.sharedMaterial = _spikeTrapMaterial;
                 else
-                    rend.material.color = new Color(0.55f, 0.22f, 0.28f, 1f);
+                {
+                    rend.material.color = trapType switch
+                    {
+                        DungeonTrapType.Ember => new Color(0.85f, 0.38f, 0.12f, 1f),
+                        DungeonTrapType.Slime => new Color(0.28f, 0.62f, 0.32f, 1f),
+                        _ => new Color(0.55f, 0.22f, 0.28f, 1f)
+                    };
+                }
             }
 
             var rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
 
-            go.AddComponent<HazardVolume>();
+            var hazard = go.AddComponent<HazardVolume>();
+            hazard.Configure(trapType);
         }
 
         private void SpawnEnemy(Vector3 position)

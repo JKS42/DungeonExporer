@@ -318,6 +318,65 @@ namespace DungeonExporer.Dungeon
             return false;
         }
 
+        /// <summary>ASCII legend + numbered rows for LLM trap-placement prompts.</summary>
+        public string BuildMazePromptBlock()
+        {
+            if (_gridRows.Length == 0)
+                return "Maze: (empty)";
+
+            var sb = new StringBuilder(512);
+            sb.AppendLine("Legend: #=wall .=corridor S=safe E=encounter P=player spawn");
+            sb.AppendLine("Coordinates: x=column (0=left), y=row (0=top line below).");
+            for (int y = 0; y < _gridRows.Length; y++)
+                sb.Append("y").Append(y.ToString("D2")).Append(": ").AppendLine(_gridRows[y]);
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>Walkable trap tile away from spawn; excludes safe room and spawn.</summary>
+        public bool IsTrapEligibleCell(Vector2Int cell, int minChebyshevFromSpawn)
+        {
+            char sym = GetCellSymbol(cell);
+            if (sym != '.' && sym != 'E')
+                return false;
+            if (_spawnCell.x >= 0 && ChebyshevDistance(cell, _spawnCell) < minChebyshevFromSpawn)
+                return false;
+            return true;
+        }
+
+        /// <summary>Walkable loot tile away from spawn.</summary>
+        public bool IsLootEligibleCell(Vector2Int cell, int minChebyshevFromSpawn) =>
+            IsWalkableAwayFromSpawn(cell, minChebyshevFromSpawn);
+
+        /// <summary>Encounter tile for enemy placement.</summary>
+        public bool IsEnemyEligibleCell(Vector2Int cell, int minChebyshevFromSpawn)
+        {
+            if (!IsEncounterCell(cell))
+                return false;
+            if (_spawnCell.x >= 0 && ChebyshevDistance(cell, _spawnCell) < minChebyshevFromSpawn)
+                return false;
+            return true;
+        }
+
+        /// <summary>Corridor tile for sign placement.</summary>
+        public bool IsSignEligibleCell(Vector2Int cell, int minChebyshevFromSpawn)
+        {
+            if (!IsCorridorCell(cell))
+                return false;
+            if (_spawnCell.x >= 0 && ChebyshevDistance(cell, _spawnCell) < minChebyshevFromSpawn)
+                return false;
+            return true;
+        }
+
+        private bool IsWalkableAwayFromSpawn(Vector2Int cell, int minChebyshevFromSpawn)
+        {
+            char sym = GetCellSymbol(cell);
+            if (sym != '.' && sym != 'S' && sym != 'E')
+                return false;
+            if (_spawnCell.x >= 0 && ChebyshevDistance(cell, _spawnCell) < minChebyshevFromSpawn)
+                return false;
+            return true;
+        }
+
         public bool IsCorridorCell(Vector2Int cell) => GetCellSymbol(cell) == '.';
 
         public bool IsEncounterCell(Vector2Int cell) => GetCellSymbol(cell) == 'E';

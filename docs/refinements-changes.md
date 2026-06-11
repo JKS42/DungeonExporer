@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-06-11 — Reactive Cap chat, AI loot/enemies/signs
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `DungeonContentPlanner` requests JSON loot, enemy, and sign placement at level load (validated in C#; procedural fill for remainder). `DungeonSignPost` spawns corridor signboards with model-written text. `DialoguePanelController` adds player text input + **Ask Cap** for reactive Q&A; `NpcConversationMemory` now stores player + assistant turns.
+**Why**: Extend local LLM beyond traps and one-liners so the dungeon layout and NPC feel AI-driven without blocking gameplay.
+**Impact / docs touched**: `DungeonContentPlan.cs`, `DungeonContentPlanner.cs`, `DungeonSignPost.cs`, `DungeonLootScatter.cs`, `DungeonLevelBuilder.cs`, `LevelGameplayBootstrap.cs`, `DialoguePanelController.cs`, `NpcConversationMemory.cs`, `docs/high-concept.md`, `docs/llm-integration-report.md`, `docs/ollama-plan.md`.
+
 ## 2026-05-15 — Academic deliverables documentation pack
 **Type**: dependency
 **AI tool(s)**: Cursor + Claude
@@ -25,6 +33,22 @@
 **What changed**: Added **`docs/deliverables-checklist.md`**, **`prompts-used.md`**, **`llm-integration-report.md`**, **`ethical-considerations.md`**, **`video-deliverables.md`**, **`build-notes.md`**, **`docs/eval/README.md`**. Updated **README**, **AGENTS.md**, **setup.md**. Wired **`GameSettings.LlmEnabled`** for NPC canned lines and flavor skip; default **`LlmModel`** `qwen3:4b`.
 **Why**: Course brief requires documentation, prompt archive, integration report, ethics, and guides for videos/builds.
 **Impact / docs touched**: All files above; `DialoguePanelController.cs`, `DungeonFlavorNarrator.cs`, `GameSettings.cs`.
+
+## 2026-05-15 — AI trap placement for dungeon (Cap + Ollama JSON)
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `DungeonTrapPlanner` requests JSON trap coordinates from Ollama at level load; `DungeonLevelBuilder` validates cells; loot/enemies spawn immediately, traps apply when the plan arrives (≤8s) with procedural fill for the rest. Trap types: spike, ember, slime (`HazardVolume.Configure`).
+**Why**: Playtest feedback — AI should affect the dungeon, not only optional dialogue; front-load inference so players are not blocked.
+**Impact / docs touched**: `DungeonTrapPlanner.cs`, `DungeonTrapPlan.cs`, `DungeonTrapType.cs`, `DungeonLootScatter.cs`, `LevelGameplayBootstrap.cs`, `DungeonLevelBuilder.cs`, `HazardVolume.cs`, `OllamaHandler.cs`, `docs/refinements-changes.md`, `docs/high-concept.md`.
+
+## 2026-05-15 — Pre-fetch Cap voice on approach; auto-show on dialogue open
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `NpcDialogueCache` + proximity prefetch in `NpcInteractable`. Opening dialogue shows an instant authored line, then swaps in cached Ollama text (or fetches non-stream). Removed click-to-stream UX; “Another line” re-rolls. NPC token budget `defaultNpcMaxTokens` (80).
+**Why**: Playtest feedback — 15s wait and optional “Hear them out” made local LLM feel broken; front-load inference while walking up.
+**Impact / docs touched**: `NpcDialogueCache.cs`, `DialoguePanelController.cs`, `NpcInteractable.cs`, `OllamaHandler.cs`, `docs/refinements-changes.md`.
 
 ## 2026-05-15 — Fix empty Ollama NPC replies (thinking fallback + gemma default)
 **Type**: refactor

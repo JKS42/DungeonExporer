@@ -32,6 +32,8 @@ public class OllamaHandler : MonoBehaviour
     public int defaultStreamMaxTokens = 180;
     [Tooltip("Default max tokens for non-stream test UI and short checks.")]
     public int defaultNonStreamMaxTokens = 256;
+    [Tooltip("Max tokens for NPC voice (prefetch + dialogue panel). Keep low for speed.")]
+    public int defaultNpcMaxTokens = 80;
 
     private UnityWebRequest _abortableRequest;
 
@@ -352,7 +354,8 @@ public class OllamaHandler : MonoBehaviour
     /// <param name="updateResponseUiField">When true, writes the model reply to <see cref="responseOutputField"/>.</param>
     public void RequestGeneration(string model, string prompt, Action<string> onSuccess, Action<string> onError,
         bool saveToDialogueJson = true, bool updateResponseUiField = true, int maxPredictTokens = 0,
-        bool disableThinking = false, bool extractNpcDialogue = false, string npcDialogueName = null)
+        bool disableThinking = false, bool extractNpcDialogue = false, string npcDialogueName = null,
+        bool jsonResponse = false)
     {
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -362,7 +365,7 @@ public class OllamaHandler : MonoBehaviour
 
         int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultNonStreamMaxTokens;
         StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
-            limit, disableThinking, extractNpcDialogue, npcDialogueName));
+            limit, disableThinking, extractNpcDialogue, npcDialogueName, jsonResponse));
     }
 
     /// <summary>
@@ -519,13 +522,13 @@ public class OllamaHandler : MonoBehaviour
 
     private IEnumerator GenerateCoroutine(string model, string prompt, bool saveToDialogueJson, bool updateResponseUiField,
         Action<string> onSuccess, Action<string> onError, int maxPredictTokens, bool disableThinking = false,
-        bool extractNpcDialogue = false, string npcDialogueName = null)
+        bool extractNpcDialogue = false, string npcDialogueName = null, bool jsonResponse = false)
     {
         AbortActiveRequest();
 
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
-        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: false, maxPredictTokens, disableThinking);
+        string jsonBody = BuildGenerateJsonBody(model, prompt, stream: false, maxPredictTokens, disableThinking, jsonResponse);
 
         var request = new UnityWebRequest(url, "POST");
         _abortableRequest = request;
@@ -1048,12 +1051,13 @@ public class OllamaHandler : MonoBehaviour
     }
 
     private static string BuildGenerateJsonBody(string model, string prompt, bool stream, int maxPredictTokens,
-        bool disableThinking = false)
+        bool disableThinking = false, bool jsonResponse = false)
     {
         int n = Mathf.Clamp(maxPredictTokens, 8, 8192);
         string think = disableThinking ? ",\"think\":false" : string.Empty;
+        string format = jsonResponse ? ",\"format\":\"json\"" : string.Empty;
         return "{\"model\":\"" + EscapeJson(model) + "\",\"prompt\":\"" + EscapeJson(prompt) + "\",\"stream\":" +
-               (stream ? "true" : "false") + think + ",\"options\":{\"num_predict\":" + n + "}}";
+               (stream ? "true" : "false") + think + format + ",\"options\":{\"num_predict\":" + n + "}}";
     }
 
     private static string EscapeJson(string text)

@@ -1,7 +1,7 @@
 # Ollama Plan — DungeonExporer
 
 > Living document. Update whenever the model, the prompt structure, or the data flow changes.
-> Last updated: 2026-05-15 (Level1 gameplay wiring, streaming dialogue, health check)
+> Last updated: 2026-06-11 (content planner, reactive dialogue, trap placement)
 
 ## 1. Model choice
 
@@ -32,7 +32,9 @@
 |---|---|---|---|---|
 | Room / tile flavor (safe vs encounter) | ~72 (`DungeonFlavorNarrator`) | < 2 s | < 5 s | No (single completion) |
 | Full room prose (future) | 60 | < 1.5 s | < 3 s | Yes |
-| NPC dialogue line | ~96 (`num_predict` default on `OllamaHandler`) | < 2 s | < 4 s | Yes |
+| NPC dialogue line | ~80 (`defaultNpcMaxTokens`) | < 2 s | < 4 s | No (prefetch + non-stream) |
+| Reactive NPC Q&A | ~80 | < 2 s | < 5 s | No |
+| Loot / enemy / sign JSON plan | ~240 | < 3 s | < 8 s | No |
 | Item description (on pickup) | 40 | < 1 s | < 2 s | No (cache after first call) |
 | Hint (on player request) | 100 | < 3 s | < 6 s | Yes |
 
@@ -62,23 +64,23 @@ DungeonFlavorHudBridge → GameplayHudController.ShowFlavorToast
 
 NpcInteractable (range + Interact / E)
    │
+   ├─► proximity prefetch → NpcDialogueCache
    ▼
 DialoguePanelController
    │  Authoritative: QuestManager title, briefing, objective hints, completionSummary
-   │  Prompt context: inventory summary, quest state, NpcConversationMemory (per npc id, e.g. "cap")
-   │  UI: quest block + separate LLM block; Player map disabled while open
-   │  Buttons: Accept quest, Hear them out, Close (UiEventSystemBootstrap + direct raycast fallback)
+   │  Prompt context: inventory summary, quest state, NpcConversationMemory (player + Cap turns)
+   │  UI: quest block + LLM block + player input + Ask Cap / Another line / Accept / Close
    │
-   │ optional: "Hear them out"
-   ▼
-OllamaHandler.RequestGenerationStreaming (preferred in dialogue)
-   │  POST http://localhost:11434/api/generate  (UnityWebRequest + NDJSON DownloadHandler)
-   │  stream:true → per-line JSON; deltas appended to visible TMP + typewriter buffer
-   │  SanitizeModelOutput: strip <think>, redacted_thinking, etc.
-   │  AbortActiveRequest on close / new line
-   │  On complete: NpcConversationMemory records assistant line
-   ▼
-Optional: append to Assets/DialogueOutput/ollama-dialogue.json (test / debug history)
+   ├─► open: auto voice (cached or non-stream RequestGeneration, extractNpcDialogue)
+   ├─► Ask Cap: reactive RequestGeneration with player question
+   └─► Another line: invalidate cache + re-fetch
+
+LevelGameplayBootstrap (Start)
+   │
+   ├─► DungeonContentPlanner.FetchPlanCoroutine → loot / enemies / signs JSON
+   │      DungeonLootScatter.ScatterLoot + ScatterEnemies (AI first, procedural fill)
+   │      DungeonSignPost.Create per validated sign cell
+   └─► DungeonTrapPlanner.FetchPlanCoroutine → traps JSON → ScatterTraps
 
 Parallel: OllamaHandler test UI on Level1 (manual prompt / stream for debugging)
 ```

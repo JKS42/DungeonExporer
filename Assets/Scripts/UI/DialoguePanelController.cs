@@ -24,7 +24,8 @@ namespace DungeonExporer.UI
 
         [SerializeField] private OllamaHandler _ollama;
         [SerializeField] private InputActionAsset _inputActions;
-        [SerializeField] private float _typewriterCharsPerSecond = 56f;
+        [Tooltip("How long to wait for a proximity prefetch before starting a new Ollama call.")]
+        [SerializeField] private float _prefetchWaitSeconds = 6f;
 
         private const int DialogueCanvasSortOrder = 300;
 
@@ -39,6 +40,8 @@ namespace DungeonExporer.UI
         private RectTransform _llmContentRect;
         private TextMeshProUGUI _statusText;
         private Button _hearButton;
+        private Button _askButton;
+        private TMP_InputField _playerInput;
         private Button _acceptButton;
         private Button _closeButton;
 
@@ -47,9 +50,12 @@ namespace DungeonExporer.UI
         private string _npcConversationId = "npc";
         private bool _busy;
         private int _dialogueGeneration;
-        private readonly StringBuilder _streamBuffer = new StringBuilder(2048);
-        private Coroutine _streamUiCoroutine;
+        private Coroutine _voiceCoroutine;
+        private Coroutine _prefetchCoroutine;
+        private Coroutine _askCoroutine;
         private Coroutine _acceptanceConfirmationCoroutine;
+
+        private const int MaxPlayerQuestionChars = 200;
 
         private readonly List<RaycastResult> _raycastHits = new List<RaycastResult>(8);
         private static int _uiLayer = -1;
@@ -75,7 +81,7 @@ namespace DungeonExporer.UI
 
         private void OnDestroy()
         {
-            StopStreamUiInternal(false);
+            StopVoicePresentation(bumpGeneration: false);
             if (Instance == this)
             {
                 Instance = null;
@@ -88,7 +94,7 @@ namespace DungeonExporer.UI
 
         public void BeginSession(string displayName, string questId, string npcConversationId)
         {
-            StopStreamUiInternal();
+            StopVoicePresentation(abortOllama: false);
 
             _displayName = displayName ?? "Stranger";
             _questId = string.IsNullOrWhiteSpace(questId) ? string.Empty : questId.Trim();
@@ -97,38 +103,77 @@ namespace DungeonExporer.UI
 
             if (_llmBodyText != null)
                 _llmBodyText.text = string.Empty;
-            _streamBuffer.Clear();
 
             RefreshStaticCopy();
             SetOpen(true, restoreCursor: true);
+
+            if (QuestManager.Instance != null &&
+                QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
+            {
+                ShowInstantFallbackLine(BuildCannedNpcLine(def));
+                if (_voiceCoroutine != null)
+                    StopCoroutine(_voiceCoroutine);
+                _voiceCoroutine = StartCoroutine(AutoPresentNpcVoiceRoutine(def));
+            }
+        }
+
+        /// <summary>Starts Ollama in the background while the player walks toward the NPC.</summary>
+        public void PrefetchNpcLine(string displayName, string questId, string npcConversationId)
+        {
+            if (!GameSettings.LlmEnabled || _ollama == null || QuestManager.Instance == null)
+                return;
+            if (!QuestManager.Instance.TryGetDefinition(questId, out QuestDefinition def))
+                return;
+
+            string key = BuildVoiceCacheKey(npcConversationId, questId, def);
+            if (NpcDialogueCache.TryGet(key, out _))
+                return;
+
+            if (_prefetchCoroutine != null)
+                StopCoroutine(_prefetchCoroutine);
+            _prefetchCoroutine = StartCoroutine(PrefetchNpcLineCoroutine(def, key));
         }
 
         public void Close()
         {
-            StopStreamUiInternal();
+            StopVoicePresentation();
             _busy = false;
             SetOpen(false, restoreCursor: true);
         }
 
-        private void StopStreamUiInternal(bool bumpGeneration = true)
+        private void StopVoicePresentation(bool bumpGeneration = true, bool abortOllama = true)
         {
             if (bumpGeneration)
                 _dialogueGeneration++;
 
-            _ollama?.AbortActiveRequest();
-            if (_streamUiCoroutine != null)
+            if (abortOllama)
+                _ollama?.AbortActiveRequest();
+            if (_voiceCoroutine != null)
             {
-                StopCoroutine(_streamUiCoroutine);
-                _streamUiCoroutine = null;
+                StopCoroutine(_voiceCoroutine);
+                _voiceCoroutine = null;
             }
-            
+
+            if (abortOllama && _prefetchCoroutine != null)
+            {
+                StopCoroutine(_prefetchCoroutine);
+                _prefetchCoroutine = null;
+            }
+
             if (_acceptanceConfirmationCoroutine != null)
             {
                 StopCoroutine(_acceptanceConfirmationCoroutine);
                 _acceptanceConfirmationCoroutine = null;
             }
 
+            if (_askCoroutine != null)
+            {
+                StopCoroutine(_askCoroutine);
+                _askCoroutine = null;
+            }
+
             SetHearInteractable(true);
+            SetAskInteractable(true);
         }
 
         private void SetOpen(bool open, bool restoreCursor)
@@ -219,7 +264,7 @@ namespace DungeonExporer.UI
                     else
                         sb.AppendLine("You have already finished this task.");
                     sb.AppendLine();
-                    sb.AppendLine("Use “Hear them out” for Cap’s voice — text streams in from Ollama, then tidies up at the end.");
+                    sb.AppendLine("Cap’s spoken line appears below (pre-generated when you got close).");
                 }
                 else if (QuestManager.Instance.IsQuestActive(_questId))
                 {
@@ -256,7 +301,15 @@ namespace DungeonExporer.UI
             }
 
             if (_hearButton != null)
-                _hearButton.gameObject.SetActive(hasQuest && (canOffer || active || done));
+            {
+                bool showHear = hasQuest && (canOffer || active || done) && GameSettings.LlmEnabled;
+                _hearButton.gameObject.SetActive(showHear);
+            }
+
+            if (_askButton != null)
+                _askButton.gameObject.SetActive(GameSettings.LlmEnabled);
+            if (_playerInput != null)
+                _playerInput.gameObject.transform.parent.gameObject.SetActive(GameSettings.LlmEnabled);
         }
 
         private void SetHearInteractable(bool interactable)
@@ -265,40 +318,100 @@ namespace DungeonExporer.UI
                 _hearButton.interactable = interactable;
         }
 
-        private void OnHearClicked()
+        private void SetAskInteractable(bool interactable)
         {
-            if (_ollama == null)
-            {
-                Debug.LogWarning("DialoguePanelController.OnHearClicked: OllamaHandler is null. Ensure an OllamaHandler exists in the scene and is assigned.");
-                return;
-            }
-
-            if (_busy)
-            {
-                Debug.Log("DialoguePanelController.OnHearClicked: Busy; ignoring click.");
-                return;
-            }
-
-            if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
-            {
-                Debug.LogWarning($"DialoguePanelController.OnHearClicked: No quest definition for id '{_questId}'.");
-                return;
-            }
-
-            StartCoroutine(OnHearClickedCoroutine(def));
+            if (_askButton != null)
+                _askButton.interactable = interactable;
+            if (_playerInput != null)
+                _playerInput.interactable = interactable;
         }
 
-        private IEnumerator OnHearClickedCoroutine(QuestDefinition def)
+        private void OnHearClicked()
         {
-            StopStreamUiInternal();
+            if (_ollama == null || _busy)
+                return;
+            if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
+                return;
+
+            string key = BuildVoiceCacheKey(_npcConversationId, _questId, def);
+            NpcDialogueCache.Invalidate(key);
+            if (_voiceCoroutine != null)
+                StopCoroutine(_voiceCoroutine);
+            _voiceCoroutine = StartCoroutine(RefreshNpcVoiceRoutine(def, key));
+        }
+
+        private void OnAskClicked()
+        {
+            if (_ollama == null || _busy || !GameSettings.LlmEnabled)
+                return;
+            if (_playerInput == null)
+                return;
+
+            string question = (_playerInput.text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(question))
+                return;
+            if (question.Length > MaxPlayerQuestionChars)
+                question = question.Substring(0, MaxPlayerQuestionChars);
+
+            _playerInput.text = string.Empty;
+            if (_askCoroutine != null)
+                StopCoroutine(_askCoroutine);
+            _askCoroutine = StartCoroutine(AskCapRoutine(question));
+        }
+
+        private IEnumerator AskCapRoutine(string question)
+        {
             int gen = _dialogueGeneration;
+            if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
+                yield break;
+
             _busy = true;
             SetHearInteractable(false);
+            SetAskInteractable(false);
+            _ollama?.AbortActiveRequest();
+            NpcConversationMemory.AppendUserMessage(_npcConversationId, question);
+
             if (_statusText != null)
-                _statusText.text = "Checking Ollama model…";
-            _streamBuffer.Clear();
-            if (_llmBodyText != null)
-                _llmBodyText.text = string.Empty;
+                _statusText.text = "Cap is thinking…";
+
+            string spoken = string.Empty;
+            yield return FetchReactiveLineCoroutine(def, question, gen, reply => spoken = reply);
+
+            if (gen != _dialogueGeneration)
+            {
+                _busy = false;
+                _askCoroutine = null;
+                yield break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(spoken))
+            {
+                NpcConversationMemory.AppendAssistantReply(_npcConversationId, spoken);
+                AppendLlmExchange(question, spoken);
+            }
+            else
+            {
+                string fallback = "Hmm. My whiskers are tangled — try asking that again in a simpler way.";
+                NpcConversationMemory.AppendAssistantReply(_npcConversationId, fallback);
+                AppendLlmExchange(question, fallback);
+            }
+
+            _busy = false;
+            SetHearInteractable(true);
+            SetAskInteractable(true);
+            if (_statusText != null)
+                _statusText.text = string.Empty;
+            _askCoroutine = null;
+        }
+
+        private IEnumerator FetchReactiveLineCoroutine(QuestDefinition def, string question, int gen, Action<string> onSpoken)
+        {
+            string spoken = string.Empty;
+            if (_ollama == null)
+            {
+                onSpoken?.Invoke(spoken);
+                yield break;
+            }
 
             string model = null;
             string resolveError = null;
@@ -307,193 +420,29 @@ namespace DungeonExporer.UI
                 err => resolveError = err);
 
             if (gen != _dialogueGeneration)
+            {
+                onSpoken?.Invoke(spoken);
                 yield break;
+            }
 
             if (string.IsNullOrEmpty(model))
             {
-                _busy = false;
-                SetHearInteractable(true);
-                if (_statusText != null)
-                    _statusText.text = resolveError ?? "Ollama model not available.";
+                if (_statusText != null && !string.IsNullOrEmpty(resolveError))
+                    _statusText.text = resolveError;
+                onSpoken?.Invoke(spoken);
                 yield break;
             }
-
-            if (!GameSettings.LlmEnabled)
-            {
-                ApplyCannedLlmLine(BuildCannedNpcLine(def));
-                _busy = false;
-                SetHearInteractable(true);
-                if (_statusText != null)
-                    _statusText.text = "AI dialogue is off in Options.";
-                yield break;
-            }
-
-            if (_statusText != null)
-                _statusText.text = "Listening… (Ollama, streaming)";
-
-            string prompt = BuildNpcPrompt(def);
-            bool _promptEchoHandled = false;
-            Debug.Log($"DialoguePanelController: Requesting Ollama stream for NPC '{_npcConversationId}' (quest '{_questId}'), model={model}");
-
-            bool streamFinished = false;
-            string streamError = null;
-
-            _ollama.RequestGenerationStreaming(model, prompt,
-                onDelta: delta =>
-                {
-                    if (gen != _dialogueGeneration)
-                        return;
-                    _streamBuffer.Append(delta);
-
-                    // Detect and strip an early echo of the prompt (some servers echo back the prompt).
-                    if (!_promptEchoHandled)
-                    {
-                        string buf = _streamBuffer.ToString();
-                        int checkLen = Math.Min(40, Math.Min(buf.Length, prompt.Length));
-                        if (checkLen >= 16)
-                        {
-                            if (buf.Substring(0, checkLen) == prompt.Substring(0, checkLen))
-                            {
-                                if (buf.StartsWith(prompt))
-                                    _streamBuffer.Clear();
-                                else
-                                    _streamBuffer.Remove(0, checkLen);
-                            }
-
-                            _promptEchoHandled = true;
-                        }
-                    }
-                },
-                onComplete: full =>
-                {
-                    if (gen != _dialogueGeneration)
-                        return;
-                    streamFinished = true;
-                    string spoken = OllamaHandler.ExtractNpcSpokenDialogue(full, _displayName);
-                    if (_streamBuffer.Length == 0 && !string.IsNullOrWhiteSpace(spoken))
-                        _streamBuffer.Append(spoken);
-                    if (!string.IsNullOrWhiteSpace(spoken))
-                        NpcConversationMemory.AppendAssistantReply(_npcConversationId, spoken);
-                },
-                onError: err =>
-                {
-                    if (gen != _dialogueGeneration)
-                        return;
-                    streamError = err;
-                    streamFinished = true;
-                    if (_statusText != null)
-                        _statusText.text = err;
-                },
-                saveToDialogueJson: true,
-                maxPredictTokens: _ollama.defaultStreamMaxTokens,
-                updateResponseUiField: false,
-                disableThinking: true,
-                extractNpcDialogue: true,
-                npcDialogueName: _displayName);
-
-            _streamUiCoroutine = StartCoroutine(StreamRevealRoutine(gen, model, prompt,
-                () => streamFinished, () => streamError));
-        }
-
-        private IEnumerator StreamRevealRoutine(int gen, string model, string prompt,
-            Func<bool> isStreamFinished, Func<string> getError)
-        {
-            float revealed = 0f;
-            int lastCap = 0;
-            float idleSeconds = 0f;
-            const float stallSeconds = 3.25f;
-
-            while (gen == _dialogueGeneration)
-            {
-                string err = getError();
-                if (!string.IsNullOrEmpty(err))
-                    break;
-
-                int cap = _streamBuffer.Length;
-                if (cap > lastCap)
-                {
-                    lastCap = cap;
-                    idleSeconds = 0f;
-                }
-                else if (!isStreamFinished())
-                {
-                    idleSeconds += Time.unscaledDeltaTime;
-                    if (idleSeconds > stallSeconds && _statusText != null && string.IsNullOrEmpty(err))
-                    {
-                        _statusText.text =
-                            "Still thinking… (no tokens yet — cold models can take a few seconds; see docs/setup.md if it never starts)";
-                    }
-                }
-
-                if (isStreamFinished())
-                    revealed = Mathf.Max(revealed, _streamBuffer.Length);
-
-                revealed += _typewriterCharsPerSecond * Time.unscaledDeltaTime;
-                int showChars = Mathf.Min(_streamBuffer.Length, Mathf.FloorToInt(revealed));
-                if (showChars > 0)
-                {
-                    string raw = _streamBuffer.ToString();
-                    if (showChars < raw.Length)
-                        raw = raw.Substring(0, showChars);
-                    string partial = OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
-                    if (!string.IsNullOrWhiteSpace(partial))
-                        UpdateLlmBodyText(partial);
-                    if (_statusText != null && !string.IsNullOrEmpty(_statusText.text) &&
-                        _statusText.text.StartsWith("Still thinking", StringComparison.Ordinal))
-                    {
-                        _statusText.text = string.Empty;
-                    }
-                }
-
-                if (isStreamFinished() && revealed >= _streamBuffer.Length)
-                    break;
-
-                yield return null;
-            }
-
-            string spoken = string.Empty;
-            if (gen == _dialogueGeneration && _streamBuffer.Length > 0)
-                spoken = OllamaHandler.ExtractNpcSpokenDialogue(_streamBuffer.ToString(), _displayName);
-
-            if (gen == _dialogueGeneration &&
-                string.IsNullOrWhiteSpace(spoken) &&
-                isStreamFinished() &&
-                string.IsNullOrEmpty(getError()))
-            {
-                yield return NonStreamFallbackRoutine(gen, model, prompt, result => spoken = result);
-            }
-
-            if (gen == _dialogueGeneration)
-            {
-                if (!string.IsNullOrWhiteSpace(spoken))
-                    UpdateLlmBodyText(spoken);
-                else if (isStreamFinished() && _statusText != null && string.IsNullOrEmpty(getError()))
-                {
-                    _statusText.text =
-                        "Cap had nothing to say. Check Ollama is running, pull gemma3:4b (or qwen3:4b), and see docs/setup.md.";
-                }
-
-                _busy = false;
-                SetHearInteractable(true);
-            }
-
-            _streamUiCoroutine = null;
-        }
-
-        private IEnumerator NonStreamFallbackRoutine(int gen, string model, string prompt, Action<string> assignResult)
-        {
-            if (_statusText != null)
-                _statusText.text = "Stream was empty — retrying (non-stream)…";
 
             bool done = false;
             string raw = null;
             string err = null;
+            string prompt = BuildReactiveNpcPrompt(def, question);
             _ollama.RequestGeneration(model, prompt,
                 onSuccess: text => { raw = text; done = true; },
                 onError: e => { err = e; done = true; },
                 saveToDialogueJson: true,
                 updateResponseUiField: false,
-                maxPredictTokens: _ollama.defaultStreamMaxTokens,
+                maxPredictTokens: _ollama.defaultNpcMaxTokens,
                 disableThinking: true,
                 extractNpcDialogue: true,
                 npcDialogueName: _displayName);
@@ -501,29 +450,215 @@ namespace DungeonExporer.UI
             while (!done && gen == _dialogueGeneration)
                 yield return null;
 
-            if (gen != _dialogueGeneration)
-                yield break;
-
-            if (!string.IsNullOrEmpty(err) && _statusText != null)
-            {
+            if (!string.IsNullOrEmpty(err) && _statusText != null && IsOpen)
                 _statusText.text = err;
-                yield break;
-            }
 
-            string spoken = string.IsNullOrWhiteSpace(raw)
+            spoken = string.IsNullOrWhiteSpace(raw)
                 ? string.Empty
                 : OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
             if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
                 spoken = raw.Trim();
-            if (!string.IsNullOrWhiteSpace(spoken))
+
+            onSpoken?.Invoke(spoken);
+        }
+
+        private IEnumerator AutoPresentNpcVoiceRoutine(QuestDefinition def)
+        {
+            int gen = _dialogueGeneration;
+            if (!GameSettings.LlmEnabled || _ollama == null)
+                yield break;
+
+            string key = BuildVoiceCacheKey(_npcConversationId, _questId, def);
+            if (NpcDialogueCache.TryGet(key, out string cached))
             {
-                _streamBuffer.Clear();
-                _streamBuffer.Append(spoken);
-                assignResult?.Invoke(spoken);
-                NpcConversationMemory.AppendAssistantReply(_npcConversationId, spoken);
+                if (gen == _dialogueGeneration)
+                    ApplyVoiceLine(cached);
+                yield break;
+            }
+
+            float waited = 0f;
+            while (NpcDialogueCache.IsFetching(key) && waited < _prefetchWaitSeconds && gen == _dialogueGeneration)
+            {
+                if (_statusText != null)
+                    _statusText.text = "Cap is warming up…";
+                waited += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (gen != _dialogueGeneration)
+                yield break;
+
+            if (NpcDialogueCache.TryGet(key, out cached))
+            {
+                ApplyVoiceLine(cached);
+                if (_statusText != null)
+                    _statusText.text = string.Empty;
+                yield break;
+            }
+
+            _busy = true;
+            SetHearInteractable(false);
+            SetAskInteractable(false);
+            yield return FetchNpcLineCoroutine(def, key, gen, spoken =>
+            {
+                if (gen != _dialogueGeneration)
+                    return;
+                if (!string.IsNullOrWhiteSpace(spoken))
+                    ApplyVoiceLine(spoken);
+            });
+            if (gen == _dialogueGeneration)
+            {
+                _busy = false;
+                SetHearInteractable(true);
+                SetAskInteractable(true);
                 if (_statusText != null)
                     _statusText.text = string.Empty;
             }
+        }
+
+        private IEnumerator RefreshNpcVoiceRoutine(QuestDefinition def, string cacheKey)
+        {
+            int gen = _dialogueGeneration;
+            _busy = true;
+            SetHearInteractable(false);
+            SetAskInteractable(false);
+            NpcDialogueCache.EndFetch(cacheKey);
+            NpcDialogueCache.Invalidate(cacheKey);
+            if (_statusText != null)
+                _statusText.text = "Cap is thinking up another line…";
+
+            yield return FetchNpcLineCoroutine(def, cacheKey, gen, spoken =>
+            {
+                if (gen != _dialogueGeneration)
+                    return;
+                if (!string.IsNullOrWhiteSpace(spoken))
+                    ApplyVoiceLine(spoken);
+                else
+                    ShowInstantFallbackLine(BuildCannedNpcLine(def));
+            });
+
+            if (gen == _dialogueGeneration)
+            {
+                _busy = false;
+                SetHearInteractable(true);
+                SetAskInteractable(true);
+                if (_statusText != null)
+                    _statusText.text = string.Empty;
+            }
+        }
+
+        private IEnumerator PrefetchNpcLineCoroutine(QuestDefinition def, string cacheKey)
+        {
+            int gen = _dialogueGeneration;
+            yield return FetchNpcLineCoroutine(def, cacheKey, gen, _ => { });
+            _prefetchCoroutine = null;
+        }
+
+        private IEnumerator FetchNpcLineCoroutine(QuestDefinition def, string cacheKey, int gen, Action<string> onSpoken)
+        {
+            if (!NpcDialogueCache.TryBeginFetch(cacheKey))
+            {
+                float waited = 0f;
+                while (NpcDialogueCache.IsFetching(cacheKey) && waited < _prefetchWaitSeconds)
+                {
+                    waited += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                if (NpcDialogueCache.TryGet(cacheKey, out string existing))
+                {
+                    onSpoken?.Invoke(existing);
+                    yield break;
+                }
+
+                if (!NpcDialogueCache.TryBeginFetch(cacheKey))
+                {
+                    onSpoken?.Invoke(string.Empty);
+                    yield break;
+                }
+            }
+
+            string spoken = string.Empty;
+            if (_ollama == null)
+            {
+                NpcDialogueCache.EndFetch(cacheKey);
+                onSpoken?.Invoke(spoken);
+                yield break;
+            }
+
+            string model = null;
+            string resolveError = null;
+            yield return _ollama.ResolveModelTagCoroutine(_ollama.GetPreferredModelName(),
+                resolved => model = resolved,
+                err => resolveError = err);
+
+            if (gen != _dialogueGeneration)
+            {
+                NpcDialogueCache.EndFetch(cacheKey);
+                onSpoken?.Invoke(spoken);
+                yield break;
+            }
+
+            if (string.IsNullOrEmpty(model))
+            {
+                if (_statusText != null && !string.IsNullOrEmpty(resolveError))
+                    _statusText.text = resolveError;
+                NpcDialogueCache.EndFetch(cacheKey);
+                onSpoken?.Invoke(spoken);
+                yield break;
+            }
+
+            bool done = false;
+            string raw = null;
+            string err = null;
+            string prompt = BuildNpcPrompt(def);
+            _ollama.RequestGeneration(model, prompt,
+                onSuccess: text => { raw = text; done = true; },
+                onError: e => { err = e; done = true; },
+                saveToDialogueJson: true,
+                updateResponseUiField: false,
+                maxPredictTokens: _ollama.defaultNpcMaxTokens,
+                disableThinking: true,
+                extractNpcDialogue: true,
+                npcDialogueName: _displayName);
+
+            while (!done && gen == _dialogueGeneration)
+                yield return null;
+
+            if (!string.IsNullOrEmpty(err) && _statusText != null && IsOpen)
+                _statusText.text = err;
+
+            spoken = string.IsNullOrWhiteSpace(raw)
+                ? string.Empty
+                : OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
+            if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
+                spoken = raw.Trim();
+
+            if (!string.IsNullOrWhiteSpace(spoken))
+                NpcDialogueCache.Put(cacheKey, spoken);
+
+            NpcDialogueCache.EndFetch(cacheKey);
+            onSpoken?.Invoke(spoken);
+        }
+
+        private static string BuildVoiceCacheKey(string npcConversationId, string questId, QuestDefinition def)
+        {
+            string state = BuildStateSignature(questId);
+            return NpcDialogueCache.BuildKey(npcConversationId, questId, state);
+        }
+
+        private static string BuildStateSignature(string questId)
+        {
+            if (QuestManager.Instance == null)
+                return "unknown";
+
+            bool completed = QuestManager.Instance.IsQuestCompleted(questId);
+            bool active = QuestManager.Instance.IsQuestActive(questId);
+            bool canOffer = QuestManager.Instance.CanOfferQuest(questId);
+            string inv = PlayerInventory.Instance != null
+                ? PlayerInventory.Instance.BuildSummaryForPrompt()
+                : "inv:unknown";
+            return (completed ? "done" : active ? "active" : canOffer ? "offer" : "idle") + "|" + inv;
         }
 
         private static string BuildCannedNpcLine(QuestDefinition def)
@@ -537,12 +672,18 @@ namespace DungeonExporer.UI
             return "Take the drill, friend. Clear the pits, then let me pretend I orchestrated every heroic swing.";
         }
 
-        private void ApplyCannedLlmLine(string line)
+        private void ShowInstantFallbackLine(string line)
         {
-            if (_llmBodyText != null)
-                _llmBodyText.text = line;
             if (!string.IsNullOrWhiteSpace(line))
-                NpcConversationMemory.AppendAssistantReply(_npcConversationId, line);
+                UpdateLlmBodyText(line);
+        }
+
+        private void ApplyVoiceLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+            UpdateLlmBodyText(line);
+            NpcConversationMemory.AppendAssistantReply(_npcConversationId, line);
         }
 
         private string BuildNpcPrompt(QuestDefinition def)
@@ -570,6 +711,45 @@ namespace DungeonExporer.UI
                 "Reply with ONLY what " + _displayName + " says out loud — 2 to 6 short sentences of in-character speech. " +
                 "No planning, no \"quest title\", no \"briefing\", no \"constraints\", no \"we are writing as\".\n" +
                 _displayName + ": \"";
+        }
+
+        private string BuildReactiveNpcPrompt(QuestDefinition def, string question)
+        {
+            string world = QuestManager.Instance != null ? QuestManager.Instance.BuildPromptContext() : string.Empty;
+            string inv = PlayerInventory.Instance != null ? PlayerInventory.Instance.BuildSummaryForPrompt() : "Inventory: unknown.";
+            string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
+            string memoryBlock = string.IsNullOrEmpty(memory) ? string.Empty : memory + "\n";
+
+            return
+                "You are " + _displayName + ", an NPC in a cozy first-person dungeon crawler.\n" +
+                memoryBlock +
+                "Game facts (do NOT repeat these labels): " + def.title + ". " + def.briefing + "\n" +
+                world + "\n" + inv + "\n" +
+                "The player just asked: \"" + question + "\"\n" +
+                "Answer their question in character. Stay cosy and helpful; never assign new formal quest objectives.\n" +
+                "Reply with ONLY what " + _displayName + " says out loud — 1 to 4 short sentences. " +
+                "No planning, no meta commentary.\n" +
+                _displayName + ": \"";
+        }
+
+        private void AppendLlmExchange(string question, string answer)
+        {
+            if (_llmBodyText == null)
+                return;
+
+            var sb = new StringBuilder();
+            string existing = _llmBodyText.text ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(existing))
+            {
+                sb.AppendLine(existing.TrimEnd());
+                sb.AppendLine();
+            }
+
+            sb.Append("You: ").AppendLine(question.Trim());
+            if (!string.IsNullOrWhiteSpace(answer))
+                sb.Append(_displayName).Append(": ").Append(answer.Trim());
+
+            UpdateLlmBodyText(sb.ToString().TrimEnd());
         }
 
         private void OnAcceptClicked()
@@ -717,6 +897,7 @@ namespace DungeonExporer.UI
             llmHintLe.preferredHeight = 22f;
 
             _llmScrollRect = BuildLlmScrollArea(_rootPanel.transform);
+            BuildAskRow(_rootPanel.transform);
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
                 18f, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
@@ -725,7 +906,7 @@ namespace DungeonExporer.UI
             statusLe.minHeight = 28f;
             statusLe.preferredHeight = 28f;
 
-            _hearButton = MakeButton("Hear", _rootPanel.transform, "Hear them out (Ollama, streams)",
+            _hearButton = MakeButton("Hear", _rootPanel.transform, "Another line",
                 MenuTheme.ButtonSecondary, MenuTheme.ButtonSecondaryHover, OnHearClicked);
             _acceptButton = MakeButton("Accept", _rootPanel.transform, "Accept quest",
                 MenuTheme.ButtonPrimary, MenuTheme.ButtonPrimaryHover, OnAcceptClicked);
@@ -766,6 +947,71 @@ namespace DungeonExporer.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
+        }
+
+        private void BuildAskRow(Transform parent)
+        {
+            var row = MakeUiObject("AskRow", parent);
+            var rowLe = row.AddComponent<LayoutElement>();
+            rowLe.minHeight = 52f;
+            rowLe.preferredHeight = 52f;
+
+            var hlg = row.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 10f;
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlHeight = true;
+            hlg.childControlWidth = true;
+            hlg.childForceExpandHeight = true;
+            hlg.childForceExpandWidth = false;
+
+            _playerInput = BuildPlayerInput(row.transform);
+            _playerInput.onSubmit.AddListener(_ => OnAskClicked());
+            var inputLe = _playerInput.gameObject.AddComponent<LayoutElement>();
+            inputLe.flexibleWidth = 1f;
+            inputLe.minWidth = 200f;
+
+            _askButton = MakeButton("Ask", row.transform, "Ask Cap",
+                MenuTheme.ButtonPrimary, MenuTheme.ButtonPrimaryHover, OnAskClicked);
+            var askLe = _askButton.gameObject.GetComponent<LayoutElement>();
+            if (askLe != null)
+                askLe.flexibleWidth = 0f;
+        }
+
+        private static TMP_InputField BuildPlayerInput(Transform parent)
+        {
+            var fieldGo = MakeUiObject("PlayerQuestion", parent);
+            var fieldBg = fieldGo.AddComponent<Image>();
+            fieldBg.color = new Color(0.96f, 0.93f, 0.86f, 1f);
+            fieldBg.raycastTarget = true;
+
+            var viewport = MakeUiObject("TextArea", fieldGo.transform);
+            StretchToParent(viewport.GetComponent<RectTransform>());
+            viewport.AddComponent<RectMask2D>();
+
+            var placeholderGo = MakeUiObject("Placeholder", viewport.transform);
+            StretchToParent(placeholderGo.GetComponent<RectTransform>());
+            var placeholder = placeholderGo.AddComponent<TextMeshProUGUI>();
+            placeholder.text = "Ask Cap something…";
+            placeholder.fontSize = MenuTheme.BodyFontSize;
+            placeholder.color = new Color(0.45f, 0.4f, 0.36f, 0.75f);
+            placeholder.alignment = TextAlignmentOptions.MidlineLeft;
+            placeholder.raycastTarget = false;
+
+            var textGo = MakeUiObject("Text", viewport.transform);
+            StretchToParent(textGo.GetComponent<RectTransform>());
+            var text = textGo.AddComponent<TextMeshProUGUI>();
+            text.fontSize = MenuTheme.BodyFontSize;
+            text.color = MenuTheme.BodyText;
+            text.alignment = TextAlignmentOptions.MidlineLeft;
+            text.raycastTarget = false;
+
+            var input = fieldGo.AddComponent<TMP_InputField>();
+            input.textViewport = viewport.GetComponent<RectTransform>();
+            input.textComponent = text;
+            input.placeholder = placeholder;
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.characterLimit = MaxPlayerQuestionChars;
+            return input;
         }
 
         private ScrollRect BuildLlmScrollArea(Transform parent)

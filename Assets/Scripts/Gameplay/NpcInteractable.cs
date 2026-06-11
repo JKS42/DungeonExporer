@@ -24,6 +24,7 @@ namespace DungeonExporer.Gameplay
         private InputActionAsset _inputActions;
         private InputAction _interactAction;
         private Transform _player;
+        private bool _wasInPrefetchRange;
 
         private void Start()
         {
@@ -81,7 +82,15 @@ namespace DungeonExporer.Gameplay
             Vector3 pp = _player.position;
             float dx = pp.x - flat.x;
             float dz = pp.z - flat.z;
-            if (dx * dx + dz * dz > _interactRadius * _interactRadius)
+            float sq = dx * dx + dz * dz;
+            float radiusSq = _interactRadius * _interactRadius;
+            bool inRange = sq <= radiusSq;
+
+            if (inRange && !_wasInPrefetchRange)
+                _dialogue.PrefetchNpcLine(_displayName, ResolveQuestId(), _npcConversationId);
+            _wasInPrefetchRange = inRange;
+
+            if (!inRange)
                 return;
 
             if (!_interactAction.WasPerformedThisFrame())

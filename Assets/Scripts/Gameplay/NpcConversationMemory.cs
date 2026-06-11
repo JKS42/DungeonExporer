@@ -5,46 +5,68 @@ using UnityEngine;
 namespace DungeonExporer.Gameplay
 {
     /// <summary>
-    /// Keeps the last few assistant replies per NPC id so prompts can ask the model to vary wording.
+    /// Keeps recent player questions and assistant replies per NPC id for reactive dialogue prompts.
     /// </summary>
     public static class NpcConversationMemory
     {
-        private const int MaxSnippetsPerNpc = 6;
+        private const int MaxTurnsPerNpc = 8;
         private const int MaxSnippetChars = 220;
-        private static readonly Dictionary<string, List<string>> _lastReplies = new();
+
+        private sealed class Turn
+        {
+            public bool IsPlayer;
+            public string Text;
+        }
+
+        private static readonly Dictionary<string, List<Turn>> _history = new();
 
         public static string BuildPromptBlock(string npcId)
         {
-            if (string.IsNullOrWhiteSpace(npcId) || !_lastReplies.TryGetValue(npcId, out List<string> list) || list.Count == 0)
+            if (string.IsNullOrWhiteSpace(npcId) || !_history.TryGetValue(npcId, out List<Turn> list) || list.Count == 0)
                 return string.Empty;
 
             var sb = new StringBuilder();
-            sb.Append("Lines you already spoke recently (do not repeat the same joke or phrasing; build on them): ");
+            sb.AppendLine("Recent conversation (build on it; do not repeat the same joke):");
             for (int i = 0; i < list.Count; i++)
-                sb.Append('[').Append(i + 1).Append("] ").Append(list[i]).Append(' ');
+            {
+                Turn turn = list[i];
+                sb.Append(turn.IsPlayer ? "Player: " : "You: ");
+                sb.AppendLine(turn.Text);
+            }
+
             return sb.ToString().TrimEnd();
+        }
+
+        public static void AppendUserMessage(string npcId, string rawMessage)
+        {
+            AppendTurn(npcId, true, rawMessage);
         }
 
         public static void AppendAssistantReply(string npcId, string rawReply)
         {
+            AppendTurn(npcId, false, rawReply);
+        }
+
+        private static void AppendTurn(string npcId, bool isPlayer, string raw)
+        {
             if (string.IsNullOrWhiteSpace(npcId))
                 return;
 
-            string cleaned = OllamaHandler.SanitizeModelOutput(rawReply ?? string.Empty).Trim();
+            string cleaned = OllamaHandler.SanitizeModelOutput(raw ?? string.Empty).Trim();
             if (cleaned.Length == 0)
                 return;
 
             if (cleaned.Length > MaxSnippetChars)
                 cleaned = cleaned.Substring(0, MaxSnippetChars) + "…";
 
-            if (!_lastReplies.TryGetValue(npcId, out List<string> list))
+            if (!_history.TryGetValue(npcId, out List<Turn> list))
             {
-                list = new List<string>(MaxSnippetsPerNpc);
-                _lastReplies[npcId] = list;
+                list = new List<Turn>(MaxTurnsPerNpc);
+                _history[npcId] = list;
             }
 
-            list.Add(cleaned);
-            while (list.Count > MaxSnippetsPerNpc)
+            list.Add(new Turn { IsPlayer = isPlayer, Text = cleaned });
+            while (list.Count > MaxTurnsPerNpc)
                 list.RemoveAt(0);
         }
     }

@@ -1,7 +1,7 @@
 # High Concept Document — DungeonExporer
 
 > Design intent and scope for the current build.
-> Last updated: 2026-05-15
+> Last updated: 2026-06-11
 
 ## 1. Ideation
 
@@ -18,9 +18,9 @@
 ### Core loop (current Level1)
 
 1. **Explore** a hybrid maze: narrow **`.`** corridors, large **S** safe rooms, central **E** encounter pits (`Level1_Maze.txt` → `DungeonLevelBuilder`).
-2. **Meet Cap** in the nearest **S** hub to spawn; **E** to interact — accept quests, optional **Hear them out** for Ollama dialogue.
+2. **Meet Cap** in the nearest **S** hub to spawn; **E** to interact — accept quests; Cap's voice line appears automatically (prefetched Ollama). Type a question and **Ask Cap** for reactive replies.
 3. **Fight** Meshy **DungeonFoe** creatures on **E** tiles (melee, left click); complete **Cap's corridor drill** (`defeated_dungeon_foe`).
-4. **Survive** spike traps (jumpable), pick up bubble loot (pebbles, healing rations), read HUD quest hints and flavor toasts on **S** / **E** zones.
+4. **Survive** spike / ember / slime traps (jumpable; layout partly chosen by Ollama at load, validated in C#), pick up bubble loot (AI-suggested cells with procedural fill), read wooden **signs** in corridors, fight foes on **E** pits (AI placement + fill), and read HUD quest hints and flavor toasts on **S** / **E** zones.
 5. **Return to Cap** for follow-up quest **Echoes in the dark** (stand on any **E** encounter volume).
 6. **Save** session with **F5** / **F9** (`GameSaveService`) — position, quests, inventory.
 
@@ -36,17 +36,19 @@
 ### Out of scope (v1)
 
 - Multiplayer.
-- LLM-generated level geometry (LLM = text and flavor only).
+- LLM-generated level geometry (maze ASCII stays authored; LLM may suggest trap *cells* on that grid, validated in C#).
 - Voice synthesis (text only).
 - Full enemy AI (foes are stationary damage targets).
 
 ## 2. The role of the LLM
 
-The LLM is woven into gameplay as **optional flavor and dialogue**, with **authoritative quest facts in C#**:
+The LLM is woven into gameplay as **flavor, dialogue, and trap placement hints**, with **authoritative quest facts and validation in C#**:
 
 | Use case | Description | Status |
 |---|---|---|
-| NPC dialogue | Streamed lines when the player chooses **Hear them out**; quest title/briefing/objectives come from `QuestManager`. Per-NPC memory via `NpcConversationMemory`. | **In Level1** |
+| NPC dialogue | Prefetched / auto-shown lines at Cap; **Ask Cap** reactive Q&A; quest facts from `QuestManager`. Turn memory via `NpcConversationMemory`. | **In Level1** |
+| Trap layout | JSON plan at level load (`DungeonTrapPlanner`); cells validated (`IsTrapEligibleCell`); procedural fill for remainder. | **In Level1** |
+| Loot / enemies / signs | JSON plan at level load (`DungeonContentPlanner`); loot on walkable tiles, foes on **E**, signs on **.** corridors; procedural fill. | **In Level1** |
 | Room / tile flavor | Short lines when entering **S** or **E** volumes (`DungeonFlavorZone` → `DungeonFlavorNarrator` → HUD toast). | **In Level1** |
 | Item / lore text | Descriptions on pickup or inspect. | Planned |
 | Hint system | Context-aware hints. | Stretch |
