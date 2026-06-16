@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-06-16 — Playtest feedback summary document
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `docs/feedback.summary.md` with consolidated Level1 playtest feedback from two reviewers (background, main feedback, recurring themes, and unbiased capture notes).
+**Why**: Capture amended playtest feedback in a single reference file for prioritising fixes (tutorial, readability, lighting, combat clarity).
+**Impact / docs touched**: `docs/feedback.summary.md`, `docs/refinements-changes.md`.
+
 ## 2026-06-16 — Ask Cap switched to Ollama /api/chat
 **Type**: refactor
 **AI tool(s)**: Cursor + Auto
