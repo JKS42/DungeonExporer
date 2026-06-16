@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-06-16 — Critical feedback: LLM improvements listed
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added Cap prompt pipeline, dialogue output quality, and LLM responsiveness bullets to the “What we chose to improve” section in `docs/critical.feedback.md`.
+**Why**: Post-event LLM pipeline work was documented in final judgement but missing from the improvements list.
+**Impact / docs touched**: `docs/critical.feedback.md`, `docs/refinements-changes.md`.
+
 ## 2026-06-16 — LLM report: playtest iteration section
 **Type**: decision
 **AI tool(s)**: Cursor + Auto

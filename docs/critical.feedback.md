@@ -12,6 +12,9 @@ The reviewers also did not focus on character designs at all for the quest giver
 
 ## What we chose to improve
 
+- **Cap prompt pipeline (Jinja2)**: We moved Cap’s voice and reactive prompts to a Jinja2 template (`cap_personality.jinja2`), rendered at runtime via `CapPersonalityPromptBuilder`. This separates prompt iteration from Unity builds and produces more consistent in-character lines tied to quest context.
+- **Dialogue output quality**: We added stronger filtering for qwen3 “planning text” leaking into the dialogue UI (`SanitizeModelOutput`, `ExtractNpcSpokenDialogue`, `think: false` on gameplay requests). Cap’s spoken lines now read as dialogue rather than restated instructions.
+- **LLM responsiveness and Ask Cap UX**: We warmed Ollama on the main menu to cut cold-start delay, fixed Ask Cap input locking, and changed the dialogue panel so each LLM reply overwrites the previous one instead of stacking. Ask Cap now uses `/api/chat` for multi-turn player questions while voice fetch stays on `/api/generate`.
 - **Combat clarity**: We improved melee hit detection by using a sphere cast plus a close-range overlap probe so short dungeon foes reliably register hits. This reduces the “in range but not connecting” confusion noted in feedback.
 - **Trap readability**: We improved spike trap legibility and fairness by making scattered spikes smaller and lower-profile, pairing them with a dedicated spike-trap material, and adjusting damage logic so jumping can clear them.
 - **Text/UI readability**: We fixed TMP wrapping configuration (moving to `TextWrappingModes.Normal`) to improve legibility and reduce cases where text was harder to parse due to wrapping/overflow behaviour.
