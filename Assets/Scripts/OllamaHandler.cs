@@ -45,6 +45,20 @@ public class OllamaHandler : MonoBehaviour
     }
 
     [Serializable]
+    private class OllamaChatMessage
+    {
+        public string role;
+        public string content;
+    }
+
+    [Serializable]
+    private class OllamaChatResponse
+    {
+        public string model;
+        public OllamaChatMessage message;
+    }
+
+    [Serializable]
     private sealed class OllamaStreamChunk
     {
         public string response;
@@ -369,6 +383,24 @@ public class OllamaHandler : MonoBehaviour
     }
 
     /// <summary>
+    /// Sends chat messages to local Ollama via <c>/api/chat</c> (non-streaming).
+    /// </summary>
+    public void RequestChat(string model, IReadOnlyList<(string role, string content)> messages, Action<string> onSuccess,
+        Action<string> onError, bool saveToDialogueJson = true, bool updateResponseUiField = false, int maxPredictTokens = 0,
+        bool disableThinking = true, bool extractNpcDialogue = false, string npcDialogueName = null)
+    {
+        if (messages == null || messages.Count == 0)
+        {
+            onError?.Invoke("Chat message list is empty.");
+            return;
+        }
+
+        int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultNonStreamMaxTokens;
+        StartCoroutine(ChatCoroutine(model, messages, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
+            limit, disableThinking, extractNpcDialogue, npcDialogueName));
+    }
+
+    /// <summary>
     /// Loads the preferred model into memory with a tiny completion (for Main Menu cold-start).
     /// </summary>
     public IEnumerator WarmupModelCoroutine(Action onSuccess = null, Action<string> onFail = null)
@@ -610,6 +642,66 @@ public class OllamaHandler : MonoBehaviour
             {
                 string errorMessage =
                     $"Ollama request failed: {request.error} (HTTP {request.responseCode}){BuildOllamaFailureDetail(request)}";
+                if (updateResponseUiField)
+                    SetOutputText(errorMessage);
+                LogOllamaRequestFailure(errorMessage, request.responseCode);
+                onError?.Invoke(errorMessage);
+            }
+        }
+        finally
+        {
+            request.Dispose();
+            if (_abortableRequest == request)
+                _abortableRequest = null;
+        }
+    }
+
+    private IEnumerator ChatCoroutine(string model, IReadOnlyList<(string role, string content)> messages,
+        bool saveToDialogueJson, bool updateResponseUiField, Action<string> onSuccess, Action<string> onError,
+        int maxPredictTokens, bool disableThinking = true, bool extractNpcDialogue = false, string npcDialogueName = null)
+    {
+        AbortActiveRequest();
+
+        string protocol = ShouldUseHttps() ? "https" : "http";
+        string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/chat";
+        string jsonBody = BuildChatJsonBody(model, messages, stream: false, maxPredictTokens, disableThinking);
+
+        var request = new UnityWebRequest(url, "POST");
+        _abortableRequest = request;
+        byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.timeout = Mathf.Max(5, requestTimeoutSeconds);
+
+        yield return request.SendWebRequest();
+
+        try
+        {
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                string responseText = SanitizeModelOutput(ExtractChatResponseText(request.downloadHandler.text));
+                if (extractNpcDialogue)
+                    responseText = ExtractNpcSpokenDialogue(responseText, npcDialogueName);
+
+                if (updateResponseUiField)
+                    SetOutputText(responseText);
+
+                if (saveToDialogueJson && !string.IsNullOrWhiteSpace(responseText))
+                {
+                    string promptSummary = BuildChatLogPrompt(messages);
+                    if (SaveDialogueJson(model, promptSummary, responseText))
+                        Debug.Log($"Ollama chat response received and saved to {GetDialogueJsonPath()}.");
+                    else
+                        Debug.LogWarning("Ollama chat response received, but the dialogue JSON file could not be written.");
+                }
+
+                onSuccess?.Invoke(responseText);
+            }
+            else
+            {
+                string errorMessage =
+                    $"Ollama chat request failed: {request.error} (HTTP {request.responseCode}){BuildOllamaFailureDetail(request)}";
                 if (updateResponseUiField)
                     SetOutputText(errorMessage);
                 LogOllamaRequestFailure(errorMessage, request.responseCode);
@@ -977,6 +1069,47 @@ public class OllamaHandler : MonoBehaviour
         return rawResponse;
     }
 
+    private static string ExtractChatResponseText(string rawResponse)
+    {
+        if (string.IsNullOrWhiteSpace(rawResponse))
+            return string.Empty;
+
+        try
+        {
+            OllamaChatResponse parsed = JsonUtility.FromJson<OllamaChatResponse>(rawResponse);
+            if (parsed?.message != null && !string.IsNullOrWhiteSpace(parsed.message.content))
+                return parsed.message.content;
+        }
+        catch (Exception)
+        {
+            // Fall back to direct JSON field extraction.
+        }
+
+        string content = TryExtractNestedJsonStringValue(rawResponse, "message", "content");
+        if (!string.IsNullOrWhiteSpace(content))
+            return content;
+
+        return ExtractResponseText(rawResponse);
+    }
+
+    private static string TryExtractNestedJsonStringValue(string json, string objectKey, string fieldKey)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        string objectToken = "\"" + objectKey + "\"";
+        int objectIndex = json.IndexOf(objectToken, StringComparison.Ordinal);
+        if (objectIndex < 0)
+            return null;
+
+        string fieldToken = "\"" + fieldKey + "\"";
+        int fieldIndex = json.IndexOf(fieldToken, objectIndex, StringComparison.Ordinal);
+        if (fieldIndex < 0)
+            return null;
+
+        return TryExtractJsonStringValue(json, fieldKey);
+    }
+
     private DialogueHistoryJson LoadDialogueHistory()
     {
         string path = GetDialogueJsonPath();
@@ -1212,6 +1345,44 @@ public class OllamaHandler : MonoBehaviour
         string format = jsonResponse ? ",\"format\":\"json\"" : string.Empty;
         return "{\"model\":\"" + EscapeJson(model) + "\",\"prompt\":\"" + EscapeJson(prompt) + "\",\"stream\":" +
                (stream ? "true" : "false") + think + format + ",\"options\":{\"num_predict\":" + n + "}}";
+    }
+
+    private static string BuildChatJsonBody(string model, IReadOnlyList<(string role, string content)> messages,
+        bool stream, int maxPredictTokens, bool disableThinking = true)
+    {
+        int n = Mathf.Clamp(maxPredictTokens, 8, 8192);
+        string think = disableThinking ? ",\"think\":false" : string.Empty;
+
+        var sb = new StringBuilder(512);
+        sb.Append("{\"model\":\"").Append(EscapeJson(model)).Append("\",\"messages\":[");
+        for (int i = 0; i < messages.Count; i++)
+        {
+            string role = string.IsNullOrWhiteSpace(messages[i].role) ? "user" : messages[i].role.Trim().ToLowerInvariant();
+            string content = messages[i].content ?? string.Empty;
+            if (i > 0)
+                sb.Append(',');
+            sb.Append("{\"role\":\"").Append(EscapeJson(role)).Append("\",\"content\":\"").Append(EscapeJson(content))
+                .Append("\"}");
+        }
+
+        sb.Append("],\"stream\":").Append(stream ? "true" : "false")
+            .Append(think)
+            .Append(",\"options\":{\"num_predict\":").Append(n).Append("}}");
+        return sb.ToString();
+    }
+
+    private static string BuildChatLogPrompt(IReadOnlyList<(string role, string content)> messages)
+    {
+        if (messages == null || messages.Count == 0)
+            return string.Empty;
+
+        for (int i = messages.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(messages[i].role, "user", StringComparison.OrdinalIgnoreCase))
+                return messages[i].content ?? string.Empty;
+        }
+
+        return messages[messages.Count - 1].content ?? string.Empty;
     }
 
     private static string EscapeJson(string text)

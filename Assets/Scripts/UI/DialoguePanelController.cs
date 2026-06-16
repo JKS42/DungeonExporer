@@ -447,7 +447,12 @@ namespace DungeonExporer.UI
             string raw = null;
             string err = null;
             string prompt = BuildReactiveNpcPrompt(def, question);
-            _ollama.RequestGeneration(model, prompt,
+            var chatMessages = new List<(string role, string content)>
+            {
+                ("system", "You are roleplaying as the NPC and must respond in-character only."),
+                ("user", prompt)
+            };
+            _ollama.RequestChat(model, chatMessages,
                 onSuccess: text => { raw = text; done = true; },
                 onError: e => { err = e; done = true; },
                 saveToDialogueJson: true,

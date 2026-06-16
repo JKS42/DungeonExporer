@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-06-16 — Ask Cap switched to Ollama /api/chat
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `OllamaHandler.RequestChat` (`/api/chat`, non-streaming) and moved `DialoguePanelController` Ask Cap flow to send chat messages instead of `/api/generate` for player questions.
+**Why**: User requested testing chat-style API for player-to-model conversation in Unity.
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
 ## 2026-06-11 — Cap dialogue UI: overwrite each LLM response
 **Type**: refactor
 **AI tool(s)**: Cursor + Auto

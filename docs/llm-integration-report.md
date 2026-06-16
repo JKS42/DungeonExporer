@@ -1,7 +1,7 @@
 # LLM Integration Report — DungeonExporer
 
 > Word count: ~790 (body).  
-> Last updated: 2026-06-11
+> Last updated: 2026-06-16
 
 ## 1. Introduction
 
@@ -17,7 +17,7 @@ We chose Ollama over cloud APIs for four reasons aligned with the project brief:
 
 ### 2.2 Client architecture
 
-Gameplay uses `OllamaHandler` (`Assets/Scripts/OllamaHandler.cs`), which posts to Ollama’s **`/api/generate`** endpoint with UnityWebRequest. NPC dialogue uses **non-streaming** completions with `think: false`, JSON-capable requests for trap planning, and optional NDJSON streaming for the scene test UI. Zone flavor uses a separate non-streaming call with a lower `num_predict` cap. **SimpleOllamaUnity** is included for future consolidation but is not yet the primary path.
+Gameplay uses `OllamaHandler` (`Assets/Scripts/OllamaHandler.cs`) with UnityWebRequest and two endpoints: **`/api/generate`** for flavor/planner paths and **`/api/chat`** for Ask Cap player conversation. NPC dialogue uses **non-streaming** completions with `think: false`, JSON-capable requests for trap planning, and optional NDJSON streaming for the scene test UI. Zone flavor uses a separate non-streaming call with a lower `num_predict` cap. **SimpleOllamaUnity** is included for future consolidation but is not yet the primary path.
 
 Reasoning models may leak planning text or put tokens in a separate `thinking` field; we send **`think: false`** on gameplay requests, fall back to the `thinking` stream when `response` is empty (qwen3), and sanitize outputs (`SanitizeModelOutput`, `ExtractNpcSpokenDialogue`). An abort path cancels in-flight requests when the dialogue panel closes.
 
@@ -41,7 +41,7 @@ Quest acceptance, objectives (`defeated_dungeon_foe`, `entered_encounter_zone`),
 
 Six LLM touchpoints ship in Level1:
 
-1. **NPC dialogue** — `NpcInteractable` prefetches Cap’s line when the player enters interact range; opening the panel shows an **instant authored fallback**, then swaps in the cached Ollama line when ready. **Another line** re-rolls; **Ask Cap** accepts typed player questions with multi-turn memory. Quest facts stay in C#.
+1. **NPC dialogue** — `NpcInteractable` prefetches Cap’s line when the player enters interact range; opening the panel shows an **instant authored fallback**, then swaps in the cached Ollama line when ready. **Another line** re-rolls; **Ask Cap** accepts typed player questions with multi-turn memory. Ask Cap now uses `/api/chat` (system + user messages) while voice fetch remains `/api/generate`. Quest facts stay in C#.
 2. **Environmental flavor** — `DungeonFlavorZone` → `DungeonFlavorNarrator` → HUD toast on safe/encounter tiles (cooldown ~42 s).
 3. **Trap layout** — `DungeonTrapPlanner` at level load requests JSON (`format: "json"`) listing grid coordinates and types (`spike`, `ember`, `slime`). `DungeonLevelBuilder.IsTrapEligibleCell` validates every cell; `DungeonLootScatter.ScatterTraps` places AI traps first, then fills the remainder procedurally.
 4. **Loot scatter** — `DungeonContentPlanner` JSON `loot` entries (`pebble` / `ration`) on validated walkable cells; procedural fill to Inspector quotas.
@@ -90,4 +90,4 @@ Every meaningful change is logged in `docs/refinements-changes.md` with date, ra
 
 ## 7. Conclusion
 
-DungeonExporer demonstrates a **pragmatic local LLM integration**: Jinja2 Cap prompts, authored quest authority, validated trap/content cells, menu warm-up, health checks, and player opt-out. The architecture is intentionally simple (HTTP generate + sanitize + JSON parse + external template render) so evaluators can trace data flow in a short technical video. Consolidating on SimpleOllamaUnity, serializing concurrent requests, and expanding evaluation sets are the natural next steps beyond this vertical slice.
+DungeonExporer demonstrates a **pragmatic local LLM integration**: Jinja2 Cap prompts, authored quest authority, validated trap/content cells, menu warm-up, health checks, and player opt-out. The architecture is intentionally simple (HTTP generate/chat + sanitize + JSON parse + external template render) so evaluators can trace data flow in a short technical video. Consolidating on SimpleOllamaUnity, serializing concurrent requests, and expanding evaluation sets are the natural next steps beyond this vertical slice.
