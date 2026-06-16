@@ -7,7 +7,7 @@
 
 *DungeonExporer* is a first-person dungeon slice built in Unity 6000.3.8f1. Its distinguishing feature is optional narrative and layout flavor from a **local** large language model through [Ollama](https://ollama.com), bound to `http://localhost:11434`. The game remains fully playable when Ollama is missing: quests, combat, traps, and UI use authored C# content. The LLM adds atmosphere, NPC voice, and trap placement suggestions — not core progression logic.
 
-This report summarizes technical decisions, integration strategy, performance considerations, gameplay impact, and how AI tools shaped the development workflow.
+This report summarizes technical decisions, integration strategy, performance considerations, gameplay impact, playtest-driven iteration, and how AI tools shaped the development workflow. Critical engagement with reviewer feedback is documented separately in [`critical.feedback.md`](./critical.feedback.md); raw reviewer notes are in [`feedback.summary.md`](./feedback.summary.md).
 
 ## 2. Technical decisions
 
@@ -88,6 +88,12 @@ AI-assisted tools accelerated implementation but did not replace design ownershi
 
 Every meaningful change is logged in `docs/refinements-changes.md` with date, rationale, and tool credit — satisfying auditability for academic submission. Prompt experiments are archived in `docs/prompts-used.md` and `Assets/DialogueOutput/ollama-dialogue.json`.
 
-## 7. Conclusion
+## 7. Playtest feedback and iteration
 
-DungeonExporer demonstrates a **pragmatic local LLM integration**: Jinja2 Cap prompts, authored quest authority, validated trap/content cells, menu warm-up, health checks, and player opt-out. The architecture is intentionally simple (HTTP generate/chat + sanitize + JSON parse + external template render) so evaluators can trace data flow in a short technical video. Consolidating on SimpleOllamaUnity, serializing concurrent requests, and expanding evaluation sets are the natural next steps beyond this vertical slice.
+External playtesting (see [`feedback.summary.md`](./feedback.summary.md)) surprised us: reviewers commented on **gameplay clarity** (combat range, traps, text, lighting) but raised **no direct concerns about Cap dialogue or the LLM**. That outcome supports the non-blocking design — prefetch, authored fallbacks, and opt-out kept AI optional rather than a friction point.
+
+Our main post-event engineering still targeted the **model pipeline**, even though feedback did not name it. Commits after the event moved Cap prompts to Jinja2-only rendering, strengthened qwen3 planning-text filtering, added main-menu warm-up, and fixed Ask Cap so replies overwrite cleanly instead of stacking. Smaller gameplay passes (melee hit detection, spike-trap readability) ran in parallel. We deferred a full tutorial and animation overhaul as out of scope; rationale and feasibility notes are in [`critical.feedback.md`](./critical.feedback.md).
+
+## 8. Conclusion
+
+DungeonExporer demonstrates a **pragmatic local LLM integration**: Jinja2 Cap prompts, authored quest authority, validated trap/content cells, menu warm-up, health checks, and player opt-out. The architecture is intentionally simple (HTTP generate/chat + sanitize + JSON parse + external template render) so evaluators can trace data flow in a short technical video. Next steps: request-queue for concurrent Ollama calls, SimpleOllamaUnity consolidation, and expanded eval sets in `docs/eval/`.

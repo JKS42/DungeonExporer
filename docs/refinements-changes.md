@@ -18,6 +18,22 @@
 
 ---
 
+## 2026-06-16 — LLM report: playtest iteration section
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added §7 (playtest feedback and iteration) to `docs/llm-integration-report.md` with cross-links to `critical.feedback.md` and `feedback.summary.md`; renumbered conclusion to §8.
+**Why**: Integration report should reflect post-event LLM pipeline work and point assessors to the separate critical-engagement document.
+**Impact / docs touched**: `docs/llm-integration-report.md`, `docs/refinements-changes.md`.
+
+## 2026-06-16 — Critical feedback engagement document
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `docs/critical.feedback.md` — playtest expectations vs outcomes, what was improved/ignored, feasibility evaluation, and final judgement (including post-feedback LLM pipeline work).
+**Why**: Course deliverable capturing critical engagement with reviewer feedback, not just agreement.
+**Impact / docs touched**: `docs/critical.feedback.md`, `docs/refinements-changes.md`.
+
 ## 2026-06-16 — Playtest feedback summary document
 **Type**: decision
 **AI tool(s)**: Cursor + Auto
