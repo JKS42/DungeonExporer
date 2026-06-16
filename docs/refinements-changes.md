@@ -18,6 +18,22 @@
 
 ---
 
+## 2026-06-16 — AI annexure populated
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Filled `docs/ai-usage-annexure.md` template with project-specific AI usage sections, tools, intent, date range, and evidence references.
+**Why**: Assessment requires explicit acknowledgement of all generative AI use.
+**Impact / docs touched**: `docs/ai-usage-annexure.md`, `docs/refinements-changes.md`.
+
+## 2026-06-16 — AI usage disclosure annexure
+**Type**: decision
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added docs/ai-usage-annexure.md with the assessment AI-usage disclosure template (annexure format).
+**Why**: Submission requires explicit acknowledgement of all AI use in the assessment.
+**Impact / docs touched**: docs/ai-usage-annexure.md, docs/refinements-changes.md.
+
 ## 2026-06-16 — Critical feedback: LLM improvements listed
 **Type**: decision
 **AI tool(s)**: Cursor + Auto
