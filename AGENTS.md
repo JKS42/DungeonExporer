@@ -28,9 +28,6 @@ The following docs are part of the deliverable. If a change touches their topic,
 | `docs/build-notes.md` | Prototype vs final build export |
 | `docs/art-direction.md` | Style pillars, palette, per-asset prompts + tool settings (Meshy, etc.) |
 | `docs/refinements-changes.md` | Continuous log of scope changes + AI-assisted decisions |
-| `docs/feedback.summary.md` | Consolidated playtest reviewer notes |
-| `docs/critical.feedback.md` | Critical engagement with playtest feedback |
-| `docs/ai-usage-annexure.md` | Assessment AI usage disclosure (annexure) |
 | `README.md` | Overview, install, dependencies, credits, AI tools used |
 
 ## Documentation update rules

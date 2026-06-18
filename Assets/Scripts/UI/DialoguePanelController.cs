@@ -15,7 +15,7 @@ using UnityEngine.UI;
 namespace DungeonExporer.UI
 {
     /// <summary>
-    /// In-world dialogue: authored quest text plus streamed Ollama lines (NDJSON) with a typewriter-style reveal.
+    /// In-world dialogue: authored quest text plus Ollama lines with a typewriter-style reveal on Ask Cap.
     /// </summary>
     [DefaultExecutionOrder(-20)]
     public sealed class DialoguePanelController : MonoBehaviour
@@ -27,6 +27,8 @@ namespace DungeonExporer.UI
         [SerializeField] private InputActionAsset _inputActions;
         [Tooltip("How long to wait for a proximity prefetch before starting a new Ollama call.")]
         [SerializeField] private float _prefetchWaitSeconds = 6f;
+        [Tooltip("Ask Cap: characters revealed per second after the stream finishes (filtered line).")]
+        [SerializeField] private float _askCapTypewriterCharsPerSecond = 52f;
 
         private const int DialogueCanvasSortOrder = 300;
 
@@ -49,7 +51,8 @@ namespace DungeonExporer.UI
         private string _displayName = string.Empty;
         private string _questId = string.Empty;
         private string _npcConversationId = "npc";
-        private bool _busy;
+        private bool _voiceBusy;
+        private bool _askBusy;
         private int _dialogueGeneration;
         private Coroutine _voiceCoroutine;
         private Coroutine _prefetchCoroutine;
@@ -116,6 +119,19 @@ namespace DungeonExporer.UI
                     StopCoroutine(_voiceCoroutine);
                 _voiceCoroutine = StartCoroutine(AutoPresentNpcVoiceRoutine(def));
             }
+
+            FocusAskInput();
+        }
+
+        private void FocusAskInput()
+        {
+            if (!GameSettings.LlmEnabled || _playerInput == null)
+                return;
+
+            _playerInput.Select();
+            _playerInput.ActivateInputField();
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(_playerInput.gameObject);
         }
 
         /// <summary>Starts Ollama in the background while the player walks toward the NPC.</summary>
@@ -176,16 +192,36 @@ namespace DungeonExporer.UI
             ReleaseDialogueInputLock();
         }
 
-        private void LockDialogueInputForLlm()
+        private void LockVoiceInputForLlm()
         {
-            _busy = true;
+            _voiceBusy = true;
             SetHearInteractable(false);
+        }
+
+        private void ReleaseVoiceInputLock()
+        {
+            _voiceBusy = false;
+            SetHearInteractable(true);
+        }
+
+        private void LockAskInputForLlm()
+        {
+            _askBusy = true;
             SetAskInteractable(false);
+        }
+
+        private void ReleaseAskInputLock()
+        {
+            _askBusy = false;
+            if (GameSettings.LlmEnabled)
+                SetAskInteractable(true);
+            FocusAskInput();
         }
 
         private void ReleaseDialogueInputLock()
         {
-            _busy = false;
+            _voiceBusy = false;
+            _askBusy = false;
             SetHearInteractable(true);
             if (GameSettings.LlmEnabled)
                 SetAskInteractable(true);
@@ -345,7 +381,7 @@ namespace DungeonExporer.UI
 
         private void OnHearClicked()
         {
-            if (_ollama == null || _busy)
+            if (_ollama == null || _voiceBusy)
                 return;
             if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
                 return;
@@ -359,14 +395,27 @@ namespace DungeonExporer.UI
 
         private void OnAskClicked()
         {
-            if (_ollama == null || _busy || !GameSettings.LlmEnabled)
+            if (!GameSettings.LlmEnabled)
+                return;
+            if (_ollama == null)
+            {
+                if (_statusText != null)
+                    _statusText.text = "Ollama is not available in this scene.";
+                return;
+            }
+            if (_askBusy)
                 return;
             if (_playerInput == null)
                 return;
 
             string question = (_playerInput.text ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(question))
+            {
+                if (_statusText != null)
+                    _statusText.text = "Type a question for Cap first.";
+                FocusAskInput();
                 return;
+            }
             if (question.Length > MaxPlayerQuestionChars)
                 question = question.Substring(0, MaxPlayerQuestionChars);
 
@@ -382,7 +431,7 @@ namespace DungeonExporer.UI
             if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
                 yield break;
 
-            LockDialogueInputForLlm();
+            LockAskInputForLlm();
             _ollama?.AbortActiveRequest();
             NpcConversationMemory.AppendUserMessage(_npcConversationId, question);
 
@@ -392,7 +441,10 @@ namespace DungeonExporer.UI
             try
             {
                 string spoken = string.Empty;
-                yield return FetchReactiveLineCoroutine(def, question, gen, reply => spoken = reply);
+                bool displayedAnswer = false;
+                yield return FetchReactiveLineCoroutine(def, question, gen,
+                    reply => spoken = reply,
+                    uiShown => displayedAnswer = uiShown);
 
                 if (gen != _dialogueGeneration)
                     yield break;
@@ -404,19 +456,24 @@ namespace DungeonExporer.UI
                 Debug.Log($"[Ask Cap] Player: \"{question}\"\n{_displayName}: \"{answer}\"");
 
                 NpcConversationMemory.ReplaceAssistantReply(_npcConversationId, answer);
-                SetLlmExchange(question, answer);
+
+                if (!displayedAnswer)
+                    yield return TypewriterLlmExchangeCoroutine(question, answer, gen);
             }
             finally
             {
                 if (gen == _dialogueGeneration && IsOpen)
-                    ReleaseDialogueInputLock();
+                    ReleaseAskInputLock();
                 _askCoroutine = null;
             }
         }
 
-        private IEnumerator FetchReactiveLineCoroutine(QuestDefinition def, string question, int gen, Action<string> onSpoken)
+        private IEnumerator FetchReactiveLineCoroutine(QuestDefinition def, string question, int gen,
+            Action<string> onSpoken, Action<bool> onUiShown = null)
         {
             string spoken = string.Empty;
+            onUiShown?.Invoke(false);
+
             if (_ollama == null)
             {
                 onSpoken?.Invoke(spoken);
@@ -443,26 +500,33 @@ namespace DungeonExporer.UI
                 yield break;
             }
 
+            if (!TryBuildReactiveChatMessages(def, question, out List<(string role, string content)> chatMessages))
+            {
+                if (_statusText != null && IsOpen)
+                    _statusText.text = "Could not build Cap prompt.";
+                onSpoken?.Invoke(string.Empty);
+                yield break;
+            }
+
+            UpdateLlmBodyText("You: " + (question ?? string.Empty).Trim());
+            if (_statusText != null && IsOpen)
+                _statusText.text = "Cap is thinking…";
+
             bool done = false;
             string raw = null;
             string err = null;
-            string prompt = BuildReactiveNpcPrompt(def, question);
-            var chatMessages = new List<(string role, string content)>
-            {
-                ("system", "You are roleplaying as the NPC and must respond in-character only."),
-                ("user", prompt)
-            };
+
             _ollama.RequestChat(model, chatMessages,
                 onSuccess: text => { raw = text; done = true; },
                 onError: e => { err = e; done = true; },
                 saveToDialogueJson: true,
                 updateResponseUiField: false,
-                maxPredictTokens: _ollama.defaultNpcMaxTokens,
+                maxPredictTokens: _ollama.GetEffectiveNpcChatMaxTokens(),
                 disableThinking: true,
                 extractNpcDialogue: true,
                 npcDialogueName: _displayName);
 
-            while (!done)
+            while (!done && gen == _dialogueGeneration)
                 yield return null;
 
             if (gen != _dialogueGeneration)
@@ -477,12 +541,85 @@ namespace DungeonExporer.UI
                 if (_statusText != null && IsOpen)
                     _statusText.text = err;
             }
+            else if (_statusText != null && IsOpen)
+                _statusText.text = string.Empty;
 
-            spoken = string.IsNullOrWhiteSpace(raw)
-                ? string.Empty
-                : OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName);
+            spoken = ResolveNpcSpokenLine(raw, question);
+            if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
+                Debug.LogWarning($"[Ask Cap] Ollama returned text but no usable Cap line for \"{question}\". Raw: {raw}");
+
+            if (!string.IsNullOrWhiteSpace(spoken))
+            {
+                yield return TypewriterLlmExchangeCoroutine(question, spoken, gen);
+                onUiShown?.Invoke(true);
+            }
 
             onSpoken?.Invoke(spoken);
+        }
+
+        private bool TryBuildReactiveChatMessages(QuestDefinition def, string question,
+            out List<(string role, string content)> messages)
+        {
+            messages = null;
+            string trimmedQuestion = (question ?? string.Empty).Trim();
+            if (trimmedQuestion.Length == 0)
+                return false;
+
+            string systemPrompt = BuildReactiveNpcPrompt(def, trimmedQuestion);
+            if (string.IsNullOrWhiteSpace(systemPrompt))
+                systemPrompt = BuildReactiveFallbackSystemPrompt(def);
+            else
+                systemPrompt = StripGenerateCompletionSuffix(systemPrompt);
+
+            if (string.IsNullOrWhiteSpace(systemPrompt))
+                systemPrompt = BuildReactiveFallbackSystemPrompt(def);
+
+            systemPrompt += "\n\nNever repeat or quote the player's question back. Answer in Cap's own words with a helpful in-character reply.";
+
+            messages = new List<(string role, string content)>
+            {
+                ("system", systemPrompt),
+                ("user", trimmedQuestion)
+            };
+            return true;
+        }
+
+        private static string StripGenerateCompletionSuffix(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                return string.Empty;
+
+            string trimmed = prompt.TrimEnd();
+            if (trimmed.EndsWith(": \"", StringComparison.Ordinal))
+                return trimmed.Substring(0, trimmed.Length - 3).TrimEnd();
+            if (trimmed.EndsWith(":\u201c", StringComparison.Ordinal))
+                return trimmed.Substring(0, trimmed.Length - 2).TrimEnd();
+            return trimmed;
+        }
+
+        private string BuildReactiveFallbackSystemPrompt(QuestDefinition def)
+        {
+            var sb = new StringBuilder();
+            sb.Append("You are ").Append(_displayName)
+                .Append(", a cosy dungeon guide NPC in a lighthearted fantasy game.\n");
+            sb.Append("Quest: ").Append(def.title).Append(". ").Append(def.briefing).Append('\n');
+
+            if (QuestManager.Instance != null)
+            {
+                string world = QuestManager.Instance.BuildPromptContext();
+                if (!string.IsNullOrWhiteSpace(world))
+                    sb.AppendLine(world.Trim());
+            }
+
+            if (PlayerInventory.Instance != null)
+                sb.AppendLine(PlayerInventory.Instance.BuildSummaryForPrompt());
+
+            string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
+            if (!string.IsNullOrWhiteSpace(memory))
+                sb.AppendLine(memory.Trim());
+
+            sb.AppendLine("Reply with ONLY what you say out loud in 1-3 short cosy sentences. No planning or analysis.");
+            return sb.ToString().TrimEnd();
         }
 
         private IEnumerator AutoPresentNpcVoiceRoutine(QuestDefinition def)
@@ -496,7 +633,6 @@ namespace DungeonExporer.UI
             {
                 if (gen == _dialogueGeneration)
                     ApplyVoiceLine(cached);
-                ReleaseDialogueInputLock();
                 yield break;
             }
 
@@ -515,11 +651,10 @@ namespace DungeonExporer.UI
             if (NpcDialogueCache.TryGet(key, out cached))
             {
                 ApplyVoiceLine(cached);
-                ReleaseDialogueInputLock();
                 yield break;
             }
 
-            LockDialogueInputForLlm();
+            LockVoiceInputForLlm();
             try
             {
                 yield return FetchNpcLineCoroutine(def, key, gen, spoken =>
@@ -533,14 +668,14 @@ namespace DungeonExporer.UI
             finally
             {
                 if (gen == _dialogueGeneration && IsOpen)
-                    ReleaseDialogueInputLock();
+                    ReleaseVoiceInputLock();
             }
         }
 
         private IEnumerator RefreshNpcVoiceRoutine(QuestDefinition def, string cacheKey)
         {
             int gen = _dialogueGeneration;
-            LockDialogueInputForLlm();
+            LockVoiceInputForLlm();
             NpcDialogueCache.EndFetch(cacheKey);
             NpcDialogueCache.Invalidate(cacheKey);
             if (_statusText != null)
@@ -561,7 +696,7 @@ namespace DungeonExporer.UI
             finally
             {
                 if (gen == _dialogueGeneration && IsOpen)
-                    ReleaseDialogueInputLock();
+                    ReleaseVoiceInputLock();
             }
         }
 
@@ -635,7 +770,7 @@ namespace DungeonExporer.UI
                 onError: e => { err = e; done = true; },
                 saveToDialogueJson: true,
                 updateResponseUiField: false,
-                maxPredictTokens: _ollama.defaultNpcMaxTokens,
+                maxPredictTokens: _ollama.GetEffectiveNpcMaxTokens(),
                 disableThinking: true,
                 extractNpcDialogue: true,
                 npcDialogueName: _displayName);
@@ -749,18 +884,60 @@ namespace DungeonExporer.UI
                 completed);
         }
 
-        private void SetLlmExchange(string question, string answer)
+        private string BuildAskCapExchangePrefix(string question) =>
+            "You: " + (question ?? string.Empty).Trim() + "\n" + _displayName + ": ";
+
+        private IEnumerator TypewriterLlmExchangeCoroutine(string question, string answer, int gen)
+        {
+            yield return TypewriterRevealCoroutine(BuildAskCapExchangePrefix(question), answer ?? string.Empty, gen);
+        }
+
+        private IEnumerator TypewriterRevealCoroutine(string prefix, string body, int gen)
         {
             if (_llmBodyText == null)
-                return;
+                yield break;
 
-            var sb = new StringBuilder();
-            sb.Append("You: ").AppendLine(question.Trim());
-            string spoken = OllamaHandler.ExtractNpcSpokenDialogue(answer, _displayName);
-            if (!string.IsNullOrWhiteSpace(spoken) && !OllamaHandler.IsNpcMetaPlanningLine(spoken))
-                sb.Append(_displayName).Append(": ").Append(spoken.Trim());
+            body = body ?? string.Empty;
+            if (body.Length == 0)
+            {
+                UpdateLlmBodyText(prefix.TrimEnd());
+                yield break;
+            }
 
-            UpdateLlmBodyText(sb.ToString().TrimEnd());
+            float rate = Mathf.Max(12f, _askCapTypewriterCharsPerSecond);
+            UpdateLlmBodyText(prefix);
+            int revealed = 0;
+            float carry = 0f;
+
+            while (revealed < body.Length && gen == _dialogueGeneration && IsOpen)
+            {
+                carry += Time.unscaledDeltaTime * rate;
+                int add = Mathf.FloorToInt(carry);
+                if (add > 0)
+                {
+                    carry -= add;
+                    revealed = Mathf.Min(body.Length, revealed + add);
+                    UpdateLlmBodyText(prefix + body.Substring(0, revealed));
+                }
+
+                yield return null;
+            }
+
+            if (gen == _dialogueGeneration && IsOpen)
+                UpdateLlmBodyText(prefix + body);
+        }
+
+        private string ResolveNpcSpokenLine(string raw, string playerQuestion = null)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return string.Empty;
+
+            string spoken = OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName, playerQuestion);
+            if (!string.IsNullOrWhiteSpace(spoken))
+                return spoken.Trim();
+
+            // Never show raw model output when extraction failed — whiskers fallback handles empty.
+            return string.Empty;
         }
 
         private void OnAcceptClicked()
@@ -874,46 +1051,47 @@ namespace DungeonExporer.UI
             vlg.childForceExpandWidth = true;
 
             _titleText = MakeText("Title", _rootPanel.transform, "NPC",
-                36f, MenuTheme.TitleText, TextAlignmentOptions.Center);
+                MenuTheme.GameTitleFontSize, MenuTheme.GameplayText, TextAlignmentOptions.Center);
+            _titleText.fontStyle = FontStyles.Bold;
             _titleText.raycastTarget = false;
             var titleLe = _titleText.gameObject.AddComponent<LayoutElement>();
-            titleLe.minHeight = 44f;
-            titleLe.preferredHeight = 44f;
+            titleLe.minHeight = 52f;
+            titleLe.preferredHeight = 52f;
 
             var staticHint = MakeText("StaticHint", _rootPanel.transform, "Quest (game rules)",
-                MenuTheme.CaptionFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+                MenuTheme.GameCaptionFontSize, MenuTheme.GameplayMutedText, TextAlignmentOptions.Left);
             staticHint.raycastTarget = false;
             var staticHintLe = staticHint.gameObject.AddComponent<LayoutElement>();
-            staticHintLe.minHeight = 22f;
-            staticHintLe.preferredHeight = 22f;
+            staticHintLe.minHeight = 28f;
+            staticHintLe.preferredHeight = 28f;
 
             _staticBodyText = MakeText("StaticBody", _rootPanel.transform, string.Empty,
-                MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
+                MenuTheme.GameBodyFontSize, MenuTheme.GameplayText, TextAlignmentOptions.TopLeft);
             _staticBodyText.raycastTarget = false;
             var staticBodyLe = _staticBodyText.gameObject.AddComponent<LayoutElement>();
-            staticBodyLe.minHeight = 88f;
-            staticBodyLe.preferredHeight = 88f;
+            staticBodyLe.minHeight = 100f;
+            staticBodyLe.preferredHeight = 100f;
             staticBodyLe.flexibleHeight = 0f;
             _staticBodyText.textWrappingMode = TextWrappingModes.Normal;
             _staticBodyText.overflowMode = TextOverflowModes.Ellipsis;
             _staticBodyText.maxVisibleLines = 5;
 
             var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama — appears below)",
-                MenuTheme.CaptionFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+                MenuTheme.GameCaptionFontSize, MenuTheme.GameplayMutedText, TextAlignmentOptions.Left);
             llmHint.raycastTarget = false;
             var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
-            llmHintLe.minHeight = 22f;
-            llmHintLe.preferredHeight = 22f;
+            llmHintLe.minHeight = 28f;
+            llmHintLe.preferredHeight = 28f;
 
             _llmScrollRect = BuildLlmScrollArea(_rootPanel.transform);
             BuildAskRow(_rootPanel.transform);
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
-                MenuTheme.HudSmallFontSize, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
+                MenuTheme.GameHudSmallFontSize, MenuTheme.GameplayText, TextAlignmentOptions.Center);
             _statusText.raycastTarget = false;
             var statusLe = _statusText.gameObject.AddComponent<LayoutElement>();
-            statusLe.minHeight = 28f;
-            statusLe.preferredHeight = 28f;
+            statusLe.minHeight = 34f;
+            statusLe.preferredHeight = 34f;
 
             _hearButton = MakeButton("Hear", _rootPanel.transform, "Another line",
                 MenuTheme.ButtonSecondary, MenuTheme.ButtonSecondaryHover, OnHearClicked);
@@ -1001,18 +1179,18 @@ namespace DungeonExporer.UI
             StretchToParent(placeholderGo.GetComponent<RectTransform>());
             var placeholder = placeholderGo.AddComponent<TextMeshProUGUI>();
             placeholder.text = "Ask Cap something…";
-            placeholder.fontSize = MenuTheme.BodyFontSize;
-            placeholder.color = new Color(0.45f, 0.4f, 0.36f, 0.75f);
+            placeholder.fontSize = MenuTheme.GameBodyFontSize;
+            placeholder.color = MenuTheme.GameplayMutedText;
             placeholder.alignment = TextAlignmentOptions.MidlineLeft;
             placeholder.raycastTarget = false;
-            TmpTextUtility.ApplyReadableDefaults(placeholder);
+            TmpTextUtility.ApplyReadableDefaults(placeholder, gameplayBlackText: true);
 
             var textGo = MakeUiObject("Text", viewport.transform);
             StretchToParent(textGo.GetComponent<RectTransform>());
             var text = textGo.AddComponent<TextMeshProUGUI>();
-            text.fontSize = MenuTheme.BodyFontSize;
-            text.color = MenuTheme.BodyText;
-            TmpTextUtility.ApplyReadableDefaults(text);
+            text.fontSize = MenuTheme.GameBodyFontSize;
+            text.color = MenuTheme.GameplayText;
+            TmpTextUtility.ApplyReadableDefaults(text, gameplayBlackText: true);
             text.alignment = TextAlignmentOptions.MidlineLeft;
             text.raycastTarget = false;
 
@@ -1063,7 +1241,7 @@ namespace DungeonExporer.UI
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             _llmBodyText = MakeText("LlmBody", content.transform, string.Empty,
-                MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
+                MenuTheme.GameBodyFontSize, MenuTheme.GameplayText, TextAlignmentOptions.TopLeft);
             var llmRt = _llmBodyText.rectTransform;
             llmRt.anchorMin = new Vector2(0f, 1f);
             llmRt.anchorMax = new Vector2(1f, 1f);
@@ -1110,7 +1288,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            TmpTextUtility.ApplyReadableDefaults(tmp);
+            TmpTextUtility.ApplyReadableDefaults(tmp, gameplayBlackText: true);
             return tmp;
         }
 
@@ -1171,7 +1349,7 @@ namespace DungeonExporer.UI
             btn.onClick.AddListener(() => onClick());
 
             var labelTmp = MakeText("Label", go.transform, label,
-                MenuTheme.ButtonFontSize, MenuTheme.ButtonText, TextAlignmentOptions.Center);
+                MenuTheme.ButtonFontSize, MenuTheme.GameplayText, TextAlignmentOptions.Center);
             StretchToParent(labelTmp.rectTransform);
             labelTmp.fontStyle = FontStyles.Bold;
             labelTmp.raycastTarget = false;

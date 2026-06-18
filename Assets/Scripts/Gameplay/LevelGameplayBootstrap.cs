@@ -165,6 +165,9 @@ namespace DungeonExporer.Gameplay
 
         private IEnumerator PrefetchAiPlansSequential()
         {
+            // Give the player a window to talk to Cap before level-load planners use Ollama.
+            yield return new WaitForSecondsRealtime(4f);
+
             _trapPlanDone = false;
             _contentPlanDone = false;
             _cachedTrapPlan = null;
@@ -172,6 +175,7 @@ namespace DungeonExporer.Gameplay
 
             if (_useAiTrapPlacement && GameSettings.LlmEnabled && _ollama != null && _dungeon != null)
             {
+                yield return WaitUntilDialogueClosed();
                 yield return DungeonTrapPlanner.FetchPlanCoroutine(
                     _ollama,
                     _dungeon,
@@ -185,6 +189,7 @@ namespace DungeonExporer.Gameplay
 
             if (_useAiContentPlacement && GameSettings.LlmEnabled && _ollama != null && _dungeon != null)
             {
+                yield return WaitUntilDialogueClosed();
                 yield return DungeonContentPlanner.FetchPlanCoroutine(
                     _ollama,
                     _dungeon,
@@ -197,6 +202,12 @@ namespace DungeonExporer.Gameplay
             }
 
             _contentPlanDone = true;
+        }
+
+        private static IEnumerator WaitUntilDialogueClosed()
+        {
+            while (DialoguePanelController.IsOpen)
+                yield return null;
         }
 
         private void EnsurePlayerCombat()

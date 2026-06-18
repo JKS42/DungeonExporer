@@ -32,8 +32,8 @@
 1. **First run:** If Ollama or the model is missing, a setup panel explains the requirement and links to [`setup.md`](./setup.md). **Continue** allows play without AI dialogue.
 2. **Controls:** **Main Menu → How to Play** lists bindings and tips without requiring LLM features.
 3. **Options:** **LLM / AI dialogue** toggle (`GameSettings.LlmEnabled`). When off:
-   - Opening Cap shows an authored canned line (no network call).
-   - **Ask Cap** and **Another line** are hidden; zone flavor narration is skipped.
+   - Cap voice / **Ask Cap** show a short canned Cap line (no network call).
+   - Zone flavor narration is skipped.
 4. **Quest clarity:** Objectives and acceptance do not depend on model output; players are not penalized for disabling AI.
 
 **Recommendation for showcase video:** Mention that dialogue is optional and local.

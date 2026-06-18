@@ -1,9 +1,79 @@
 # Setup Guide — DungeonExporer
 
-> Install, run, and playtest the current Level1 slice.
+> Install, run, and playtest the current Level1 slice.  
+> **Canonical requirements** for hardware, software, gameplay features, and course submission.  
 > Last updated: 2026-06-18
 
-## 1. System requirements
+## 1. Game requirements
+
+### 1.1 To play (player / assessor)
+
+| Requirement | Details |
+|---|---|
+| **OS** | Windows 10 / 11 (primary). Linux & macOS work for Ollama; exported builds target Windows. |
+| **CPU** | Modern x86-64 (Intel 8th gen / Ryzen 2000 or newer). |
+| **RAM** | **16 GB** minimum; **32 GB** recommended when running Unity + Ollama together. |
+| **GPU** | Integrated graphics OK for `qwen3:4b` in CPU mode; dedicated GPU with **≥ 8 GB VRAM** recommended for faster inference. |
+| **Disk** | ~10 GB for game + Ollama + one model; ~20 GB on SSD if pulling multiple models. |
+| **Ollama** | [Ollama](https://ollama.com/download) installed and running on `http://localhost:11434`. |
+| **LLM model** | At least one pulled model matching gameplay settings — default **`qwen3:4b`** (`ollama pull qwen3:4b`). Optional **`gemma3:4b`** for **Fast AI responses** (Options). |
+| **Internet** | Not required at runtime after models are pulled. Required once to install Ollama and download models. |
+| **Python / Jinja2** | **Not required** to play. Cap prompts render in C# from `Assets/Prompts/cap_personality.j2` (`CharacterPersonalityTemplateManager`). |
+
+**Without Ollama:** the game still runs. Quest UI, combat, maze, and save/load work. Cap dialogue falls back to authored text when **AI-driven dialogue** is off or Ollama is unreachable (`OllamaSetupPanelController` → **Continue**).
+
+### 1.2 To develop (Unity contributor)
+
+| Requirement | Details |
+|---|---|
+| **Unity Editor** | **6000.3.8f1** (`ProjectSettings/ProjectVersion.txt`) via [Unity Hub](https://unity.com/download). |
+| **Git** | Clone and version the repo. |
+| **Ollama** | Same as player requirements — needed to test LLM features in Play mode. |
+| **IDE** | Visual Studio 2022, Rider, or VS Code for C#. |
+| **Python 3 + Pillow** | Optional — regenerate dungeon textures (`Tools/generate_dungeon_textures.py`). |
+| **Python 3 + Jinja2** | Optional — offline testing of legacy `prompts/cap_personality.jinja2` only; not used at runtime. |
+
+### 1.3 Functional requirements (Level1 slice)
+
+What the current build must deliver for playtest and submission:
+
+| Area | Requirement | Implementation |
+|---|---|---|
+| **Exploration** | First-person movement in a hybrid ASCII maze (`#` walls, `.` corridors, **S** safe hubs, **E** encounter pits). | `DungeonLevelBuilder`, `Level1_Maze.txt` |
+| **Quests** | At least one quest giver with authored objectives; progress tracked and saveable. | **Cap**, `QuestManager`, two quests (drill + Echoes) |
+| **Combat** | Melee combat with foes that chase and attack; player attack with feedback. | `PlayerCombat`, `EnemyMeleeAI`, `CombatHitVfx` |
+| **LLM dialogue** | ≥1 functional LLM-driven feature: Cap voice lines + **Ask Cap** reactive Q&A. | `OllamaHandler` (`/api/generate` + `/api/chat`), `DialoguePanelController` |
+| **LLM flavor** | Environment narration tied to zone type. | `DungeonFlavorNarrator` on **S** / **E** tiles |
+| **LLM planning** | Optional JSON placement hints validated in C# (not authoritative geometry). | `DungeonTrapPlanner`, `DungeonContentPlanner` |
+| **Local inference** | All runtime LLM calls to localhost Ollama only — no cloud API. | `OllamaHandler` → `localhost:11434` |
+| **Player opt-out** | Disable AI dialogue without blocking core gameplay. | Options → **AI-driven dialogue (Ollama)** |
+| **Onboarding** | Controls and tips available before play. | **Main Menu → How to Play** |
+| **Persistence** | Session save / load. | **F5** / **F9**, `GameSaveService` |
+| **Transparency** | Setup panel when Ollama or model is missing; link to this guide. | `OllamaFirstRunHealthCheck`, `OllamaSetupPanelController` |
+
+Authoritative game facts (quest titles, briefing, objectives, maze layout, combat rules) stay in **C#** — the LLM adds flavor and dialogue only.
+
+### 1.4 Course submission requirements (academic brief)
+
+Maps **Structure & Deliverables** from the project brief. Full checklist: [`deliverables-checklist.md`](./deliverables-checklist.md).
+
+| Deliverable | In repo? | Where |
+|---|---|---|
+| Documentation pack (high concept, Ollama plan, setup, ethics, prompt archive, integration report) | Yes | `docs/` — see README table |
+| Prototype with ≥1 LLM feature | Yes | Play **Level1** in Editor |
+| Refinements / change log | Yes | [`refinements-changes.md`](./refinements-changes.md) |
+| Playtest feedback + critical engagement | Yes | [`feedback.summary.md`](./feedback.summary.md), [`critical.feedback.md`](./critical.feedback.md) |
+| AI usage disclosure (annexure) | Yes | [`ai-usage-annexure.md`](./ai-usage-annexure.md) |
+| Technical video (3–6 min, local LLM integration) | **You record** | [`video-deliverables.md`](./video-deliverables.md) §1 |
+| Showcase video (3–6 min, gameplay + design intent) | **You record** | [`video-deliverables.md`](./video-deliverables.md) §2 |
+| Final stable build (.exe) | **You export** | [`build-notes.md`](./build-notes.md) |
+| Credits (your name) | **You fill in** | [`README.md`](../README.md) Credits |
+
+---
+
+## 2. System requirements (summary)
+
+*Duplicate of §1.1 for quick reference.*
 
 ### Minimum (developer / playtest)
 
@@ -20,26 +90,26 @@
 - **GPU**: Dedicated GPU, ≥ 8 GB VRAM.
 - **Disk**: SSD, ~20 GB if pulling multiple models.
 
-## 2. Tooling
+## 3. Tooling
 
 | Tool | Version | Purpose |
 |---|---|---|
 | [Unity Hub](https://unity.com/download) | latest | Editor installs |
 | Unity Editor | **6000.3.8f1** (`ProjectSettings/ProjectVersion.txt`) | Engine |
 | [Git](https://git-scm.com/) | latest | Source control |
-| [Ollama](https://ollama.com/download) | latest | Local LLM |
-| Python 3 + Jinja2 | **required for Cap dialogue** | Renders `prompts/cap_personality.jinja2` via `render_cap_prompt.py` (`pip install jinja2`) |
+| [Ollama](https://ollama.com/download) | latest | Local LLM (runtime) |
 | Python 3 + Pillow | optional | Regenerate dungeon textures (`Tools/generate_dungeon_textures.py`) |
+| Python 3 + Jinja2 | optional | Legacy offline test of `prompts/cap_personality.jinja2` only — **not** required at runtime |
 | IDE | Visual Studio 2022 / Rider / VS Code | C# |
 
-## 3. Clone the repo
+## 4. Clone the repo
 
 ```powershell
 git clone https://github.com/<your-org>/DungeonExporer.git
 cd DungeonExporer
 ```
 
-## 4. Install Ollama
+## 5. Install Ollama
 
 ### Windows
 
@@ -56,7 +126,7 @@ curl http://localhost:11434/api/tags
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-## 5. Pull the required model(s)
+## 6. Pull the required model(s)
 
 Default:
 
@@ -79,16 +149,22 @@ ollama run qwen3:4b "Say hello in five words."
 
 The scene **`OllamaHandler`** component's **Default Model** must match a name from `ollama list` exactly (e.g. `qwen3:4b`). Gameplay reads `GameSettings.LlmModel` first (PlayerPrefs default `qwen3:4b`).
 
-### Cap prompt rendering (Python + Jinja2)
+**Fast AI responses** (Options → toggle): switches to `gemma3:4b`, shorter Cap prompts, lower token caps, and less chat memory. Pull it if you use fast mode:
 
 ```powershell
-pip install jinja2
-python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_example_context.json
+ollama pull gemma3:4b
 ```
 
-Unity invokes the same script at runtime when building Ask Cap / voice prompts. Without Python and Jinja2, Cap dialogue prompts are empty (authored quest UI still works).
+### Cap prompts (runtime — no Python)
 
-## 6. Open the project in Unity
+Cap personality prompts are rendered in C# by `CharacterPersonalityTemplateManager` from:
+
+- `Assets/Prompts/cap_personality.j2`
+- `Assets/Prompts/cap_context.json` (test UI defaults)
+
+Legacy Jinja2 files under `prompts/` remain for documentation and optional offline comparison only.
+
+## 7. Open the project in Unity
 
 1. Unity Hub → **Add** → select the repo folder.
 2. Install editor **6000.3.8f1** if prompted.
@@ -101,22 +177,18 @@ Unity invokes the same script at runtime when building Ask Cap / voice prompts. 
 - **Spikes**: `GameplaySystems` → `_spikeTrapMaterial`.
 - **Adventurer** (optional): extract materials from `Assets/Art/Characters/Adventurer/Adventurer.fbx` — see [`art-direction.md`](./art-direction.md).
 
-## 7. Run the game
+## 8. Run Level1
 
-**Recommended (full flow):**
-
-1. Open `Assets/Scenes/MainMenu.unity`.
+1. Open `Assets/Scenes/Level1.unity`.
 2. Ensure Ollama is running.
-3. Press **Play** → optional **How to Play** → start Level1.
-
-**Direct Level1 test:** open `Assets/Scenes/Level1.unity` and press **Play** (skips main-menu warm-up and How to Play).
+3. Press **Play**.
 
 ### Boot flow
 
 - **Main Menu** (`OllamaMenuWarmup`): when LLM is enabled, issues a short warm-up completion so Level1 hits a hot model. **How to Play** lists controls and tips (scrollable panel).
-- **`OllamaFirstRunHealthCheck`**: pings Ollama and checks the model tag; on failure, **`OllamaSetupPanelController`** offers a link to this guide and **Continue** (play without LLM voice).
+- **`OllamaFirstRunHealthCheck`**: pings Ollama and checks the model tag; on failure, **`OllamaSetupPanelController`** offers a link to this guide and **Continue** (play without streaming).
 - **`DungeonLevelBuilder`**: builds maze from `Assets/Data/Dungeon/Level1_Maze.txt`, places player at **P**.
-- **`LevelGameplayBootstrap`**: spawns **Cap**; Ollama JSON plans for loot, foes, signs, and traps run **sequentially** at load (trap plan, then content plan), with procedural fill; attaches **`EnemyMeleeAI`** to foes.
+- **`LevelGameplayBootstrap`**: spawns **Cap**; Ollama JSON plans for loot, foes, signs, and traps run **sequentially** after a short spawn delay and **pause while Cap dialogue is open**; procedural fill on failure; attaches **`EnemyMeleeAI`** to foes.
 - **`GameSaveService`**: auto-loads `dungeon_session_save.json` if present.
 
 ### Controls (keyboard & mouse)
@@ -153,13 +225,13 @@ The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walka
 5. Return to Cap to complete the quest; accept **Echoes in the dark** if offered.
 6. Step onto an **E** encounter tile (trigger volume) for the second quest.
 7. Walk through bubble pickups; jump narrow spike strips; read corridor **signs**.
-8. **F5** / **F9** save and load; toggle **LLM / AI dialogue** in Options to verify canned Cap line when off.
+8. **F5** / **F9** save and load; toggle **LLM / AI dialogue** in Options to verify canned Cap line when off. Enable **Fast AI responses** if Cap replies feel slow (requires `gemma3:4b`).
 
 ### Ollama tester UI
 
 Level1 still includes an on-screen **Ollama** test panel (`OllamaHandler`) for raw prompt/stream debugging alongside gameplay dialogue.
 
-## 8. Regenerate environment textures (optional)
+## 9. Regenerate environment textures (optional)
 
 ```powershell
 pip install Pillow
@@ -168,7 +240,7 @@ python Tools/generate_dungeon_textures.py
 
 Reimports: `DungeonBrick_Albedo.png`, `DungeonFloor_Albedo.png`, `SpikeTrap_Albedo.png`.
 
-## 9. Project structure (current)
+## 10. Project structure (current)
 
 ```
 DungeonExporer/
@@ -184,19 +256,20 @@ DungeonExporer/
 │   ├── Art/Characters/Adventurer/
 │   ├── Art/Environment/           # Brick, floor, spike materials
 │   ├── Scripts/
-│   │   ├── AI/                    # CapPersonalityPromptBuilder
+│   │   ├── AI/                    # CharacterPersonalityTemplateManager, CapPersonalityPromptBuilder
 │   │   ├── Dungeon/               # DungeonLevelBuilder, flavor, encounters
 │   │   ├── Gameplay/              # Bootstrap, EnemyMeleeAI, quests, save, warm-up
 │   │   ├── Player/                # PlayerCombat, health, inventory
+│   │   ├── Settings/              # GameSettings, LlmPerformanceProfile (fast mode)
 │   │   ├── UI/
 │   │   └── OllamaHandler.cs
-│   ├── StreamingAssets/Prompts/   # Jinja2 mirror for builds
+│   ├── Prompts/                   # cap_personality.j2, cap_context.json (runtime)
 │   ├── SimpleOllamaInjection/
 │   └── InputSystem_Actions.inputactions
 └── ProjectSettings/
 ```
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -209,17 +282,17 @@ DungeonExporer/
 | `Cannot connect to localhost:11434` | Ollama not running | Start Ollama service. |
 | Thinking tags in UI | Reasoning model | Output is sanitized; update `OllamaHandler` / `clearThinking` if leakage persists. |
 | Spikes always damage | Not jumping over strip | Traps are narrow; damage only when feet are low (`HazardVolume`). |
-| First LLM call very slow | Cold model | Wait on the Main Menu a few seconds (auto warm-up), or run `ollama run <model>` once before play. |
-| Cap dialogue empty / prompt error | Python or Jinja2 missing | Install Python 3 and run `pip install jinja2`. Cap prompts render from `prompts/cap_personality.jinja2` only. |
-| Ask Cap field stays greyed out | Stuck `_busy` after aborted LLM | Fixed in `DialoguePanelController` (try/finally + `ReleaseDialogueInputLock`); pull latest. |
-| Cap shows planning text | qwen3 meta / raw fallback | `ExtractNpcSpokenDialogue` + Jinja2 rules; no raw-model fallback in voice coroutines. |
-| Console: `Request aborted HTTP 0` | Single-flight Ollama client | Level-load trap/content plans run sequentially (2026-06-18); superseded aborts are suppressed. If this appears during Cap dialogue, retry **Ask Cap** — dialogue and planners still share one client. |
+| First LLM call very slow | Cold model | Wait on the Main Menu a few seconds (auto warm-up), enable **Fast AI responses**, or run `ollama run <model>` once before play. |
+| Cap dialogue empty / prompt error | Template missing | Ensure `Assets/Prompts/cap_personality.j2` exists; check Console for `CharacterPersonalityTemplateManager` errors. |
+| Ask Cap field stays greyed out | Stuck voice lock | Pull latest `DialoguePanelController` (`_voiceBusy` / `_askBusy` split). |
+| Cap shows planning text | Reasoning model (qwen3) | Enable **Fast AI responses** (`gemma3:4b`) or rely on `ExtractNpcSpokenDialogue` + echo filter. |
+| Console: `Request aborted HTTP 0` | Ollama contention | Fixed: request queue + planners defer while dialogue open. Retry **Ask Cap** if needed. |
 | TMP missing glyph (e.g. ✓) | Unicode in UI text | Fixed: quest text and toggles use plain text / `Image` graphics instead of ✓. |
 | Compile: Newtonsoft | Missing package | Install `com.unity.nuget.newtonsoft-json` or ignore legacy `OllamaRequester`. |
 
 Save file location (Windows example): `%USERPROFILE%\AppData\LocalLow\<CompanyName>\<ProductName>\dungeon_session_save.json` — exact path logged on **F5** in the Console.
 
-## 11. Where to go next
+## 12. Where to go next
 
 - [`deliverables-checklist.md`](./deliverables-checklist.md) — full submission checklist.
 - [`high-concept.md`](./high-concept.md) — design intent and scope.

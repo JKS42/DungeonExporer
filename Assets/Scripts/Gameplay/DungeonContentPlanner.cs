@@ -86,7 +86,7 @@ namespace DungeonExporer.Gameplay
                 onError: e => { err = e; done = true; },
                 saveToDialogueJson: false,
                 updateResponseUiField: false,
-                maxPredictTokens: ollama.defaultNpcMaxTokens * 3,
+                maxPredictTokens: ollama.GetEffectiveNpcMaxTokens() * 3,
                 disableThinking: true,
                 jsonResponse: true);
 

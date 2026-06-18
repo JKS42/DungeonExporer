@@ -25,11 +25,15 @@ namespace DungeonExporer.UI
         public static readonly Color ButtonDanger = new(0.78f, 0.32f, 0.28f, 1f);
         public static readonly Color ButtonDangerHover = new(0.90f, 0.42f, 0.36f, 1f);
 
-        // Text.
+        // Text (main menu — warm gold on dark / cocoa on parchment).
         public static readonly Color TitleText = new(1.00f, 0.91f, 0.62f, 1f);   // candlelight
         public static readonly Color SubtitleText = new(0.85f, 0.78f, 0.62f, 1f);
         public static readonly Color BodyText = new(0.22f, 0.14f, 0.08f, 1f);    // dark cocoa on parchment
         public static readonly Color ButtonText = new(0.22f, 0.14f, 0.08f, 1f);
+
+        // Gameplay (Level1 HUD, dialogue, pause) — larger black type for readability.
+        public static readonly Color GameplayText = Color.black;
+        public static readonly Color GameplayMutedText = new(0.12f, 0.12f, 0.12f, 1f);
 
         // Typography (point sizes, used with TMP).
         public const float TitleFontSize = 96f;
@@ -40,6 +44,12 @@ namespace DungeonExporer.UI
         public const float HudFontSize = 26f;
         public const float HudSmallFontSize = 22f;
 
+        public const float GameTitleFontSize = 42f;
+        public const float GameBodyFontSize = 32f;
+        public const float GameCaptionFontSize = 26f;
+        public const float GameHudFontSize = 34f;
+        public const float GameHudSmallFontSize = 28f;
+
         public static readonly Vector2 ReferenceResolution = new(1920f, 1080f);
 
         // Layout.
@@ -48,7 +58,7 @@ namespace DungeonExporer.UI
         public const float ButtonHeight = 64f;
         public const float ButtonMinWidth = 280f;
 
-        public const string GameTitle = "Dungeon Exporer";
+        public const string GameTitle = "Dungeon Explorer";
         public const string GameTagline = "A cosy crawl through whimsical depths";
 
         public static string BuildHowToPlayText()

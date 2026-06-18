@@ -50,12 +50,13 @@ namespace DungeonExporer.Gameplay
 
             var tmp = textGo.AddComponent<TextMeshPro>();
             tmp.text = text ?? string.Empty;
-            tmp.fontSize = 48f;
+            tmp.fontSize = 60f;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = new Color(0.16f, 0.11f, 0.07f, 1f);
+            tmp.color = Color.black;
+            tmp.fontStyle = FontStyles.Bold;
             tmp.textWrappingMode = TextWrappingModes.Normal;
-            tmp.rectTransform.sizeDelta = new Vector2(320f, 96f);
-            TmpTextUtility.ApplyReadableDefaults(tmp);
+            tmp.rectTransform.sizeDelta = new Vector2(360f, 110f);
+            TmpTextUtility.ApplyReadableDefaults(tmp, gameplayBlackText: true);
 
             return sign;
         }
