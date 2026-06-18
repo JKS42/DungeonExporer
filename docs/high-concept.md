@@ -64,7 +64,7 @@ Prompt structure, endpoints, and risks: [`ollama-plan.md`](./ollama-plan.md).
 2. **Offline play** — single-player expectation.
 3. **Privacy** — prompts stay on the machine.
 4. **No vendor rate limits** — Ollama on `localhost:11434`.
-5. **Acceptable latency** — 1–3 s for short lines on modest hardware (`qwen3:4b`).
+5. **Acceptable latency** — 1–3 s for short lines on modest hardware (`qwen3:4b`; **Fast AI responses** uses `gemma3:4b`).
 6. **Educational / portfolio value** — local LLM integration as a project pillar.
 
 ### Trade-offs

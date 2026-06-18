@@ -12,12 +12,12 @@ The reviewers also did not focus on character designs at all for the quest giver
 
 ## What we chose to improve
 
-- **Cap prompt pipeline (Jinja2)**: We moved Cap’s voice and reactive prompts to a Jinja2 template (`cap_personality.jinja2`), rendered at runtime via `CapPersonalityPromptBuilder`. This separates prompt iteration from Unity builds and produces more consistent in-character lines tied to quest context.
-- **Dialogue output quality**: We added stronger filtering for qwen3 “planning text” leaking into the dialogue UI (`SanitizeModelOutput`, `ExtractNpcSpokenDialogue`, `think: false` on gameplay requests). Cap’s spoken lines now read as dialogue rather than restated instructions.
-- **LLM responsiveness and Ask Cap UX**: We warmed Ollama on the main menu to cut cold-start delay, fixed Ask Cap input locking, and changed the dialogue panel so each LLM reply overwrites the previous one instead of stacking. Ask Cap now uses `/api/chat` for multi-turn player questions while voice fetch stays on `/api/generate`.
+- **Cap prompt pipeline (C# template)**: Cap voice and Ask Cap prompts render from `Assets/Prompts/cap_personality.j2` via `CharacterPersonalityTemplateManager` (DatingSim-style `{{ field }}` replacement). No Python/Jinja2 required at runtime — prompts ship inside the Unity build.
+- **Dialogue output quality**: Stronger filtering for qwen3 “planning text” in dialogue and flavor (`SanitizeModelOutput`, `ExtractNpcSpokenDialogue`, `ExtractFlavorLine`, `think: false`). Ask Cap no longer falls back to raw model output when extraction fails.
+- **LLM responsiveness and Ask Cap UX**: Main-menu warm-up (re-runs on Options changes), Ollama FIFO request queue with Ask Cap priority, split `_voiceBusy` / `_askBusy` so Ask Cap stays usable while voice loads, level planners defer 4s and while Cap dialogue is open, **Fast AI responses** option (`gemma3:4b`). Ask Cap uses filtered-line typewriter reveal.
 - **Combat clarity**: We improved melee hit detection (sphere cast, multi-height overlap probes, forward cone) and added swing/impact VFX plus a HUD crosshair pulse on successful hits (`PlayerCombat`, `CombatHitVfx`, `GameplayHudController`).
 - **Trap readability**: We regenerated spike-trap albedos with hazard stripes, enabled emissive tint on spike materials, and added `HazardTrapVisual` (pulsing emission + marker light) on hazards.
-- **Text/UI readability**: We added `TmpTextUtility` (canvas scaler defaults, TMP font assignment, UI `Shadow` for contrast), bumped menu/HUD font sizes, and fixed TMP wrapping (`TextWrappingModes.Normal`). Obsolete `enableKerning` was replaced with `fontFeatures` (`OTL_FeatureTag.kern`) for Unity 6 compatibility.
+- **Text/UI readability**: `TmpTextUtility` (canvas scaler, `fontFeatures` kerning, UI shadows), larger black gameplay type on cream backdrops (`MenuTheme.GameplayText`), bold corridor sign labels with light outlines.
 - **Lighting readability**: We reworked torch placement in `DungeonLevelBuilder` (room centres, grid fill, coverage pass) and raised ambient/range so fewer walkable cells sit in total darkness.
 - **Lightweight onboarding**: We added **Main Menu → How to Play** — a scrollable controls and tips panel — as a partial answer to tutorial requests without a full scripted tutorial flow.
 
@@ -36,6 +36,6 @@ The reviewers also did not focus on character designs at all for the quest giver
 
 At the event, we expected most feedback to be about quest interaction and LLM integration, because those were the areas we had already flagged in our own testing and earlier lecturer feedback. Surprisingly, reviewers barely commented on narrative or AI. Instead, they focused on core gameplay clarity.
 
-Although reviewers did not raise LLM issues directly, our main post-feedback work was still on the model pipeline. We moved Cap’s prompts to a Jinja2 template (`cap_personality.jinja2`) so personality and quest context are built more reliably, added stronger filtering for qwen3 “planning text” leaking into dialogue, warmed Ollama on the main menu to cut cold-start delay, and fixed Ask Cap so replies overwrite cleanly instead of stacking. We also made smaller gameplay tweaks (combat hits, enemy AI) alongside this.
+Although reviewers did not raise LLM issues directly, our main post-feedback work was still on the model pipeline: C# Cap template (replacing Python Jinja2 at runtime), planning-text filters, Ollama request queue, fast mode, main-menu warm-up, and Ask Cap UX fixes. We also shipped gameplay readability passes (combat feedback, traps, lighting, black UI text, How to Play).
 
 We did not add a full tutorial or animation overhaul — both were out of scope for this stage. We did add a **How to Play** panel and several gameplay readability passes (combat feedback, traps, lighting, UI text). This taught us that even when feedback targets gameplay, the LLM layer still needs its own iteration to stay invisible and usable.

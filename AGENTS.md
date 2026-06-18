@@ -28,6 +28,9 @@ The following docs are part of the deliverable. If a change touches their topic,
 | `docs/build-notes.md` | Prototype vs final build export |
 | `docs/art-direction.md` | Style pillars, palette, per-asset prompts + tool settings (Meshy, etc.) |
 | `docs/refinements-changes.md` | Continuous log of scope changes + AI-assisted decisions |
+| `docs/feedback.summary.md` | Consolidated playtest reviewer notes |
+| `docs/critical.feedback.md` | Critical engagement with playtest feedback |
+| `docs/ai-usage-annexure.md` | Assessment AI usage disclosure (annexure) |
 | `README.md` | Overview, install, dependencies, credits, AI tools used |
 
 ## Documentation update rules
@@ -46,7 +49,7 @@ The following docs are part of the deliverable. If a change touches their topic,
 ## Coding conventions
 
 - **Namespaces**: `DungeonExporer.<Area>` (e.g. `DungeonExporer.Player`, `DungeonExporer.Dungeon`, `DungeonExporer.AI`).
-- **Folders**: gameplay scripts under `Assets/Scripts/<Area>/` (`Dungeon/`, `Gameplay/`, `Player/`, `UI/`). Ollama gameplay client: `Assets/Scripts/OllamaHandler.cs` (consolidation with `SimpleOllamaUnity` planned). Meshy FBX imports live under `Assets/Models/` until moved to `Assets/Art/`.
+- **Folders**: gameplay scripts under `Assets/Scripts/<Area>/` (`Dungeon/`, `Gameplay/`, `Player/`, `UI/`). Ollama gameplay client: `Assets/Scripts/OllamaHandler.cs`. Cap prompts: `Assets/Prompts/cap_personality.j2` via `CharacterPersonalityTemplateManager`. Meshy FBX imports live under `Assets/Models/` until moved to `Assets/Art/`.
 - **One LLM client**: prefer `HardCodeDev.SimpleOllamaUnity.Ollama` going forward. Remove or wrap the duplicates (`OllamaHandler.cs`, `OllamaRequester.cs`) instead of growing them in parallel.
 - **No secrets in git**: `Assets/Resources/Neocortex/NeocortexSettings.asset` currently contains a plaintext API key — rotate it and gitignore it before adding new secrets.
 

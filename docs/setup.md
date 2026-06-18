@@ -177,16 +177,20 @@ Legacy Jinja2 files under `prompts/` remain for documentation and optional offli
 - **Spikes**: `GameplaySystems` → `_spikeTrapMaterial`.
 - **Adventurer** (optional): extract materials from `Assets/Art/Characters/Adventurer/Adventurer.fbx` — see [`art-direction.md`](./art-direction.md).
 
-## 8. Run Level1
+## 8. Run the game
 
-1. Open `Assets/Scenes/Level1.unity`.
+**Recommended (full flow):**
+
+1. Open `Assets/Scenes/MainMenu.unity`.
 2. Ensure Ollama is running.
-3. Press **Play**.
+3. Press **Play** → optional **How to Play** → start Level1.
+
+**Direct Level1 test:** open `Assets/Scenes/Level1.unity` and press **Play** (skips main-menu warm-up).
 
 ### Boot flow
 
 - **Main Menu** (`OllamaMenuWarmup`): when LLM is enabled, issues a short warm-up completion so Level1 hits a hot model. **How to Play** lists controls and tips (scrollable panel).
-- **`OllamaFirstRunHealthCheck`**: pings Ollama and checks the model tag; on failure, **`OllamaSetupPanelController`** offers a link to this guide and **Continue** (play without streaming).
+- **`OllamaFirstRunHealthCheck`**: pings Ollama and checks the model tag; on failure, **`OllamaSetupPanelController`** offers a link to this guide and **Continue** (play without LLM voice).
 - **`DungeonLevelBuilder`**: builds maze from `Assets/Data/Dungeon/Level1_Maze.txt`, places player at **P**.
 - **`LevelGameplayBootstrap`**: spawns **Cap**; Ollama JSON plans for loot, foes, signs, and traps run **sequentially** after a short spawn delay and **pause while Cap dialogue is open**; procedural fill on failure; attaches **`EnemyMeleeAI`** to foes.
 - **`GameSaveService`**: auto-loads `dungeon_session_save.json` if present.
@@ -225,7 +229,7 @@ The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walka
 5. Return to Cap to complete the quest; accept **Echoes in the dark** if offered.
 6. Step onto an **E** encounter tile (trigger volume) for the second quest.
 7. Walk through bubble pickups; jump narrow spike strips; read corridor **signs**.
-8. **F5** / **F9** save and load; toggle **LLM / AI dialogue** in Options to verify canned Cap line when off. Enable **Fast AI responses** if Cap replies feel slow (requires `gemma3:4b`).
+8. **F5** / **F9** save and load; toggle **AI-driven dialogue (Ollama)** in Options to verify canned Cap line when off. Enable **Fast AI responses** if Cap replies feel slow (requires `gemma3:4b`).
 
 ### Ollama tester UI
 

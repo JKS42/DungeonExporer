@@ -88,7 +88,7 @@ See [`critical.feedback.md`](./critical.feedback.md) for rationale and [`refinem
 |---|---|
 | Combat range / hit clarity | Stronger `PlayerCombat` detection; swing/impact VFX; HUD crosshair pulse on hit |
 | Spike trap clarity | Regenerated spike albedo, emissive hazard material, `HazardTrapVisual` marker |
-| Text readability | `TmpTextUtility`, larger fonts, UI shadows, TMP wrapping fixes |
+| Text readability | `TmpTextUtility`, larger black gameplay fonts, UI shadows/outlines on signs |
 | Lighting | Torch placement rework + coverage pass in `DungeonLevelBuilder` |
 | Tutorial / onboarding | **Main Menu → How to Play** panel (partial); full tutorial deferred |
-| LLM (not raised by reviewers) | Jinja2 Cap prompts, warm-up, Ask Cap UX, sequential level-load planners |
+| LLM (not raised by reviewers) | C# Cap template, request queue, fast mode, warm-up, Ask Cap UX, planner deferral |

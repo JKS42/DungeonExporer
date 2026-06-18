@@ -20,9 +20,9 @@ A cosy 3D dungeon-exploration game where NPC dialogue, room flavor, and quest ba
 ollama pull qwen3:4b
 ```
 
-4. Open this repo in Unity, open **`Assets/Scenes/Level1.unity`**, press **Play**.
+4. Open this repo in Unity, open **`Assets/Scenes/MainMenu.unity`** (or **`Level1.unity`** to skip the menu), press **Play**.
 5. On the **Main Menu**, open **How to Play** for controls and tips; wait a few seconds so Ollama can warm up before Level1.
-6. If Ollama is down or the model is missing, an in-game setup panel links to [`docs/setup.md`](docs/setup.md); you can continue without streaming dialogue.
+6. If Ollama is down or the model is missing, an in-game setup panel links to [`docs/setup.md`](docs/setup.md); you can continue without LLM dialogue.
 7. **Save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads. A save auto-loads on level start when that file exists (delete it to reset).
 
 Full install, **requirements**, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md) (§1 Game requirements).
@@ -41,7 +41,7 @@ Full install, **requirements**, controls, and troubleshooting: [`docs/setup.md`]
 | Pause | Escape |
 | Save / load session | **F5** / **F9** |
 
-**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with swing/impact VFX and HUD hit feedback) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions; **Another line** for a new Ollama voice; bubble pickups; jump spike traps (striped albedo + emissive pulse). Wait a few seconds on the **Main Menu** so Ollama can warm up before Level1.
+**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with swing/impact VFX and HUD hit feedback) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions; **Another line** for a new Ollama voice; enable **Fast AI responses** in Options if replies feel slow (`gemma3:4b`). Bubble pickups; jump spike traps (striped albedo + emissive pulse).
 
 ## Documentation
 
@@ -123,12 +123,12 @@ DungeonExporer/
 │   ├── Data/Dungeon/             # Level1_Maze.txt
 │   ├── Scripts/
 │   │   ├── Dungeon/              # Maze build, flavor zones, encounters
-│   │   ├── AI/                   # CapPersonalityPromptBuilder (Jinja2)
+│   │   ├── AI/                   # CharacterPersonalityTemplateManager, CapPersonalityPromptBuilder
 │   │   ├── Gameplay/             # Quests, NPC, EnemyMeleeAI, loot, save, warm-up
 │   │   ├── Player/               # Movement, PlayerCombat, health, inventory
 │   │   ├── UI/                   # HUD, dialogue, menus, Ollama setup
-│   │   ├── Settings/
-│   │   ├── StreamingAssets/Prompts/  # Jinja2 mirror for standalone builds
+│   │   ├── Settings/             # GameSettings, LlmPerformanceProfile
+│   │   ├── Prompts/              # cap_personality.j2, cap_context.json (runtime)
 │   │   └── OllamaHandler.cs
 │   ├── SimpleOllamaInjection/
 │   ├── Ollama/                   # Minimal legacy example
@@ -151,7 +151,7 @@ DungeonExporer/
 - [x] First-person movement, jump, crouch, sprint
 - [x] ASCII maze + safe / encounter zones + textured walls / floors
 - [x] Quest system (`QuestManager`) — Cap's drill + Echoes in the dark
-- [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama streaming
+- [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama voice (prefetch + Ask Cap typewriter)
 - [x] Two-way melee combat — `PlayerCombat` + `EnemyMeleeAI` (chase, attack) + `CombatHitVfx`
 - [x] **Ask Cap** reactive Q&A (C# personality template → Ollama `/api/chat`)
 - [x] Pickups (bubble + icon), spike hazards (jumpable), flavor narration on **S** / **E**

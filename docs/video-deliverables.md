@@ -5,7 +5,7 @@
 
 Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if possible. Show the game window full-screen; avoid desktop clutter.
 
-**Before recording:** Ollama running, `ollama pull qwen3:4b`. Wait a few seconds on the **Main Menu** so warm-up completes. Optionally open **How to Play** to show in-game controls reference.
+**Before recording:** Ollama running, `ollama pull qwen3:4b` (and `gemma3:4b` if demoing fast mode). Wait on **Main Menu** for warm-up. Optionally open **How to Play**.
 
 ---
 
@@ -23,8 +23,8 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 | Cap dialogue (90 s) | Walk to Cap → **E** → voice line → **Ask Cap** typed question | C# template `Assets/Prompts/cap_personality.j2`; quest facts in static UI block |
 | Flavor (30 s) | Step on **S** / **E** floor tint | `DungeonFlavorNarrator` HUD toast |
 | Level-load AI (60 s) | Restart level or show Console once | Trap/content JSON planners; C# validates cells; procedural fill on timeout |
-| Opt-out (30 s) | Options → disable **LLM / AI dialogue** → Cap again | Canned line, no network |
-| Code trace (45 s) | Editor: `OllamaHandler`, `CapPersonalityPromptBuilder`, `prompts/` folder | Single client, sanitize output, facts in `QuestManager` |
+| Opt-out (30 s) | Options → disable **AI-driven dialogue** → Cap again | Canned line; Ask Cap hidden |
+| Code trace (45 s) | Editor: `OllamaHandler`, `CharacterPersonalityTemplateManager`, `Assets/Prompts/` | Request queue, sanitize output, facts in `QuestManager` |
 | Close (15 s) | Point to `docs/ollama-plan.md`, `docs/prompts-used.md` | Local, optional, documented |
 
 **Do show:** Task Manager or `ollama ps` briefly to prove local inference.
@@ -58,7 +58,7 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 
 - [ ] Both videos 3–6 minutes each
 - [ ] Audio explains *what* and *why* (not only silent gameplay)
-- [ ] Cap Ask Cap works (Python + Jinja2 installed)
+- [ ] Cap Ask Cap works (Ollama running; `Assets/Prompts/cap_personality.j2` present)
 - [ ] No unrotated API keys visible in Editor captures
 - [ ] File names match course submission instructions
 

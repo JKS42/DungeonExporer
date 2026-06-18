@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-06-18 — Documentation sync (match current Ollama + UI stack)
+**Type**: documentation
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Aligned `ollama-plan.md`, `prompts-used.md`, `llm-integration-report.md`, `critical.feedback.md`, `ethical-considerations.md`, `feedback.summary.md`, `ai-usage-annexure.md`, `README.md`, `AGENTS.md`, `setup.md`, `build-notes.md`, and `video-deliverables.md` with the current build: C# `cap_personality.j2` runtime (no Python), Ollama FIFO queue, fast mode, black gameplay text, and planner deferral while Cap dialogue is open.
+**Why**: User reverted a bad change; docs still described the older Jinja2/Python pipeline and pre-queue Ollama behaviour.
+**Impact / docs touched**: files listed above, this log.
+
 ## 2026-06-18 — Ask Cap streaming typewriter UI
 **Type**: enhancement
 **AI tool(s)**: Cursor + Auto

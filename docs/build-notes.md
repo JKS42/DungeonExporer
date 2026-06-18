@@ -15,8 +15,8 @@ The brief asks for a prototype demonstrating **at least one functional LLM-drive
 | LLM environment flavor | Enter **S** / **E** zones → HUD toast |
 | Health check + setup panel | Start without Ollama → guided continue |
 
-**Scene:** `Assets/Scenes/Level1.unity`  
-**Entry:** Play in Editor or exported `.exe` with Ollama running.
+**Scene:** `Assets/Scenes/MainMenu.unity` → Level1 (build settings order)  
+**Entry:** Play in Editor from Main Menu or exported `.exe` with Ollama running.
 
 Historical prototype issues (empty responses, planning text in UI) are documented in `docs/prompts-used.md` and fixed in current `OllamaHandler` / `DialoguePanelController`.
 
@@ -32,12 +32,12 @@ The **final build** should be a **stable player executable** (or WebGL if allowe
 ### Export steps (Windows standalone)
 
 1. **File → Build Settings**
-2. Scenes: `MainMenu` (optional), **`Level1`** (required)
+2. Scenes: **`MainMenu`** (recommended entry), **`Level1`** (required)
 3. Platform: **Windows** (or target per brief)
 4. **Player Settings:** company/product name, default resolution 1920×1080
 5. **Build** → e.g. `Builds/Windows/DungeonExporer.exe`
 6. Test on a **clean machine** with:
-   - `ollama pull qwen3:4b`
+   - `ollama pull qwen3:4b` (and optionally `ollama pull gemma3:4b` for fast mode)
    - Ollama service running
    - Wait on Main Menu for Ollama warm-up before Level1
 7. Zip `DungeonExporer.exe` + `DungeonExporer_Data` folder

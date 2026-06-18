@@ -8,32 +8,28 @@
 
 ## 1. Active prompts (in code)
 
-### 1.0 Cap personality template (Jinja2 — design source)
+### 1.0 Cap personality template (C# — runtime)
 
-**File:** [`prompts/cap_personality.jinja2`](../prompts/cap_personality.jinja2)
+**File:** `Assets/Prompts/cap_personality.j2`  
+**Context defaults:** `Assets/Prompts/cap_context.json`  
+**Renderer:** `CharacterPersonalityTemplateManager.RenderCapPersonality` (DatingSim-style `{{ field }}` replacement).  
+**Builder:** `CapPersonalityPromptBuilder` → voice / reactive modes.
 
-Jinja2 template that defines Cap’s **personality bible** (macros) and assembles voice-line / Ask Cap prompts. **Runtime:** `CapPersonalityPromptBuilder` calls **real Jinja2** through [`prompts/render_cap_prompt.py`](../prompts/render_cap_prompt.py) (no C# template engine). Standalone builds mirror `prompts/` into `Assets/StreamingAssets/Prompts/`.
+Mirrors also under `Assets/StreamingAssets/Prompts/` for standalone builds.
 
-**Example context:** [`prompts/cap_example_context.json`](../prompts/cap_example_context.json)
+**Legacy (offline only):** [`prompts/cap_personality.jinja2`](../prompts/cap_personality.jinja2) + [`prompts/render_cap_prompt.py`](../prompts/render_cap_prompt.py) — documentation and optional comparison; **not** called at runtime.
 
-```bash
-pip install jinja2
-python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_example_context.json
-```
-
-**Context variables:** `display_name`, `mode` (`voice` | `reactive`), `quest_title`, `quest_briefing`, `quest_state` (`considering` | `active` | `completed`), optional `world_context`, `inventory_summary`, `memory_block`, `player_question` (reactive), `max_sentences`, `situation` (override).
+**Context variables:** `display_name`, `mode` (`voice` | `reactive`), `quest_title`, `quest_briefing`, `quest_state`, `world_context`, `inventory_summary`, `memory_block`, `player_question` (reactive), `max_sentences`, `situation`, Cap role/background/mood fields from `cap_context.json`.
 
 ---
 
 ### 1.1 NPC voice line — Cap (`mode: voice`)
 
-**Purpose:** In-character speech when the dialogue panel opens (prefetch) or the player clicks **Another line**. Quest title, briefing, and objectives remain **authored in C#** (`QuestDefinition`); the model only improvises banter.
+**Purpose:** In-character speech when the dialogue panel opens (prefetch) or the player clicks **Another line**. Quest facts remain **authored in C#** (`QuestDefinition`).
 
-**Builder:** `CapPersonalityPromptBuilder.BuildVoicePrompt` → Jinja2 §1.0.
+**Builder:** `CapPersonalityPromptBuilder.BuildVoicePrompt` → §1.0.
 
-**Context:** `display_name`, `quest_title`, `quest_briefing`, `quest_state` (`considering` | `active` | `completed`), `inventory_summary`, `memory_block`, optional `situation` override, `max_sentences`.
-
-**Model / API:** Non-streaming `RequestGeneration`, `think: false`, `num_predict` ≈ 80 (`defaultNpcMaxTokens`). Output passed through `ExtractNpcSpokenDialogue` before UI / memory.
+**Model / API:** Non-streaming `OllamaHandler.RequestGeneration` (`/api/generate`), `think: false`, `num_predict` from `GetEffectiveNpcMaxTokens()`. Output through `ExtractNpcSpokenDialogue` before UI / memory.
 
 ---
 
@@ -41,11 +37,11 @@ python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_e
 
 **Purpose:** Player-typed questions in the dialogue panel (**Ask Cap**).
 
-**Builder:** `CapPersonalityPromptBuilder.BuildReactivePrompt` → Jinja2 §1.0 with `player_question`.
+**Builder:** `CapPersonalityPromptBuilder.BuildReactivePrompt` → §1.0 with `player_question`.
 
-**Memory:** `NpcConversationMemory` stores sanitized Cap turns + player questions for follow-ups.
+**Memory:** `NpcConversationMemory` stores sanitized Cap turns + player questions (trimmed in fast mode).
 
-**Model / API:** Same as §1.1 (non-streaming). Console debug: `[Ask Cap] Player: "…" / Cap: "…"`.
+**Model / API:** `OllamaHandler.RequestChat` (merges system + user into one `/api/generate` prompt, high-priority queue). Filtered line typewriter-revealed in UI. Console debug: `[Ask Cap] Player: "…" / Cap: "…"`.
 
 ---
 
@@ -60,11 +56,19 @@ Write exactly one short sentence, second person ("you"), sensory mood only.
 No instructions, no quest spoilers, no NPC names, no markdown. Max 26 words.
 ```
 
-**Model / API:** Non-streaming `RequestGeneration`, `num_predict` ≤ 72, cooldown ~42 s.
+**Model / API:** Non-streaming `RequestGeneration`, `num_predict` ≤ 72, `disableThinking: true`, `ExtractFlavorLine`, cooldown ~42 s.
 
 ---
 
-### 1.3 Debug / test UI (`OllamaHandler` + TMP fields)
+### 1.3 Level-load JSON planners
+
+**Trap plan** (`DungeonTrapPlanner`): maze ASCII block + JSON schema for `spike` / `ember` / `slime` cells.  
+**Content plan** (`DungeonContentPlanner`): `loot`, `enemies`, `signs` arrays.  
+**Model / API:** `RequestGeneration` with `jsonResponse: true`, validated in C# before spawn.
+
+---
+
+### 1.4 Debug / test UI (`OllamaHandler` + TMP fields)
 
 Free-form prompts typed in the Level1 test panel. Used for connectivity checks, not shipped gameplay.
 
@@ -72,95 +76,23 @@ Free-form prompts typed in the Level1 test panel. Used for connectivity checks, 
 
 ## 2. Superseded prompts (iterations)
 
-### 2.1 C#-embedded Cap template (superseded 2026-06-11)
+### 2.1 Python Jinja2 Cap renderer (superseded 2026-06-18)
 
-Hard-coded strings in `DialoguePanelController` (and briefly `CapJinja2PromptRenderer`) replaced by **`prompts/cap_personality.jinja2`** + Python Jinja2 renderer. See §1.0.
+`CapPersonalityPromptBuilder` previously invoked `prompts/render_cap_prompt.py` (real Jinja2 subprocess). Replaced by `CharacterPersonalityTemplateManager` + `Assets/Prompts/cap_personality.j2` so Unity builds need no Python on the player machine.
 
----
+### 2.2 C#-embedded Cap template (superseded 2026-06-11)
 
-### 2.2 Early Cap prompt (failed — empty or meta replies)
-
-Used before streaming fixes and `Cap: "` suffix (see `ollama-dialogue.json` 2026-05-15 entries).
-
-```
-You are Cap, an NPC in a first-person dungeon crawler videogame.
-Authoritative quest title: Cap's corridor drill.
-Authoritative briefing (facts): Cap wants you to wallop the training dummy...
-Quest state summary from the game: ...
-Inventory: empty.
-The adventurer is considering your quest. Speak in character...
-Write 2–6 short sentences of spoken dialogue only. No markdown...
-```
-
-**Failure modes:**
-
-- `"response": ""` — tokens went to `thinking` (qwen3 reasoning).
-- Model restated instructions: *"We are Cap, an NPC in a first-person dungeon crawler game. The quest title is..."*
-
-**Mitigations applied:**
-
-1. `think: false` / `disableThinking` on gameplay requests.
-2. Prompt ends with `Cap: "` so completion continues dialogue.
-3. `OllamaHandler.ExtractNpcSpokenDialogue` strips planning lines.
-4. `NpcConversationMemory` — avoid repetition (partial; polluted memory from bad replies required clearing during dev).
+Hard-coded strings in `DialoguePanelController` replaced by external template files. See §1.0.
 
 ---
 
-### 2.3 Planned chat-style template (`ollama-plan.md`)
+## 3. Failure modes observed
 
-Not yet wired to gameplay; target for `SimpleOllamaUnity` migration:
+| Symptom | Model | Mitigation |
+|---|---|---|
+| Planning text in Ask Cap / flavor | `qwen3:4b` | `ExtractNpcSpokenDialogue`, `ExtractFlavorLine`, `think: false`; enable **Fast AI responses** (`gemma3:4b`) |
+| Empty Cap line after HTTP 0 | Any | Ollama FIFO queue; planners defer while dialogue open |
+| Player question echoed as Cap reply | `qwen3:4b` | Echo rejection in `ExtractNpcSpokenDialogue` |
+| Invalid trap JSON | Any | `DungeonLevelBuilder.IsTrapEligibleCell` + procedural fill |
 
-```
-[SYSTEM] You are {npc.name}, a {npc.role} in a cosy, whimsical dungeon...
-[CONTEXT] Room, inventory, recent events
-[HISTORY] last 4 turns
-[USER] player input
-```
-
----
-
-## 3. Successful examples
-
-### Flavor (safe zone) — typical good output
-
-**Prompt:** §1.2 with safe tiles.  
-**Example response:** *"You breathe easier as the stone underfoot softens to a quiet, mossy hush."*  
-**Why it worked:** Short constraint, no quest facts, single sentence.
-
-### Test UI — generic chat
-
-**Prompt:** `Hi, How are you doing`  
-**Response:** Conversational greeting (not used in-game).  
-**Why it worked:** No role-play constraints; model defaults to assistant mode (acceptable only in debug UI).
-
----
-
-## 4. Failed examples (documented)
-
-| Prompt type | Symptom | Cause | Fix |
-|---|---|---|---|
-| Cap dialogue (old template) | Empty UI | `response` empty, content in `thinking` | `think: false`, stream parser fallback |
-| Cap dialogue | Planning text in LLM box | qwen3 meta-reasoning | `ExtractNpcSpokenDialogue`, `Cap: "` suffix |
-| Cap + memory polluted | Repeated "We are Cap..." | Bad replies stored in memory | Sanitize before `AppendAssistantReply`; dev: clear PlayerPrefs / memory |
-| Long briefing in prompt | Model lists "Quest title:" | Weak instruction following | Jinja2 personality + `ExtractNpcSpokenDialogue`; separate static quest UI block |
-| Ask Cap greyed out | `_busy` not cleared after abort | Voice fetch interrupted | `ReleaseDialogueInputLock` + try/finally in coroutines |
-| Missing Python/Jinja2 | Empty Cap prompt | Subprocess render failed | `pip install jinja2`; see `docs/setup.md` |
-
----
-
-## 5. Iteration notes
-
-1. **Split authority:** Quest UI shows fixed copy; LLM only flavors voice. Prevents quest-breaking hallucinations.
-2. **Keep prompts short** for 4B models; flavor narrator capped at 26 words.
-3. **Cosy tone** enforced in `high-concept.md` and situation strings — no horror/grimdark.
-4. **Local only** — prompts never leave `localhost:11434`.
-5. **Player opt-out** — `GameSettings.LlmEnabled` (Options); canned Cap line when off (see `ethical-considerations.md`).
-
----
-
-## 6. How to add a new prompt
-
-1. Implement in code under `Assets/Scripts/` or `prompts/*.jinja2` (prefer single builder / template).
-2. Log a row in this file (template + purpose).
-3. Add success/failure notes after playtesting.
-4. If behavior changes scope or risks, update [`ollama-plan.md`](./ollama-plan.md) and [`refinements-changes.md`](./refinements-changes.md).
+See `Assets/DialogueOutput/ollama-dialogue.json` for dated examples.
