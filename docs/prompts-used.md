@@ -45,7 +45,7 @@ python prompts/render_cap_prompt.py prompts/cap_personality.jinja2 prompts/cap_e
 
 **Memory:** `NpcConversationMemory` stores sanitized Cap turns + player questions for follow-ups.
 
-**Model / API:** Same as §1.1 (non-streaming). Console debug: `[Ask Cap] Player: "…" / Cap: "…"`.
+**Model / API:** Non-streaming `RequestChat` (`/api/chat`, system + user messages), `think: false`, `num_predict` ≈ 80 (`defaultNpcMaxTokens`). Output passed through `ExtractNpcSpokenDialogue` before UI / memory. Console debug: `[Ask Cap] Player: "…" / Cap: "…"`.
 
 ---
 

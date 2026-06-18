@@ -25,8 +25,7 @@ namespace DungeonExporer.UI
             scaler.referencePixelsPerUnit = 100f;
         }
 
-        public static void ApplyReadableDefaults(TMP_Text tmp, bool lightTextOnDarkBackground = false,
-            bool gameplayBlackText = false)
+        public static void ApplyReadableDefaults(TMP_Text tmp, bool lightTextOnDarkBackground = false)
         {
             if (tmp == null)
                 return;
@@ -42,13 +41,7 @@ namespace DungeonExporer.UI
             if (tmp is TextMeshProUGUI)
             {
                 tmp.raycastTarget = false;
-                ApplyUiShadow(tmp.gameObject, lightTextOnDarkBackground, gameplayBlackText);
-                return;
-            }
-
-            if (gameplayBlackText || (!lightTextOnDarkBackground && tmp.color.grayscale < 0.2f))
-            {
-                ApplyWorldBlackTextOutline(tmp);
+                ApplyUiShadow(tmp.gameObject, lightTextOnDarkBackground);
                 return;
             }
 
@@ -61,32 +54,14 @@ namespace DungeonExporer.UI
                     tmp.color.a);
         }
 
-        private static void ApplyWorldBlackTextOutline(TMP_Text tmp)
+        private static void ApplyUiShadow(GameObject go, bool lightTextOnDarkBackground)
         {
-            if (tmp == null)
+            if (go == null || go.GetComponent<Shadow>() != null)
                 return;
-
-            tmp.fontStyle |= FontStyles.Bold;
-            tmp.outlineWidth = 0.22f;
-            tmp.outlineColor = new Color(1f, 0.98f, 0.92f, 0.95f);
-        }
-
-        private static void ApplyUiShadow(GameObject go, bool lightTextOnDarkBackground, bool gameplayBlackText)
-        {
-            if (go == null)
-                return;
-
-            if (go.GetComponent<Shadow>() is Shadow existing)
-                Object.Destroy(existing);
 
             var shadow = go.AddComponent<Shadow>();
             shadow.useGraphicAlpha = true;
-            if (gameplayBlackText)
-            {
-                shadow.effectColor = new Color(1f, 0.98f, 0.92f, 0.85f);
-                shadow.effectDistance = new Vector2(1.5f, -1.5f);
-            }
-            else if (lightTextOnDarkBackground)
+            if (lightTextOnDarkBackground)
             {
                 shadow.effectColor = new Color(0.04f, 0.03f, 0.06f, 0.9f);
                 shadow.effectDistance = new Vector2(1.5f, -1.5f);

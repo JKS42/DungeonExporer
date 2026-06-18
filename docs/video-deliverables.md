@@ -5,7 +5,7 @@
 
 Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if possible. Show the game window full-screen; avoid desktop clutter.
 
-**Before recording:** Ollama running, `ollama pull qwen3:4b`. Wait a few seconds on the **Main Menu** so warm-up completes. Optionally open **How to Play** to show in-game controls reference.
+**Before recording:** Ollama running, `ollama pull qwen3:4b`, `pip install jinja2`, Python on PATH. Wait a few seconds on the **Main Menu** so warm-up completes. Optionally open **How to Play** to show in-game controls reference.
 
 ---
 
@@ -20,7 +20,7 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 | Intro (30 s) | Title card or Main Menu | Cosy dungeon slice; Ollama on `localhost:11434` only |
 | Setup (45 s) | Terminal: `ollama list`, optional `curl localhost:11434/api/tags` | Model tag matches `GameSettings.LlmModel` |
 | Warm-up (30 s) | Main Menu → brief pause → Level1 | `OllamaMenuWarmup` reduces cold-start latency |
-| Cap dialogue (90 s) | Walk to Cap → **E** → voice line → **Ask Cap** typed question | C# template `Assets/Prompts/cap_personality.j2`; quest facts in static UI block |
+| Cap dialogue (90 s) | Walk to Cap → **E** → voice line → **Ask Cap** typed question | Jinja2 template `prompts/cap_personality.jinja2`; quest facts in static UI block |
 | Flavor (30 s) | Step on **S** / **E** floor tint | `DungeonFlavorNarrator` HUD toast |
 | Level-load AI (60 s) | Restart level or show Console once | Trap/content JSON planners; C# validates cells; procedural fill on timeout |
 | Opt-out (30 s) | Options → disable **LLM / AI dialogue** → Cap again | Canned line, no network |

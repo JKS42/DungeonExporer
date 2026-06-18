@@ -13,7 +13,7 @@ Use this page when submitting the project. Items marked **you** must be produced
 |---|---|---|
 | High concept (ideation, LLM role, why local) | Done | [`high-concept.md`](./high-concept.md) |
 | Ollama plan (model, timing, data flow, prompts, risks) | Done | [`ollama-plan.md`](./ollama-plan.md) |
-| Setup guide (install Ollama, run models, specs, **game requirements**) | Done | [`setup.md`](./setup.md) |
+| Setup guide (install Ollama, run models, specs) | Done | [`setup.md`](./setup.md) |
 | Refinements / change log (scope + AI decisions) | Done | [`refinements-changes.md`](./refinements-changes.md) |
 | README (overview, install, deps, credits, AI tools) | Done | [`../README.md`](../README.md) |
 | Art direction (extra; asset prompts) | Done | [`art-direction.md`](./art-direction.md) |
@@ -30,7 +30,7 @@ Use this page when submitting the project. Items marked **you** must be produced
 
 | Requirement | Status | Notes |
 |---|---|---|
-| Prototype with ≥1 LLM feature | Done in repo | **Level1** — Cap voice + **Ask Cap** (C# template → Ollama), zone flavor, trap/content JSON plans |
+| Prototype with ≥1 LLM feature | Done in repo | **Level1** — Cap voice + **Ask Cap** (Jinja2 → Ollama), zone flavor, trap/content JSON plans |
 | Final build (stable, refined) | **You** export | See [`build-notes.md`](./build-notes.md) |
 
 **How to produce a build:** Unity → **File → Build Settings** → add `Level1` (and `MainMenu` if used) → **Build**. Test on a machine with Ollama + `qwen3:4b` pulled.
@@ -79,7 +79,7 @@ Suggested capture: OBS / Xbox Game Bar; show Task Manager or `ollama list` brief
 - [ ] Skim **Main Menu → How to Play** in a fresh playthrough.
 - [ ] Replace *your name* in [`README.md`](../README.md) Credits.
 - [ ] Confirm `ollama pull qwen3:4b` on demo PC; match `GameSettings.LlmModel` / `OllamaHandler` default model.
-- [ ] Optional: `ollama pull gemma3:4b` if demoing **Fast AI responses**.
+- [ ] Confirm `pip install jinja2` and Python on PATH for Cap dialogue in builds.
 - [ ] Playtest two-way combat (foe chase, hit VFX) + spike trap visibility + Ask Cap before recording showcase video.
 - [ ] Record both videos using [`video-deliverables.md`](./video-deliverables.md).
 - [ ] Export Windows (or target) build per [`build-notes.md`](./build-notes.md).

@@ -75,14 +75,11 @@ Prompt structure, endpoints, and risks: [`ollama-plan.md`](./ollama-plan.md).
 
 ## 4. Target platform / system requirements
 
-Hardware, software, functional gameplay requirements, and course submission checklist: **[`setup.md` §1 Game requirements](./setup.md#1-game-requirements)**.
-
-Summary:
-
 - **OS**: Windows 10/11 (primary dev target). Linux/macOS possible for Ollama.
-- **Minimum**: 16 GB RAM, modern CPU; integrated GPU OK for `qwen3:4b` on CPU.
+- **Minimum (draft)**: 16 GB RAM, modern CPU; integrated GPU OK for `qwen3:4b` on CPU.
 - **Recommended**: 32 GB RAM, GPU with ≥ 8 GB VRAM for faster inference.
-- **Runtime**: Ollama + pulled model; Python **not** required to play.
+
+Measured specs: [`setup.md`](./setup.md).
 
 ## 5. Inspirations & references
 

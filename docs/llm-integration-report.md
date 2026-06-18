@@ -52,7 +52,7 @@ Both dialogue and flavor respect UI gates (`NarrationUiGate`) so prompts do not 
 
 Cap personality and voice/reactive prompts live in **`prompts/cap_personality.jinja2`**, rendered at runtime by **`prompts/render_cap_prompt.py`** (Python + Jinja2) via `CapPersonalityPromptBuilder`. This separates prompt iteration from Unity builds and mirrors the cosy-fantasy rules in one file. Earlier C#-embedded templates (which caused qwen3 to echo “Quest title:” blocks) are archived in `docs/prompts-used.md` §2.
 
-Options menu exposes **`GameSettings.LlmEnabled`**; when false, NPC lines use canned text, flavor narration is skipped, and trap placement falls back to purely procedural scatter — supporting players who disable AI or lack hardware headroom.
+Options menu exposes **`GameSettings.LlmEnabled`**; when false, opening Cap shows a canned line (**Ask Cap** and **Another line** hidden), flavor narration is skipped, and trap/content placement falls back to purely procedural scatter — supporting players who disable AI or lack hardware headroom.
 
 ## 4. Performance considerations
 
