@@ -25,6 +25,9 @@ namespace DungeonExporer.UI
         private Canvas _canvas;
         private GameObject _mainPanel;
         private GameObject _optionsPanel;
+        private GameObject _howToPlayPanel;
+        private ScrollRect _howToPlayScroll;
+        private TextMeshProUGUI _howToPlayBody;
 
         private readonly List<Resolution> _uniqueResolutions = new();
 
@@ -36,7 +39,9 @@ namespace DungeonExporer.UI
             BuildBackground();
             _mainPanel = BuildMainPanel();
             _optionsPanel = BuildOptionsPanel();
+            _howToPlayPanel = BuildHowToPlayPanel();
             _optionsPanel.SetActive(false);
+            _howToPlayPanel.SetActive(false);
         }
 
         // ---------------------------------------------------------------- helpers
@@ -133,7 +138,7 @@ namespace DungeonExporer.UI
             buttonsRt.anchorMin = new Vector2(0.5f, 0.18f);
             buttonsRt.anchorMax = new Vector2(0.5f, 0.62f);
             buttonsRt.sizeDelta = new Vector2(MenuTheme.ButtonMinWidth + 40,
-                3 * MenuTheme.ButtonHeight + 2 * MenuTheme.ButtonSpacing);
+                4 * MenuTheme.ButtonHeight + 3 * MenuTheme.ButtonSpacing);
             buttonsRt.anchoredPosition = Vector2.zero;
 
             var vlg = buttonsGo.AddComponent<VerticalLayoutGroup>();
@@ -146,12 +151,176 @@ namespace DungeonExporer.UI
 
             MakeButton("StartButton", buttonsGo.transform, "Start Adventure",
                 MenuTheme.ButtonPrimary, MenuTheme.ButtonPrimaryHover, OnStart);
+            MakeButton("HowToPlayButton", buttonsGo.transform, "How to Play",
+                MenuTheme.ButtonSecondary, MenuTheme.ButtonSecondaryHover, OnOpenHowToPlay);
             MakeButton("OptionsButton", buttonsGo.transform, "Options",
                 MenuTheme.ButtonSecondary, MenuTheme.ButtonSecondaryHover, OnOpenOptions);
             MakeButton("QuitButton", buttonsGo.transform, "Quit",
                 MenuTheme.ButtonDanger, MenuTheme.ButtonDangerHover, OnQuit);
 
             return panel;
+        }
+
+        // ---------------------------------------------------------------- how to play panel
+
+        private GameObject BuildHowToPlayPanel()
+        {
+            var panel = MakeUiObject("HowToPlayPanel", _canvas.transform);
+            var rt = panel.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(860, 780);
+            rt.anchoredPosition = Vector2.zero;
+
+            var bg = panel.AddComponent<Image>();
+            bg.color = MenuTheme.Panel;
+
+            var title = MakeText("HowToPlayTitle", panel.transform, "How to Play",
+                MenuTheme.TitleFontSize * 0.55f, MenuTheme.BodyText, TextAlignmentOptions.Center);
+            var titleRt = title.rectTransform;
+            titleRt.anchorMin = new Vector2(0.5f, 1f);
+            titleRt.anchorMax = new Vector2(0.5f, 1f);
+            titleRt.pivot = new Vector2(0.5f, 1f);
+            titleRt.sizeDelta = new Vector2(760, 72);
+            titleRt.anchoredPosition = new Vector2(0, -24);
+            title.fontStyle = FontStyles.Bold;
+
+            _howToPlayScroll = BuildHowToPlayScrollArea(panel.transform);
+
+            var footer = MakeUiObject("Footer", panel.transform);
+            var footerRt = footer.GetComponent<RectTransform>();
+            footerRt.anchorMin = new Vector2(0, 0);
+            footerRt.anchorMax = new Vector2(1, 0);
+            footerRt.pivot = new Vector2(0.5f, 0);
+            footerRt.sizeDelta = new Vector2(0, 88);
+            footerRt.anchoredPosition = new Vector2(0, 16);
+
+            var footerLe = footer.AddComponent<LayoutElement>();
+            footerLe.minHeight = 88f;
+
+            var footerHlg = footer.AddComponent<HorizontalLayoutGroup>();
+            footerHlg.padding = new RectOffset(
+                (int)MenuTheme.PanelPadding, (int)MenuTheme.PanelPadding, 0, 0);
+            footerHlg.childAlignment = TextAnchor.MiddleCenter;
+            footerHlg.childControlHeight = true;
+            footerHlg.childControlWidth = true;
+            footerHlg.childForceExpandWidth = true;
+
+            MakeButton("HowToPlayBackButton", footer.transform, "Back",
+                MenuTheme.ButtonPrimary, MenuTheme.ButtonPrimaryHover, OnCloseHowToPlay);
+
+            return panel;
+        }
+
+        private ScrollRect BuildHowToPlayScrollArea(Transform parent)
+        {
+            var scrollGo = MakeUiObject("ControlsScroll", parent);
+            var scrollRt = scrollGo.GetComponent<RectTransform>();
+            scrollRt.anchorMin = Vector2.zero;
+            scrollRt.anchorMax = Vector2.one;
+            scrollRt.offsetMin = new Vector2(MenuTheme.PanelPadding + 8f, 120f);
+            scrollRt.offsetMax = new Vector2(-MenuTheme.PanelPadding - 8f, -108f);
+
+            var scrollBg = scrollGo.AddComponent<Image>();
+            scrollBg.color = new Color(0.94f, 0.89f, 0.78f, 1f);
+            scrollBg.raycastTarget = true;
+
+            var scroll = scrollGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+            scroll.inertia = true;
+
+            var viewport = MakeUiObject("Viewport", scrollGo.transform);
+            var viewportRt = viewport.GetComponent<RectTransform>();
+            viewportRt.anchorMin = Vector2.zero;
+            viewportRt.anchorMax = Vector2.one;
+            viewportRt.offsetMin = Vector2.zero;
+            viewportRt.offsetMax = new Vector2(-22f, 0f);
+            viewport.AddComponent<RectMask2D>();
+            var viewportImg = viewport.AddComponent<Image>();
+            viewportImg.color = Color.clear;
+            viewportImg.raycastTarget = true;
+
+            var content = MakeUiObject("Content", viewport.transform);
+            var contentRt = content.GetComponent<RectTransform>();
+            contentRt.anchorMin = new Vector2(0f, 1f);
+            contentRt.anchorMax = new Vector2(1f, 1f);
+            contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.anchoredPosition = Vector2.zero;
+            contentRt.sizeDelta = new Vector2(0f, 800f);
+
+            _howToPlayBody = MakeText("ControlsBody", content.transform, MenuTheme.BuildHowToPlayText(),
+                MenuTheme.BodyFontSize, MenuTheme.BodyText, TextAlignmentOptions.TopLeft);
+            var bodyRt = _howToPlayBody.rectTransform;
+            bodyRt.anchorMin = new Vector2(0f, 1f);
+            bodyRt.anchorMax = new Vector2(1f, 1f);
+            bodyRt.pivot = new Vector2(0.5f, 1f);
+            bodyRt.anchoredPosition = Vector2.zero;
+            bodyRt.sizeDelta = new Vector2(-32f, 0f);
+            _howToPlayBody.textWrappingMode = TextWrappingModes.Normal;
+            _howToPlayBody.lineSpacing = 4f;
+            _howToPlayBody.overflowMode = TextOverflowModes.Overflow;
+            _howToPlayBody.raycastTarget = false;
+
+            Scrollbar scrollbar = BuildVerticalScrollbar(scrollGo.transform);
+
+            scroll.content = contentRt;
+            scroll.viewport = viewportRt;
+            scroll.verticalScrollbar = scrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+            return scroll;
+        }
+
+        private static Scrollbar BuildVerticalScrollbar(Transform parent)
+        {
+            var go = MakeUiObject("Scrollbar", parent);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(1f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(18f, 0f);
+            rt.anchoredPosition = Vector2.zero;
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.62f, 0.52f, 0.38f, 0.45f);
+
+            var slide = MakeUiObject("Sliding Area", go.transform);
+            var slideRt = slide.GetComponent<RectTransform>();
+            slideRt.anchorMin = Vector2.zero;
+            slideRt.anchorMax = Vector2.one;
+            slideRt.offsetMin = new Vector2(3f, 6f);
+            slideRt.offsetMax = new Vector2(-3f, -6f);
+
+            var handle = MakeUiObject("Handle", slide.transform);
+            var handleRt = handle.GetComponent<RectTransform>();
+            handleRt.sizeDelta = new Vector2(0f, 48f);
+            var handleImg = handle.AddComponent<Image>();
+            handleImg.color = MenuTheme.PanelBorder;
+
+            var scrollbar = go.AddComponent<Scrollbar>();
+            scrollbar.handleRect = handleRt;
+            scrollbar.targetGraphic = handleImg;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            return scrollbar;
+        }
+
+        private void RefreshHowToPlayScrollContent()
+        {
+            if (_howToPlayScroll == null || _howToPlayBody == null)
+                return;
+
+            Canvas.ForceUpdateCanvases();
+
+            RectTransform viewport = _howToPlayScroll.viewport;
+            float textWidth = Mathf.Max(120f, viewport.rect.width - 32f);
+            _howToPlayBody.ForceMeshUpdate();
+            Vector2 preferred = _howToPlayBody.GetPreferredValues(_howToPlayBody.text, textWidth, 0f);
+
+            RectTransform contentRt = _howToPlayScroll.content;
+            contentRt.sizeDelta = new Vector2(0f, preferred.y + 28f);
+            _howToPlayScroll.verticalNormalizedPosition = 1f;
         }
 
         // ---------------------------------------------------------------- options panel
@@ -268,6 +437,19 @@ namespace DungeonExporer.UI
             }
 
             SceneManager.LoadScene(startSceneName);
+        }
+
+        private void OnOpenHowToPlay()
+        {
+            _mainPanel.SetActive(false);
+            _howToPlayPanel.SetActive(true);
+            RefreshHowToPlayScrollContent();
+        }
+
+        private void OnCloseHowToPlay()
+        {
+            _howToPlayPanel.SetActive(false);
+            _mainPanel.SetActive(true);
         }
 
         private void OnOpenOptions()

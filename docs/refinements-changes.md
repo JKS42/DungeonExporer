@@ -20,6 +20,24 @@
 
 ---
 
+---
+
+## 2026-06-18 — Fix empty How to Play panel text
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Replaced broken `ScrollRect` layout in How to Play panel with a stretched TMP body block so controls text renders visibly. Follow-up: proper `ScrollRect` + `ContentSizeFitter` so tips section scrolls instead of clipping above the Back button.
+**Why**: Panel opened but content area was blank due to scroll/mask layout.
+**Impact / docs touched**: `MainMenuController.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-18 — Main menu How to Play panel
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added **How to Play** button and scrollable controls panel on the main menu (`MainMenuController`, `MenuTheme.BuildHowToPlayText()`). Updated `docs/setup.md` cross-reference.
+**Why**: Playtest feedback requested in-game tutorial / control reference beyond keybind docs alone.
+**Impact / docs touched**: `MainMenuController.cs`, `MenuTheme.cs`, `docs/setup.md`, `docs/refinements-changes.md`.
+
 ## 2026-06-18 — Console fixes: checkmark font + Ollama abort noise
 **Type**: bug fix
 **AI tool(s)**: Cursor + Auto

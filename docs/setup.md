@@ -117,6 +117,8 @@ Unity invokes the same script at runtime when building Ask Cap / voice prompts. 
 
 ### Controls (keyboard & mouse)
 
+> The same bindings are listed in-game under **Main Menu → How to Play**.
+
 | Action | Binding |
 |--------|---------|
 | Move | WASD |

@@ -50,5 +50,28 @@ namespace DungeonExporer.UI
 
         public const string GameTitle = "Dungeon Exporer";
         public const string GameTagline = "A cosy crawl through whimsical depths";
+
+        public static string BuildHowToPlayText()
+        {
+            return
+                "MOVEMENT\n" +
+                "Move — WASD\n" +
+                "Look — Mouse\n" +
+                "Jump — Space\n" +
+                "Sprint — Left Shift\n" +
+                "Crouch — C\n\n" +
+                "COMBAT & INTERACTION\n" +
+                "Attack — Left click or Enter\n" +
+                "Interact — E (talk to Cap, use prompts)\n" +
+                "Inventory — I\n\n" +
+                "MENUS & SAVE\n" +
+                "Pause — Escape\n" +
+                "Save session — F5\n" +
+                "Load session — F9\n\n" +
+                "TIPS\n" +
+                "Find Cap in a safe room (S) near spawn to accept your first quest.\n" +
+                "Red hazard plates are spike traps — jump over them when you can.\n" +
+                "Install Ollama for AI dialogue and dungeon flavor (optional).";
+        }
     }
 }
