@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using DungeonExporer.Settings;
 using UnityEngine;
 
 namespace DungeonExporer.Gameplay
@@ -27,7 +28,9 @@ namespace DungeonExporer.Gameplay
 
             var sb = new StringBuilder();
             sb.AppendLine("Prior chat:");
-            for (int i = 0; i < list.Count; i++)
+            int maxTurns = LlmPerformanceProfile.MemoryTurnsInPrompt;
+            int start = Mathf.Max(0, list.Count - maxTurns);
+            for (int i = start; i < list.Count; i++)
             {
                 Turn turn = list[i];
                 sb.Append(turn.IsPlayer ? "Player: " : "You: ");

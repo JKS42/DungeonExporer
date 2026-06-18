@@ -151,13 +151,14 @@ namespace DungeonExporer.UI
             vlg.childForceExpandWidth = true;
 
             var title = MakeText("Title", _rootPanel.transform, "Paused",
-                44f, MenuTheme.TitleText, TextAlignmentOptions.Center);
+                MenuTheme.GameTitleFontSize, MenuTheme.GameplayText, TextAlignmentOptions.Center);
+            title.fontStyle = FontStyles.Bold;
             var titleLe = title.gameObject.AddComponent<LayoutElement>();
             titleLe.minHeight = 56f;
             titleLe.preferredHeight = 56f;
 
             var hint = MakeText("Hint", _rootPanel.transform, "Press Escape to resume",
-                MenuTheme.BodyFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Center);
+                MenuTheme.GameBodyFontSize, MenuTheme.GameplayMutedText, TextAlignmentOptions.Center);
             var hintLe = hint.gameObject.AddComponent<LayoutElement>();
             hintLe.minHeight = 28f;
             hintLe.preferredHeight = 28f;
@@ -201,7 +202,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            TmpTextUtility.ApplyReadableDefaults(tmp);
+            TmpTextUtility.ApplyReadableDefaults(tmp, gameplayBlackText: true);
             return tmp;
         }
 
@@ -229,7 +230,7 @@ namespace DungeonExporer.UI
             btn.onClick.AddListener(onClick);
 
             var labelTmp = MakeText("Label", go.transform, label,
-                MenuTheme.ButtonFontSize, MenuTheme.ButtonText, TextAlignmentOptions.Center);
+                MenuTheme.ButtonFontSize, MenuTheme.GameplayText, TextAlignmentOptions.Center);
             StretchToParent(labelTmp.rectTransform);
             labelTmp.fontStyle = FontStyles.Bold;
         }

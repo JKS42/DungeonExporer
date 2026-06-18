@@ -18,9 +18,99 @@
 
 ---
 
----
+## 2026-06-18 — Main Menu Ollama warm-up hardened
+**Type**: enhancement
+**AI tool(s)**: Cursor + Auto
 
----
+**What changed**: `OllamaMenuWarmup` runs on Main Menu `OnEnable`, attaches `OllamaHandler` up front, re-warms when Options change LLM/fast-mode settings, and skips duplicate warm-ups for the same model tag.
+**Why**: User requested AI model warm-up on the main menu; existing warm-up was easy to miss and did not react to settings toggles.
+**Impact / docs touched**: `OllamaMenuWarmup.cs`, `MainMenuController.cs`, `OllamaHandler.cs`, this log.
+**Follow-ups**: None.
+
+## 2026-06-18 — Level1 UI: larger black gameplay text
+**Type**: enhancement (playtest readability)
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `MenuTheme.GameplayText` (black) and larger `Game*` font sizes. HUD, Cap dialogue, pause menu, Ollama setup panel, and corridor signs use black type on cream backdrops with light text shadows/outlines.
+**Why**: Playtest feedback — text hard to read in the 3D dungeon.
+**Impact / docs touched**: `MenuTheme`, `TmpTextUtility`, `GameplayHudController`, `DialoguePanelController`, `PauseMenuController`, `OllamaSetupPanelController`, `DungeonSignPost`, this log.
+**Follow-ups**: None.
+
+## 2026-06-18 — Cap template: full DatingSim port with rich context
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `CharacterPersonalityTemplateManager` is now a `MonoBehaviour` matching DatingSim (instance `RenderCapPersonality` / `GetCapSystemPrompt` + static helpers). `cap_personality.j2` and `cap_context.json` expanded with Cap role, background, mood, relationship, interaction scenario (Ms. Nut–style fields). `OllamaHandler.LoadAndRenderCapTemplate` copies DatingSim's load-from-`Assets/Prompts` + JSON parse flow.
+**Why**: User requested direct copy from DatingSim `OllamaHandler` / `CharacterPersonalityTemplateManager` with Cap's information filled in.
+**Impact / docs touched**: `CharacterPersonalityTemplateManager.cs`, `OllamaHandler.cs`, `Assets/Prompts/`, `Assets/StreamingAssets/Prompts/`, this log.
+**Follow-ups**: Optional `CharacterPersonalityTemplateManager` component on scene for inspector template override.
+
+## 2026-06-18 — setup.md: consolidated game requirements
+**Type**: documentation
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Expanded `docs/setup.md` §1 with player/dev hardware, functional Level1 requirements, and course submission mapping. Removed stale Python/Jinja2-as-required guidance; synced `build-notes`, `deliverables-checklist`, `video-deliverables`, `high-concept`, README.
+**Why**: Single place for assessors and players to see what the game needs to run and what the brief expects.
+**Impact / docs touched**: `docs/setup.md`, `README.md`, `docs/high-concept.md`, `docs/build-notes.md`, `docs/deliverables-checklist.md`, `docs/video-deliverables.md`, this log.
+**Follow-ups**: None.
+
+## 2026-06-18 — Fast AI responses option
+**Type**: enhancement
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Options menu toggle **Fast AI responses** (`GameSettings.LlmFastMode`). When on: uses `gemma3:4b`, lower `num_predict` caps, shorter Cap prompts (2 sentences), and trims chat memory to the last 3 turns.
+**Why**: Cap Ask/voice felt slow on `qwen3:4b` with full prompts and high token limits.
+**Impact / docs touched**: `GameSettings`, `LlmPerformanceProfile`, `OllamaHandler`, dialogue/planners/flavor callers, `MainMenuController`, `docs/setup.md`, `docs/ollama-plan.md`, this log.
+**Follow-ups**: None.
+
+## 2026-06-18 — Ollama request queue (fix HTTP 0 abort storms)
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `OllamaHandler` serializes generate/chat/stream calls through a FIFO queue instead of aborting the previous HTTP request on every new call. Ask Cap `/api/chat` requests jump to the front of the queue. Level trap/content planners wait until the dialogue panel is closed before calling Ollama. Superseded-abort errors (HTTP 0) are still suppressed when dialogue intentionally preempts voice.
+**Why**: Concurrent voice prefetch, Ask Cap, and level planners were cancelling each other, surfacing `Ollama request failed: Request aborted (HTTP 0)` and empty Cap replies.
+**Impact / docs touched**: `OllamaHandler.cs`, `LevelGameplayBootstrap.cs`, this log.
+**Follow-ups**: Optional fast-mode preset (shorter prompts / lower token caps).
+
+## 2026-06-18 — Ask Cap usable while Cap voice loads at game start
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Split `_busy` into `_voiceBusy` / `_askBusy` so Ask Cap stays enabled while Cap's auto voice line fetches. Focus input field on dialogue open. Delay level-load Ollama planners by 4s so Cap chat wins at spawn.
+**Why**: At game start, voice prefetch locked the Ask field; trap/content planners also monopolized Ollama before the player could talk to Cap.
+**Impact / docs touched**: `DialoguePanelController.cs`, `LevelGameplayBootstrap.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-18 — Cap template: DatingSim-style C# renderer (no Python)
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `CharacterPersonalityTemplateManager` (DatingSim pattern) with `Assets/Prompts/cap_personality.j2` + `cap_context.json`. `CapPersonalityPromptBuilder` now uses `{{ field }}` string replacement instead of Python/Jinja2. `OllamaHandler` test UI loads the Cap template like DatingSim (`LoadAndRenderCapTemplate`). Mirrors under `Assets/StreamingAssets/Prompts/`.
+**Why**: User requested DatingSim `OllamaHandler` / `CharacterPersonalityTemplateManager` approach — removes Python dependency and empty-prompt failures in Unity.
+**Impact / docs touched**: `CharacterPersonalityTemplateManager.cs`, `CapPersonalityPromptBuilder.cs`, `OllamaHandler.cs`, `Assets/Prompts/`, `Assets/StreamingAssets/Prompts/`, `docs/refinements-changes.md`.
+
+## 2026-06-18 — Ask Cap: reject player-question echo in extraction
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `ExtractNpcSpokenDialogue` / `ExtractQuotedDialogue` skip segments that match the player's question; system prompt forbids quoting the question back; `ResolveNpcSpokenLine` rejects echo fallthrough.
+**Why**: qwen3 planning text quotes the player line (`"where are the enemies"`) and extraction surfaced it as Cap's reply.
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-18 — Fix Ask Cap: send player question to /api/chat
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Ask Cap now sends `system` = Cap context (Jinja2 or C# fallback) and `user` = the typed player question — previously a failed/empty Jinja render put an empty string in `user`, so Ollama never saw "Hi". Raised `defaultNpcChatMaxTokens` to 160; improved qwen3 planning-text extraction; added Windows `py -3` launcher for Jinja.
+**Why**: Whiskers fallback appeared even when Ollama was running because the model received no real player message and/or returned planning-only text filtered to empty.
+**Impact / docs touched**: `DialoguePanelController.cs`, `OllamaHandler.cs`, `CapPersonalityPromptBuilder.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-18 — Fix Ask Cap reply not showing; main menu title
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `SetLlmExchange` no longer re-strips valid Cap replies; `ResolveNpcSpokenLine` falls back to sanitized raw chat text. `ExtractChatResponseText` reads `message.thinking` when `content` is empty. Main menu title set to **Dungeon Explorer** (`MenuTheme.GameTitle`).
+**Why**: Ask Cap logged Ollama replies in Console but the LLM panel often showed only `You:` because `ExtractNpcSpokenDialogue` was applied multiple times on `/api/chat` output.
+**Impact / docs touched**: `DialoguePanelController.cs`, `OllamaHandler.cs`, `MenuTheme.cs`, `docs/refinements-changes.md`.
 
 ## 2026-06-18 — Compiler warnings: TMP fontFeatures + sign height
 **Type**: refactor

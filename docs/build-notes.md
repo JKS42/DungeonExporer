@@ -11,7 +11,7 @@ The brief asks for a prototype demonstrating **at least one functional LLM-drive
 
 | Feature | Evidence |
 |---|---|
-| LLM NPC dialogue | Level1 → Cap → auto voice + **Ask Cap** (Jinja2 prompt → Ollama) |
+| LLM NPC dialogue | Level1 → Cap → auto voice + **Ask Cap** (C# `cap_personality.j2` → Ollama) |
 | LLM environment flavor | Enter **S** / **E** zones → HUD toast |
 | Health check + setup panel | Start without Ollama → guided continue |
 
@@ -25,9 +25,8 @@ Historical prototype issues (empty responses, planning text in UI) are documente
 The **final build** should be a **stable player executable** (or WebGL if allowed) that includes:
 
 - Level1 gameplay loop (quests, two-way melee combat with hit feedback, save/load)
-- **Main Menu** with **How to Play** and Ollama warm-up
-- Python 3 + Jinja2 on the target machine (Cap prompts) or document graceful degrade
-- Documented Ollama integration (or graceful degrade)
+- **Main Menu** with **How to Play**, Options (LLM toggle, fast mode), and Ollama warm-up
+- Documented Ollama integration (or graceful degrade when LLM is off / Ollama missing)
 - No debug-only blockers (Console errors acceptable only if explained)
 
 ### Export steps (Windows standalone)
@@ -40,7 +39,6 @@ The **final build** should be a **stable player executable** (or WebGL if allowe
 6. Test on a **clean machine** with:
    - `ollama pull qwen3:4b`
    - Ollama service running
-   - `pip install jinja2` and Python on PATH
    - Wait on Main Menu for Ollama warm-up before Level1
 7. Zip `DungeonExporer.exe` + `DungeonExporer_Data` folder
 

@@ -60,7 +60,7 @@ namespace DungeonExporer.UI
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(720f, 420f);
             rt.anchoredPosition = Vector2.zero;
-            _root.GetComponent<Image>().color = new Color(0.06f, 0.05f, 0.09f, 0.94f);
+            _root.GetComponent<Image>().color = MenuTheme.Panel;
             var v = _root.GetComponent<VerticalLayoutGroup>();
             v.padding = new RectOffset(28, 28, 24, 24);
             v.spacing = 14f;
@@ -68,18 +68,21 @@ namespace DungeonExporer.UI
             v.childControlHeight = true;
             v.childControlWidth = true;
 
-            var title = MakeText("Title", _root.transform, "Ollama needs attention", MenuTheme.SubtitleFontSize, MenuTheme.TitleText);
+            var title = MakeText("Title", _root.transform, "Ollama needs attention",
+                MenuTheme.GameTitleFontSize, MenuTheme.GameplayText);
+            title.fontStyle = FontStyles.Bold;
+            title.alignment = TextAlignmentOptions.Center;
             var titleLe = title.gameObject.AddComponent<LayoutElement>();
-            titleLe.minHeight = 40f;
+            titleLe.minHeight = 48f;
 
-            _body = MakeText("Body", _root.transform, string.Empty, MenuTheme.BodyFontSize, MenuTheme.BodyText);
+            _body = MakeText("Body", _root.transform, string.Empty, MenuTheme.GameBodyFontSize, MenuTheme.GameplayText);
             var bodyLe = _body.gameObject.AddComponent<LayoutElement>();
             bodyLe.flexibleHeight = 1f;
             bodyLe.minHeight = 160f;
 
             var hint = MakeText("Hint", _root.transform,
                 "First model load can take 30–60s (cold). After Ollama is healthy, press Continue.",
-                MenuTheme.CaptionFontSize, MenuTheme.SubtitleText);
+                MenuTheme.GameCaptionFontSize, MenuTheme.GameplayMutedText);
             var hintLe = hint.gameObject.AddComponent<LayoutElement>();
             hintLe.minHeight = 56f;
 
@@ -110,7 +113,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = size;
             tmp.color = color;
             tmp.alignment = TextAlignmentOptions.TopLeft;
-            TmpTextUtility.ApplyReadableDefaults(tmp);
+            TmpTextUtility.ApplyReadableDefaults(tmp, gameplayBlackText: true);
             return tmp;
         }
 
@@ -125,7 +128,7 @@ namespace DungeonExporer.UI
             le.flexibleWidth = 1f;
             var btn = go.GetComponent<Button>();
             btn.onClick.AddListener(onClick);
-            var tmp = MakeText("Lbl", go.transform, label, MenuTheme.ButtonFontSize, MenuTheme.ButtonText);
+            var tmp = MakeText("Lbl", go.transform, label, MenuTheme.ButtonFontSize, MenuTheme.GameplayText);
             Stretch(tmp.rectTransform);
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.fontStyle = FontStyles.Bold;

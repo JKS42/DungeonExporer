@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using DungeonExporer.AI;
 using DungeonExporer.Settings;
 using TMPro;
 using UnityEngine;
@@ -24,6 +25,10 @@ public class OllamaHandler : MonoBehaviour
     [Header("Dialogue Output")]
     public string dialogueJsonFileName = "ollama-dialogue.json";
 
+    [Header("Character Personality Template (Cap)")]
+    public string templateFileName = "cap_personality.j2";
+    public string characterContextFileName = "cap_context.json";
+
     [Header("Request Timing")]
     public int requestTimeoutSeconds = 120;
 
@@ -34,8 +39,22 @@ public class OllamaHandler : MonoBehaviour
     public int defaultNonStreamMaxTokens = 256;
     [Tooltip("Max tokens for NPC voice (prefetch + dialogue panel). Keep low for speed.")]
     public int defaultNpcMaxTokens = 80;
+    [Tooltip("Max tokens for Ask Cap /api/chat (qwen3 needs headroom beyond planning text).")]
+    public int defaultNpcChatMaxTokens = 160;
+
+    [Header("Fast mode (Options → Fast AI responses)")]
+    [Tooltip("Model tag used when fast mode is on (should be a small, fast local model).")]
+    public string fastPreferredModel = "gemma3:4b";
+    public int fastNpcMaxTokens = 48;
+    public int fastNpcChatMaxTokens = 80;
+    public int fastStreamMaxTokens = 100;
+    public int fastNonStreamMaxTokens = 128;
+    public int fastFlavorMaxTokens = 40;
+    public int defaultFlavorMaxTokens = 72;
 
     private UnityWebRequest _abortableRequest;
+    private readonly Queue<IEnumerator> _requestQueue = new Queue<IEnumerator>(8);
+    private Coroutine _requestQueueRunner;
 
     [Serializable]
     private class OllamaGenerateResponse
@@ -49,6 +68,7 @@ public class OllamaHandler : MonoBehaviour
     {
         public string role;
         public string content;
+        public string thinking;
     }
 
     [Serializable]
@@ -85,9 +105,12 @@ public class OllamaHandler : MonoBehaviour
         public string model;
     }
 
-    /// <summary>Preferred model tag: settings, tester field, then inspector default.</summary>
+    /// <summary>Preferred model tag: fast-mode override, settings, tester field, then inspector default.</summary>
     public string GetPreferredModelName()
     {
+        if (GameSettings.LlmFastMode && !string.IsNullOrWhiteSpace(fastPreferredModel))
+            return fastPreferredModel.Trim();
+
         string fromSettings = GameSettings.LlmModel;
         if (!string.IsNullOrWhiteSpace(fromSettings))
             return fromSettings.Trim();
@@ -100,6 +123,21 @@ public class OllamaHandler : MonoBehaviour
 
         return "gemma3:4b";
     }
+
+    public int GetEffectiveNpcMaxTokens() =>
+        GameSettings.LlmFastMode ? fastNpcMaxTokens : defaultNpcMaxTokens;
+
+    public int GetEffectiveNpcChatMaxTokens() =>
+        GameSettings.LlmFastMode ? fastNpcChatMaxTokens : defaultNpcChatMaxTokens;
+
+    public int GetEffectiveStreamMaxTokens() =>
+        GameSettings.LlmFastMode ? fastStreamMaxTokens : defaultStreamMaxTokens;
+
+    public int GetEffectiveNonStreamMaxTokens() =>
+        GameSettings.LlmFastMode ? fastNonStreamMaxTokens : defaultNonStreamMaxTokens;
+
+    public int GetEffectiveFlavorMaxTokens() =>
+        GameSettings.LlmFastMode ? fastFlavorMaxTokens : defaultFlavorMaxTokens;
 
     /// <summary>
     /// Resolves <paramref name="preferredModel"/> to an exact tag from <c>GET /api/tags</c> (e.g. <c>qwen3:4b</c>).
@@ -120,6 +158,14 @@ public class OllamaHandler : MonoBehaviour
 
         List<string> installed = ParseInstalledModelNames(tagsBody);
         string match = FindBestMatchingTag(installed, preferred);
+        if (string.IsNullOrEmpty(match)
+            && GameSettings.LlmFastMode
+            && !string.IsNullOrWhiteSpace(fastPreferredModel)
+            && string.Equals(preferred, fastPreferredModel.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            match = FindBestMatchingTag(installed, GameSettings.LlmModel);
+        }
+
         if (!string.IsNullOrEmpty(match))
         {
             onResolved?.Invoke(match);
@@ -351,14 +397,98 @@ public class OllamaHandler : MonoBehaviour
             return;
         }
 
-        StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson: true, updateResponseUiField: true,
-            onSuccess: _ => { },
+        string systemPrompt = LoadAndRenderCapTemplate(prompt);
+        string fullPrompt = string.IsNullOrWhiteSpace(systemPrompt)
+            ? prompt
+            : systemPrompt + "\n\nPlayer: " + prompt;
+
+        StartCoroutine(EnqueueAndRunTestPrompt(model, fullPrompt));
+    }
+
+    private IEnumerator EnqueueAndRunTestPrompt(string model, string fullPrompt)
+    {
+        bool done = false;
+        string error = null;
+        EnqueueOllamaRequest(GenerateCoroutine(model, fullPrompt, saveToDialogueJson: true, updateResponseUiField: true,
+            onSuccess: _ => { done = true; },
             onError: err =>
             {
-                SetOutputText(err);
-                Debug.LogError(err);
+                error = err;
+                done = true;
             },
-            defaultNonStreamMaxTokens));
+            GetEffectiveNonStreamMaxTokens(), disableThinking: true, extractNpcDialogue: true, npcDialogueName: "Cap"));
+
+        while (!done)
+            yield return null;
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            SetOutputText(error);
+            if (!IsSupersededAbortError(error))
+                Debug.LogError(error);
+        }
+    }
+
+    /// <summary>
+    /// Renders Cap's personality template with quest context for the test UI (DatingSim-style).
+    /// </summary>
+    public string LoadAndRenderCapTemplate(string playerMessage = null)
+    {
+        try
+        {
+            string templatePath = Path.Combine(Application.dataPath, "Prompts", templateFileName);
+            string contextPath = Path.Combine(Application.dataPath, "Prompts", characterContextFileName);
+
+            if (!File.Exists(templatePath))
+            {
+                Debug.LogWarning($"Cap template file not found: {templatePath}");
+                return TryLoadCapTemplateFromStreamingAssets(playerMessage);
+            }
+
+            if (!File.Exists(contextPath))
+            {
+                Debug.LogWarning($"Cap context file not found: {contextPath}");
+                return TryLoadCapTemplateFromStreamingAssets(playerMessage);
+            }
+
+            string templateContent = File.ReadAllText(templatePath, Encoding.UTF8);
+            string jsonContent = File.ReadAllText(contextPath, Encoding.UTF8);
+
+            CharacterPersonalityTemplateManager.CapContextData contextData =
+                JsonUtility.FromJson<CharacterPersonalityTemplateManager.CapContextData>(jsonContent);
+            if (contextData == null)
+                contextData = new CharacterPersonalityTemplateManager.CapContextData();
+
+            if (!string.IsNullOrWhiteSpace(playerMessage))
+            {
+                contextData.player_question = playerMessage.Trim();
+                contextData.output_rules =
+                    "Never repeat the player's question. Answer in Cap's own words in 2-3 short cosy sentences. Dialogue only.";
+            }
+
+            return CharacterPersonalityTemplateManager.RenderTemplate(templateContent, contextData);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error loading and rendering Cap template: {ex.Message}");
+            return string.Empty;
+        }
+    }
+
+    private string TryLoadCapTemplateFromStreamingAssets(string playerMessage)
+    {
+        CharacterPersonalityTemplateManager.CapContextData context;
+        if (!CharacterPersonalityTemplateManager.TryLoadDefaultContext(out context, characterContextFileName))
+            context = new CharacterPersonalityTemplateManager.CapContextData();
+
+        if (!string.IsNullOrWhiteSpace(playerMessage))
+        {
+            context.player_question = playerMessage.Trim();
+            context.output_rules =
+                "Never repeat the player's question. Answer in Cap's own words in 2-3 short cosy sentences. Dialogue only.";
+        }
+
+        return CharacterPersonalityTemplateManager.RenderCapPersonality(context, templateFileName);
     }
 
     /// <summary>
@@ -377,8 +507,8 @@ public class OllamaHandler : MonoBehaviour
             return;
         }
 
-        int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultNonStreamMaxTokens;
-        StartCoroutine(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
+        int limit = maxPredictTokens > 0 ? maxPredictTokens : GetEffectiveNonStreamMaxTokens();
+        EnqueueOllamaRequest(GenerateCoroutine(model, prompt, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
             limit, disableThinking, extractNpcDialogue, npcDialogueName, jsonResponse));
     }
 
@@ -395,9 +525,9 @@ public class OllamaHandler : MonoBehaviour
             return;
         }
 
-        int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultNonStreamMaxTokens;
-        StartCoroutine(ChatCoroutine(model, messages, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
-            limit, disableThinking, extractNpcDialogue, npcDialogueName));
+        int limit = maxPredictTokens > 0 ? maxPredictTokens : GetEffectiveNonStreamMaxTokens();
+        EnqueueOllamaRequest(ChatCoroutine(model, messages, saveToDialogueJson, updateResponseUiField, onSuccess, onError,
+            limit, disableThinking, extractNpcDialogue, npcDialogueName), highPriority: true);
     }
 
     /// <summary>
@@ -438,7 +568,8 @@ public class OllamaHandler : MonoBehaviour
 
         if (!string.IsNullOrEmpty(error))
         {
-            onFail?.Invoke(error);
+            if (!IsSupersededAbortError(error))
+                onFail?.Invoke(error);
             yield break;
         }
 
@@ -460,7 +591,7 @@ public class OllamaHandler : MonoBehaviour
             return;
         }
 
-        int limit = maxPredictTokens > 0 ? maxPredictTokens : defaultStreamMaxTokens;
+        int limit = maxPredictTokens > 0 ? maxPredictTokens : GetEffectiveStreamMaxTokens();
         Action<string> wrappedComplete = (response) =>
         {
             if (updateResponseUiField)
@@ -473,11 +604,45 @@ public class OllamaHandler : MonoBehaviour
                 SetOutputText(error);
             onError?.Invoke(error);
         };
-        StartCoroutine(GenerateStreamingCoroutine(model, prompt, onDelta, wrappedComplete, wrappedError,
+        EnqueueOllamaRequest(GenerateStreamingCoroutine(model, prompt, onDelta, wrappedComplete, wrappedError,
             saveToDialogueJson, limit, disableThinking, extractNpcDialogue, npcDialogueName));
     }
 
-    /// <summary>Aborts the in-flight HTTP request (streaming or not). The owning coroutine still runs and disposes the request in its <c>finally</c> block.</summary>
+    private void EnqueueOllamaRequest(IEnumerator routine, bool highPriority = false)
+    {
+        if (routine == null)
+            return;
+
+        if (highPriority && _requestQueue.Count > 0)
+        {
+            var pending = new Queue<IEnumerator>(_requestQueue);
+            _requestQueue.Clear();
+            _requestQueue.Enqueue(routine);
+            while (pending.Count > 0)
+                _requestQueue.Enqueue(pending.Dequeue());
+        }
+        else
+        {
+            _requestQueue.Enqueue(routine);
+        }
+
+        if (_requestQueueRunner == null)
+            _requestQueueRunner = StartCoroutine(RunRequestQueue());
+    }
+
+    private IEnumerator RunRequestQueue()
+    {
+        while (_requestQueue.Count > 0)
+        {
+            IEnumerator next = _requestQueue.Dequeue();
+            if (next != null)
+                yield return next;
+        }
+
+        _requestQueueRunner = null;
+    }
+
+    /// <summary>Aborts the in-flight HTTP request (e.g. dialogue closed or Ask Cap preempts voice).</summary>
     public void AbortActiveRequest()
     {
         if (_abortableRequest == null || _abortableRequest.isDone)
@@ -497,8 +662,6 @@ public class OllamaHandler : MonoBehaviour
         Action<string> onError, bool saveToDialogueJson, int maxPredictTokens, bool disableThinking, bool extractNpcDialogue,
         string npcDialogueName)
     {
-        AbortActiveRequest();
-
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
         string jsonBody = BuildGenerateJsonBody(model, prompt, stream: true, maxPredictTokens, disableThinking);
@@ -601,8 +764,6 @@ public class OllamaHandler : MonoBehaviour
         Action<string> onSuccess, Action<string> onError, int maxPredictTokens, bool disableThinking = false,
         bool extractNpcDialogue = false, string npcDialogueName = null, bool jsonResponse = false)
     {
-        AbortActiveRequest();
-
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/generate";
         string jsonBody = BuildGenerateJsonBody(model, prompt, stream: false, maxPredictTokens, disableThinking, jsonResponse);
@@ -660,8 +821,6 @@ public class OllamaHandler : MonoBehaviour
         bool saveToDialogueJson, bool updateResponseUiField, Action<string> onSuccess, Action<string> onError,
         int maxPredictTokens, bool disableThinking = true, bool extractNpcDialogue = false, string npcDialogueName = null)
     {
-        AbortActiveRequest();
-
         string protocol = ShouldUseHttps() ? "https" : "http";
         string url = $"{protocol}://{ollamaHost}:{ollamaPort}/api/chat";
         string jsonBody = BuildChatJsonBody(model, messages, stream: false, maxPredictTokens, disableThinking);
@@ -721,7 +880,7 @@ public class OllamaHandler : MonoBehaviour
     /// <summary>
     /// Drops qwen-style planning lines (quest labels, "we are writing as…") and keeps spoken NPC dialogue.
     /// </summary>
-    public static string ExtractNpcSpokenDialogue(string text, string npcName = null)
+    public static string ExtractNpcSpokenDialogue(string text, string npcName = null, string excludeEchoOf = null)
     {
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
@@ -729,7 +888,7 @@ public class OllamaHandler : MonoBehaviour
         string original = SanitizeModelOutput(text).Trim();
 
         string fromQuote = ExtractPromptContinuationSpeech(original);
-        if (!string.IsNullOrWhiteSpace(fromQuote))
+        if (!string.IsNullOrWhiteSpace(fromQuote) && !IsPlayerQuestionEcho(fromQuote, excludeEchoOf))
             return fromQuote;
 
         int anchor = FindNpcDialogueStart(original, npcName);
@@ -737,13 +896,18 @@ public class OllamaHandler : MonoBehaviour
         {
             string afterAnchor = CleanupSpokenLine(original.Substring(anchor));
             fromQuote = ExtractPromptContinuationSpeech(afterAnchor) ?? afterAnchor;
-            if (!string.IsNullOrWhiteSpace(fromQuote) && !IsNpcMetaPlanningLine(fromQuote))
+            if (!string.IsNullOrWhiteSpace(fromQuote) && !IsNpcMetaPlanningLine(fromQuote) &&
+                !IsPlayerQuestionEcho(fromQuote, excludeEchoOf))
                 return fromQuote;
         }
 
-        string quoted = ExtractQuotedDialogue(original);
+        string quoted = ExtractQuotedDialogue(original, excludeEchoOf);
         if (!string.IsNullOrWhiteSpace(quoted))
             return quoted;
+
+        string labeled = ExtractLabeledExampleDialogue(original, excludeEchoOf);
+        if (!string.IsNullOrWhiteSpace(labeled))
+            return labeled;
 
         var lines = original.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         var kept = new List<string>(lines.Length);
@@ -758,15 +922,55 @@ public class OllamaHandler : MonoBehaviour
         if (kept.Count > 0)
         {
             string joined = string.Join(" ", kept);
-            if (!IsNpcMetaPlanningLine(joined))
+            if (!IsNpcMetaPlanningLine(joined) && !IsPlayerQuestionEcho(joined, excludeEchoOf))
                 return joined;
         }
 
         string sentences = ExtractInCharacterSentences(original);
-        if (!string.IsNullOrWhiteSpace(sentences))
+        if (!string.IsNullOrWhiteSpace(sentences) && !IsPlayerQuestionEcho(sentences, excludeEchoOf))
             return sentences;
 
         return string.Empty;
+    }
+
+    /// <summary>True when the model echoed the player's question instead of answering.</summary>
+    public static bool IsPlayerQuestionEcho(string candidate, string playerQuestion)
+    {
+        if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(playerQuestion))
+            return false;
+
+        return string.Equals(NormalizeEchoText(candidate), NormalizeEchoText(playerQuestion), StringComparison.Ordinal);
+    }
+
+    private static string NormalizeEchoText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        var sb = new StringBuilder(text.Length);
+        bool lastWasSpace = false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = char.ToLowerInvariant(text[i]);
+            if (char.IsWhiteSpace(c))
+            {
+                if (!lastWasSpace)
+                {
+                    sb.Append(' ');
+                    lastWasSpace = true;
+                }
+
+                continue;
+            }
+
+            if (c is '"' or '\'' or '?' or '!' or '.')
+                continue;
+
+            sb.Append(c);
+            lastWasSpace = false;
+        }
+
+        return sb.ToString().Trim();
     }
 
     /// <summary>True when text looks like model planning rather than spoken NPC lines.</summary>
@@ -812,8 +1016,8 @@ public class OllamaHandler : MonoBehaviour
         return text.Trim().Trim('"').Trim();
     }
 
-    /// <summary>Pulls the last quoted speech segment that is not planning/meta.</summary>
-    private static string ExtractQuotedDialogue(string text)
+    /// <summary>Pulls quoted speech segments that are not planning/meta or player echoes.</summary>
+    private static string ExtractQuotedDialogue(string text, string excludeEchoOf = null)
     {
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
@@ -836,11 +1040,51 @@ public class OllamaHandler : MonoBehaviour
             if (end > start)
             {
                 string segment = CleanupSpokenLine(text.Substring(start, end - start));
-                if (segment.Length >= 8 && !IsNpcMetaPlanningLine(segment))
+                if (segment.Length >= 8 && !IsNpcMetaPlanningLine(segment) &&
+                    !IsPlayerQuestionEcho(segment, excludeEchoOf))
                     best = segment;
             }
 
             i = end + 1;
+        }
+
+        return best;
+    }
+
+    /// <summary>Picks dialogue after qwen-style labels like "Possible response:".</summary>
+    private static string ExtractLabeledExampleDialogue(string text, string excludeEchoOf = null)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        string[] labels =
+        {
+            "possible response:", "example response:", "example of what we want:",
+            "let's think of a response that fits:", "response that fits:"
+        };
+
+        string lower = text.ToLowerInvariant();
+        string best = string.Empty;
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int idx = lower.IndexOf(labels[i], StringComparison.Ordinal);
+            if (idx < 0)
+                continue;
+
+            string tail = text.Substring(idx + labels[i].Length);
+            string quoted = ExtractQuotedDialogue(tail, excludeEchoOf);
+            if (!string.IsNullOrWhiteSpace(quoted))
+                best = quoted;
+            else
+            {
+                string[] parts = tail.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 0)
+                {
+                    string line = CleanupSpokenLine(parts[0]);
+                    if (line.Length >= 8 && !IsNpcMetaPlanningLine(line) && !IsPlayerQuestionEcho(line, excludeEchoOf))
+                        best = line;
+                }
+            }
         }
 
         return best;
@@ -1077,8 +1321,13 @@ public class OllamaHandler : MonoBehaviour
         try
         {
             OllamaChatResponse parsed = JsonUtility.FromJson<OllamaChatResponse>(rawResponse);
-            if (parsed?.message != null && !string.IsNullOrWhiteSpace(parsed.message.content))
-                return parsed.message.content;
+            if (parsed?.message != null)
+            {
+                if (!string.IsNullOrWhiteSpace(parsed.message.content))
+                    return parsed.message.content;
+                if (!string.IsNullOrWhiteSpace(parsed.message.thinking))
+                    return parsed.message.thinking;
+            }
         }
         catch (Exception)
         {
@@ -1088,6 +1337,10 @@ public class OllamaHandler : MonoBehaviour
         string content = TryExtractNestedJsonStringValue(rawResponse, "message", "content");
         if (!string.IsNullOrWhiteSpace(content))
             return content;
+
+        string thinking = TryExtractNestedJsonStringValue(rawResponse, "message", "thinking");
+        if (!string.IsNullOrWhiteSpace(thinking))
+            return thinking;
 
         return ExtractResponseText(rawResponse);
     }

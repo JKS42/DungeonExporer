@@ -33,7 +33,8 @@
 | Room / tile flavor (safe vs encounter) | ~72 (`DungeonFlavorNarrator`) | < 2 s | < 5 s | No (single completion) |
 | Full room prose (future) | 60 | < 1.5 s | < 3 s | Yes |
 | NPC dialogue line | ~80 (`defaultNpcMaxTokens`) | < 2 s | < 4 s | No (prefetch + non-stream) |
-| Reactive NPC Q&A | ~80 | < 2 s | < 5 s | No |
+| Reactive NPC Q&A (Ask Cap `/api/chat`) | ~160 (`defaultNpcChatMaxTokens`) | < 2 s | < 5 s | No |
+| **Fast mode** (Options) | ~48 voice / ~80 chat; `gemma3:4b`; 2-sentence Cap prompts | < 1.5 s | < 3 s | No |
 | Loot / enemy / sign JSON plan | ~240 | < 3 s | < 8 s | No |
 | Item description (on pickup) | 40 | < 1 s | < 2 s | No (cache after first call) |
 | Hint (on player request) | 100 | < 3 s | < 6 s | Yes |

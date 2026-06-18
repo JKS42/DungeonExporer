@@ -61,6 +61,7 @@ namespace DungeonExporer.UI
                 return;
 
             var go = new GameObject("OllamaMenuWarmup");
+            go.AddComponent<OllamaHandler>();
             go.AddComponent<OllamaMenuWarmup>();
         }
 
@@ -390,6 +391,10 @@ namespace DungeonExporer.UI
             MakeToggleRow(content.transform, "AI-driven dialogue (Ollama)",
                 GameSettings.LlmEnabled,
                 v => GameSettings.LlmEnabled = v);
+
+            MakeToggleRow(content.transform, "Fast AI responses",
+                GameSettings.LlmFastMode,
+                v => GameSettings.LlmFastMode = v);
 
             // Footer: Reset + Back buttons.
             var footer = MakeUiObject("Footer", panel.transform);

@@ -14,7 +14,6 @@ namespace DungeonExporer.Dungeon
 
         [SerializeField] private OllamaHandler _ollama;
         [SerializeField] private float _cooldownSeconds = 42f;
-        [SerializeField] private int _maxPredictTokens = 72;
 
         private float _nextAllowedTime;
         private bool _busy;
@@ -73,7 +72,7 @@ namespace DungeonExporer.Dungeon
                 onError: _ => { _busy = false; },
                 saveToDialogueJson: false,
                 updateResponseUiField: false,
-                maxPredictTokens: _maxPredictTokens);
+                maxPredictTokens: _ollama.GetEffectiveFlavorMaxTokens());
         }
     }
 }

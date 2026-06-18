@@ -18,6 +18,10 @@ namespace DungeonExporer.Settings
         private const string KMouseSensitivity = "dx.input.mouseSensitivity";
         private const string KLlmEnabled = "dx.llm.enabled";
         private const string KLlmModel = "dx.llm.model";
+        private const string KLlmFastMode = "dx.llm.fastMode";
+
+        public const string DefaultLlmModel = "qwen3:4b";
+        public const string DefaultFastLlmModel = "gemma3:4b";
 
         public static event Action OnChanged;
 
@@ -65,13 +69,20 @@ namespace DungeonExporer.Settings
 
         public static string LlmModel
         {
-            get => PlayerPrefs.GetString(KLlmModel, "qwen3:4b");
+            get => PlayerPrefs.GetString(KLlmModel, DefaultLlmModel);
             set
             {
-                PlayerPrefs.SetString(KLlmModel, string.IsNullOrWhiteSpace(value) ? "qwen3:4b" : value.Trim());
+                PlayerPrefs.SetString(KLlmModel, string.IsNullOrWhiteSpace(value) ? DefaultLlmModel : value.Trim());
                 PlayerPrefs.Save();
                 OnChanged?.Invoke();
             }
+        }
+
+        /// <summary>Shorter prompts, lower token caps, and <see cref="DefaultFastLlmModel"/> when enabled.</summary>
+        public static bool LlmFastMode
+        {
+            get => PlayerPrefs.GetInt(KLlmFastMode, 0) == 1;
+            set => SetInt(KLlmFastMode, value ? 1 : 0);
         }
 
         /// <summary>Reset every setting to its default. Useful from an Options "Reset" button.</summary>
@@ -85,6 +96,7 @@ namespace DungeonExporer.Settings
             PlayerPrefs.DeleteKey(KMouseSensitivity);
             PlayerPrefs.DeleteKey(KLlmEnabled);
             PlayerPrefs.DeleteKey(KLlmModel);
+            PlayerPrefs.DeleteKey(KLlmFastMode);
             PlayerPrefs.Save();
             OnChanged?.Invoke();
         }

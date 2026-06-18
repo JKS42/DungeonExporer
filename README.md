@@ -25,7 +25,7 @@ ollama pull qwen3:4b
 6. If Ollama is down or the model is missing, an in-game setup panel links to [`docs/setup.md`](docs/setup.md); you can continue without streaming dialogue.
 7. **Save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads. A save auto-loads on level start when that file exists (delete it to reset).
 
-Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
+Full install, **requirements**, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md) (§1 Game requirements).
 
 ## Level1 gameplay (current)
 
@@ -41,7 +41,7 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 | Pause | Escape |
 | Save / load session | **F5** / **F9** |
 
-**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with swing/impact VFX and HUD hit feedback) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions (personality from `prompts/cap_personality.jinja2`); **Another line** for a new Ollama voice; bubble pickups; jump spike traps (striped albedo + emissive pulse). Wait a few seconds on the **Main Menu** so Ollama can warm up before Level1.
+**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with swing/impact VFX and HUD hit feedback) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions; **Another line** for a new Ollama voice; bubble pickups; jump spike traps (striped albedo + emissive pulse). Wait a few seconds on the **Main Menu** so Ollama can warm up before Level1.
 
 ## Documentation
 
@@ -51,7 +51,7 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 | [`AGENTS.md`](AGENTS.md) | Conventions for AI agents working in this repo |
 | [`docs/high-concept.md`](docs/high-concept.md) | Game concept, LLM role, save model, scope |
 | [`docs/ollama-plan.md`](docs/ollama-plan.md) | Model choice, data flow, prompts, risks |
-| [`docs/setup.md`](docs/setup.md) | Install, run, controls, troubleshooting |
+| [`docs/setup.md`](docs/setup.md) | **Requirements**, install, run, controls, troubleshooting |
 | [`docs/prompts-used.md`](docs/prompts-used.md) | Prompt archive (success/failure, iterations) |
 | [`docs/llm-integration-report.md`](docs/llm-integration-report.md) | Integration report (~780 words) |
 | [`docs/ethical-considerations.md`](docs/ethical-considerations.md) | Transparency, licensing, player opt-out |
@@ -77,7 +77,7 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 - [Ollama](https://ollama.com/) — `http://localhost:11434`
 - Default: [`qwen3:4b`](https://ollama.com/library/qwen3)
 - Optional: [`llama3`](https://ollama.com/library/llama3)
-- **Python 3** + **Jinja2** — renders Cap dialogue prompts from [`prompts/cap_personality.jinja2`](prompts/cap_personality.jinja2) at runtime (`pip install jinja2`)
+- **Python 3 + Jinja2** — optional offline only (`prompts/render_cap_prompt.py` legacy); **runtime Cap prompts use C# template replacement** in `Assets/Prompts/`
 
 ### Embedded .NET (SimpleOllamaUnity)
 
@@ -100,7 +100,7 @@ Logged in [`docs/refinements-changes.md`](docs/refinements-changes.md); art prom
 |---|---|
 | **Cursor** + Claude / GPT | Code, docs, debugging |
 | **Ollama** (runtime) | NPC voice, Ask Cap Q&A, flavor toasts, level-load JSON plans |
-| **Python + Jinja2** | Cap personality prompt template (`prompts/render_cap_prompt.py`) |
+| **Cap template (runtime)** | `CharacterPersonalityTemplateManager` + `Assets/Prompts/cap_personality.j2` |
 | **Meshy AI** | Player, Cap, Grumblemite FBX |
 | **Python (Pillow)** | Tileable dungeon wall / floor / spike albedos |
 
@@ -153,7 +153,7 @@ DungeonExporer/
 - [x] Quest system (`QuestManager`) — Cap's drill + Echoes in the dark
 - [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama streaming
 - [x] Two-way melee combat — `PlayerCombat` + `EnemyMeleeAI` (chase, attack) + `CombatHitVfx`
-- [x] **Ask Cap** reactive Q&A (Jinja2 personality → Ollama)
+- [x] **Ask Cap** reactive Q&A (C# personality template → Ollama `/api/chat`)
 - [x] Pickups (bubble + icon), spike hazards (jumpable), flavor narration on **S** / **E**
 - [x] HUD (health, quest, inventory), pause menu, **How to Play** on main menu, session save (F5/F9)
 - [x] Ollama health check + in-game setup panel
@@ -161,9 +161,10 @@ DungeonExporer/
 - [ ] Consolidate Ollama clients (`OllamaHandler` → SimpleOllamaUnity)
 - [ ] Player Adventurer mesh in scene (asset exists under `Art/Characters`)
 - [ ] Rigged enemy animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
-- [ ] Request queue for Ollama (level-load planners are sequential; dialogue still single-flight)
+- [x] Ollama request queue (dialogue + planners serialized; Ask Cap priority)
 - [x] Boot-time Ollama warm-up (Main Menu via `OllamaMenuWarmup`)
-- [x] Level-load trap/content planners run sequentially (reduces load-time HTTP 0 aborts)
+- [x] Level-load trap/content planners defer while Cap dialogue is open
+- [x] Fast AI responses option (Options → `gemma3:4b`, lower token caps)
 - [ ] Full `GameSettings.LlmEnabled` kill-switch at all call sites
 
 ## Credits

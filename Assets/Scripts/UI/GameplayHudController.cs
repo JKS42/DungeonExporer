@@ -183,7 +183,7 @@ namespace DungeonExporer.UI
             topRt.anchorMax = new Vector2(0f, 1f);
             topRt.pivot = new Vector2(0f, 1f);
             topRt.anchoredPosition = new Vector2(28f, -24f);
-            topRt.sizeDelta = new Vector2(520f, 130f);
+            topRt.sizeDelta = new Vector2(560f, 168f);
 
             var vlg = topLeft.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 6f;
@@ -193,10 +193,11 @@ namespace DungeonExporer.UI
             vlg.childForceExpandHeight = false;
             vlg.childForceExpandWidth = true;
 
-            var hpLabel = MakeTmp("HpLabel", topLeft.transform, "Health", MenuTheme.HudSmallFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+            var hpLabel = MakeTmp("HpLabel", topLeft.transform, "Health", MenuTheme.GameHudSmallFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.Left);
             var hpLabelLe = hpLabel.gameObject.AddComponent<LayoutElement>();
-            hpLabelLe.minHeight = 22f;
-            hpLabelLe.preferredHeight = 22f;
+            hpLabelLe.minHeight = 30f;
+            hpLabelLe.preferredHeight = 30f;
 
             var barBg = new GameObject("HealthBarBg", typeof(RectTransform), typeof(Image));
             barBg.transform.SetParent(topLeft.transform, false);
@@ -218,15 +219,16 @@ namespace DungeonExporer.UI
             _healthFillAnchor.offsetMax = new Vector2(-2f, -2f);
             barFill.GetComponent<Image>().color = new Color(0.45f, 0.78f, 0.42f, 1f);
 
-            _healthNumbers = MakeTmp("HealthNumbers", topLeft.transform, "—", MenuTheme.HudFontSize, MenuTheme.BodyText, TextAlignmentOptions.Left);
+            _healthNumbers = MakeTmp("HealthNumbers", topLeft.transform, "—", MenuTheme.GameHudFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.Left);
             var hpNumLe = _healthNumbers.gameObject.AddComponent<LayoutElement>();
-            hpNumLe.minHeight = 26f;
-            hpNumLe.preferredHeight = 26f;
+            hpNumLe.minHeight = 34f;
+            hpNumLe.preferredHeight = 34f;
 
-            _questObjectiveLine = MakeTmp("QuestObjective", topLeft.transform, " ", MenuTheme.HudSmallFontSize, MenuTheme.BodyText,
-                TextAlignmentOptions.TopLeft);
+            _questObjectiveLine = MakeTmp("QuestObjective", topLeft.transform, " ", MenuTheme.GameHudSmallFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.TopLeft);
             var questLe = _questObjectiveLine.gameObject.AddComponent<LayoutElement>();
-            questLe.minHeight = 40f;
+            questLe.minHeight = 52f;
             questLe.flexibleHeight = 1f;
             _questObjectiveLine.textWrappingMode = TextWrappingModes.Normal;
 
@@ -237,8 +239,10 @@ namespace DungeonExporer.UI
             invRt.anchorMax = new Vector2(1f, 1f);
             invRt.pivot = new Vector2(1f, 1f);
             invRt.anchoredPosition = new Vector2(-28f, -24f);
-            invRt.sizeDelta = new Vector2(340f, 360f);
-            _inventoryRoot.GetComponent<Image>().color = new Color(0.08f, 0.06f, 0.12f, 0.78f);
+            invRt.sizeDelta = new Vector2(380f, 400f);
+            var invBg = _inventoryRoot.GetComponent<Image>();
+            invBg.color = Color.clear;
+            invBg.raycastTarget = false;
             var invV = _inventoryRoot.GetComponent<VerticalLayoutGroup>();
             invV.padding = new RectOffset(14, 14, 12, 12);
             invV.spacing = 6f;
@@ -247,19 +251,23 @@ namespace DungeonExporer.UI
             invV.childControlHeight = true;
             invV.childForceExpandWidth = true;
 
-            var invTitle = MakeTmp("InvTitle", _inventoryRoot.transform, "Inventory (I)", MenuTheme.HudFontSize, MenuTheme.TitleText, TextAlignmentOptions.Left);
+            var invTitle = MakeTmp("InvTitle", _inventoryRoot.transform, "Inventory (I)", MenuTheme.GameHudFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.Left);
+            invTitle.fontStyle = FontStyles.Bold;
             var invTitleLe = invTitle.gameObject.AddComponent<LayoutElement>();
-            invTitleLe.minHeight = 28f;
+            invTitleLe.minHeight = 34f;
 
-            _inventoryBody = MakeTmp("InvBody", _inventoryRoot.transform, "(empty)", MenuTheme.HudSmallFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.TopLeft);
+            _inventoryBody = MakeTmp("InvBody", _inventoryRoot.transform, "(empty)", MenuTheme.GameHudSmallFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.TopLeft);
             var invBodyLe = _inventoryBody.gameObject.AddComponent<LayoutElement>();
             invBodyLe.flexibleHeight = 1f;
-            invBodyLe.minHeight = 120f;
+            invBodyLe.minHeight = 140f;
             _inventoryBody.textWrappingMode = TextWrappingModes.Normal;
 
-            var invHint = MakeTmp("InvHint", _inventoryRoot.transform, "Walk over glowing orbs to pick them up.", MenuTheme.CaptionFontSize, MenuTheme.BodyText, TextAlignmentOptions.Left);
+            var invHint = MakeTmp("InvHint", _inventoryRoot.transform, "Walk over glowing orbs to pick them up.",
+                MenuTheme.GameCaptionFontSize, MenuTheme.GameplayMutedText, TextAlignmentOptions.Left);
             var invHintLe = invHint.gameObject.AddComponent<LayoutElement>();
-            invHintLe.minHeight = 40f;
+            invHintLe.minHeight = 48f;
 
             _inventoryRoot.SetActive(false);
             _inventoryVisible = false;
@@ -271,7 +279,8 @@ namespace DungeonExporer.UI
             bottomRt.anchorMax = new Vector2(0.5f, 0f);
             bottomRt.pivot = new Vector2(0.5f, 0f);
             bottomRt.anchoredPosition = new Vector2(0f, 22f);
-            bottomRt.sizeDelta = new Vector2(920f, 120f);
+            bottomRt.sizeDelta = new Vector2(960f, 148f);
+
             var bottomV = bottom.AddComponent<VerticalLayoutGroup>();
             bottomV.spacing = 8f;
             bottomV.childAlignment = TextAnchor.MiddleCenter;
@@ -279,17 +288,17 @@ namespace DungeonExporer.UI
             bottomV.childControlWidth = true;
             bottomV.childForceExpandWidth = true;
 
-            _interactPrompt = MakeTmp("InteractPrompt", bottom.transform, string.Empty, MenuTheme.HudFontSize, MenuTheme.TitleText,
-                TextAlignmentOptions.Center, lightOnDark: true);
+            _interactPrompt = MakeTmp("InteractPrompt", bottom.transform, string.Empty, MenuTheme.GameHudFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.Center);
             var interactLe = _interactPrompt.gameObject.AddComponent<LayoutElement>();
-            interactLe.minHeight = 30f;
+            interactLe.minHeight = 38f;
             _interactPrompt.fontStyle = FontStyles.Bold;
 
-            _flavorToast = MakeTmp("FlavorToast", bottom.transform, string.Empty, MenuTheme.HudSmallFontSize, MenuTheme.SubtitleText,
-                TextAlignmentOptions.Center, lightOnDark: true);
+            _flavorToast = MakeTmp("FlavorToast", bottom.transform, string.Empty, MenuTheme.GameHudSmallFontSize,
+                MenuTheme.GameplayText, TextAlignmentOptions.Center);
             var flavorLe = _flavorToast.gameObject.AddComponent<LayoutElement>();
-            flavorLe.minHeight = 44f;
-            _flavorToast.alpha = 0.92f;
+            flavorLe.minHeight = 52f;
+            _flavorToast.alpha = 1f;
 
             var crosshairGo = new GameObject("MeleeCrosshair", typeof(RectTransform), typeof(Image));
             crosshairGo.transform.SetParent(canvasGo.transform, false);
@@ -304,7 +313,7 @@ namespace DungeonExporer.UI
         }
 
         private static TextMeshProUGUI MakeTmp(string name, Transform parent, string text, float size, Color color,
-            TextAlignmentOptions align, bool lightOnDark = false)
+            TextAlignmentOptions align)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -313,7 +322,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = size;
             tmp.color = color;
             tmp.alignment = align;
-            TmpTextUtility.ApplyReadableDefaults(tmp, lightOnDark);
+            TmpTextUtility.ApplyReadableDefaults(tmp, gameplayBlackText: true);
             return tmp;
         }
 

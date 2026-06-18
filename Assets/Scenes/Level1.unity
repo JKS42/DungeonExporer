@@ -289,6 +289,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &377646461
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 377646462}
+  m_Layer: 0
+  m_Name: Character
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &377646462
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 377646461}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 660.882, y: -187.34993, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &396942278
 GameObject:
   m_ObjectHideFlags: 0
@@ -341,9 +372,20 @@ MonoBehaviour:
   promptInputField: {fileID: 1683976622}
   responseOutputField: {fileID: 1728383869}
   dialogueJsonFileName: ollama-dialogue.json
+  templateFileName: cap_personality.j2
+  characterContextFileName: cap_context.json
   requestTimeoutSeconds: 120
   defaultStreamMaxTokens: 96
   defaultNonStreamMaxTokens: 256
+  defaultNpcMaxTokens: 80
+  defaultNpcChatMaxTokens: 160
+  fastPreferredModel: gemma3:4b
+  fastNpcMaxTokens: 48
+  fastNpcChatMaxTokens: 80
+  fastStreamMaxTokens: 100
+  fastNonStreamMaxTokens: 128
+  fastFlavorMaxTokens: 40
+  defaultFlavorMaxTokens: 72
 --- !u!1 &554397351
 GameObject:
   m_ObjectHideFlags: 0
@@ -1946,6 +1988,15 @@ MonoBehaviour:
   _player: {fileID: 2100000002}
   _inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _dungeon: {fileID: 2100000022}
+  _ollama: {fileID: 0}
+  _useAiTrapPlacement: 1
+  _aiMaxTraps: 12
+  _aiTrapPlanTimeoutSeconds: 8
+  _useAiContentPlacement: 1
+  _aiMaxLoot: 14
+  _aiMaxEnemies: 8
+  _aiMaxSigns: 6
+  _aiContentPlanTimeoutSeconds: 8
   _npcModel: {fileID: 919132149155446097, guid: d2e3f405162738495a6b7c8d9e0f1122, type: 3}
   _npcOffsetFromSpawn: {x: 2.2, y: 0, z: 2.2}
   _npcHeight: 1.65
@@ -1967,6 +2018,11 @@ MonoBehaviour:
   _enemyAlbedo: {fileID: 2800000, guid: d47513b3817d74e45a91a731f03614cd, type: 3}
   _enemyMaxHealth: 45
   _enemyDefeatQuestEventId: defeated_dungeon_foe
+  _enemyAggroRange: 12
+  _enemyAttackRange: 2.4
+  _enemyMoveSpeed: 2.6
+  _enemyDamage: 14
+  _enemyAttackCooldown: 1.1
 --- !u!114 &2100000054
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1981,7 +2037,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.UI.DialoguePanelController
   _ollama: {fileID: 396942281}
   _inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  _typewriterCharsPerSecond: 56
+  _prefetchWaitSeconds: 6
 --- !u!114 &2100000055
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2050,7 +2106,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DungeonExporer.Dungeon.DungeonFlavorNarrator
   _ollama: {fileID: 396942281}
   _cooldownSeconds: 42
-  _maxPredictTokens: 72
 --- !u!114 &2100000060
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2068,6 +2123,9 @@ MonoBehaviour:
   _damage: 22
   _range: 3
   _cooldown: 0.38
+  _hitRadius: 0.85
+  _closeProbeRadiusBonus: 0.45
+  _maxHitAngle: 68
 --- !u!114 &2100000065
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2113,3 +2171,4 @@ SceneRoots:
   - {fileID: 684561091}
   - {fileID: 95113467}
   - {fileID: 30912008}
+  - {fileID: 377646462}
