@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore;
 using UnityEngine.UI;
 
 namespace DungeonExporer.UI
@@ -33,7 +35,7 @@ namespace DungeonExporer.UI
                 tmp.font = _defaultFont;
 
             tmp.textWrappingMode = TextWrappingModes.Normal;
-            tmp.enableKerning = true;
+            tmp.fontFeatures = new List<OTL_FeatureTag> { OTL_FeatureTag.kern };
             tmp.richText = true;
 
             if (tmp is TextMeshProUGUI)

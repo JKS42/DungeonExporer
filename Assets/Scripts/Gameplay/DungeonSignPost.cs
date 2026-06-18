@@ -17,11 +17,14 @@ namespace DungeonExporer.Gameplay
             root.transform.SetParent(parent, false);
             root.transform.position = floorPosition + new Vector3(0f, 0f, 0f);
 
+            var sign = root.AddComponent<DungeonSignPost>();
+            float boardHeight = sign._height;
+
             float postW = Mathf.Max(0.35f, cellSize * 0.22f);
             var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
             board.name = "Board";
             board.transform.SetParent(root.transform, false);
-            board.transform.localPosition = new Vector3(0f, 1.35f, 0f);
+            board.transform.localPosition = new Vector3(0f, boardHeight, 0f);
             board.transform.localScale = new Vector3(postW * 3.2f, postW * 1.6f, 0.08f);
             Object.Destroy(board.GetComponent<Collider>());
 
@@ -54,8 +57,6 @@ namespace DungeonExporer.Gameplay
             tmp.rectTransform.sizeDelta = new Vector2(320f, 96f);
             TmpTextUtility.ApplyReadableDefaults(tmp);
 
-            var sign = root.AddComponent<DungeonSignPost>();
-            sign._height = 1.35f;
             return sign;
         }
 
