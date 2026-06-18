@@ -95,7 +95,8 @@ namespace DungeonExporer.Gameplay
 
             if (!string.IsNullOrEmpty(err))
             {
-                Debug.LogWarning("DungeonContentPlanner: " + err);
+                if (!OllamaHandler.IsSupersededAbortError(err))
+                    Debug.LogWarning("DungeonContentPlanner: " + err);
                 onFallback?.Invoke();
                 yield break;
             }

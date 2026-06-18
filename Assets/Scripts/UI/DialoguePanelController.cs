@@ -782,7 +782,7 @@ namespace DungeonExporer.UI
                     questTitle = def.title;
                 
                 if (_staticBodyText != null)
-                    _staticBodyText.text = $"✓ {questTitle} accepted!\n\nCheck your objectives for details.";
+                    _staticBodyText.text = $"Quest accepted: {questTitle}\n\nCheck your objectives for details.";
                 
                 if (_statusText != null)
                     _statusText.text = string.Empty;

@@ -1295,10 +1295,25 @@ public class OllamaHandler : MonoBehaviour
 
     private static void LogOllamaRequestFailure(string message, long responseCode)
     {
+        if (IsSupersededAbort(responseCode, message))
+            return;
+
         if (responseCode == 404)
             Debug.LogWarning(message);
         else
             Debug.LogError(message);
+    }
+
+    /// <summary>True when a newer Ollama call intentionally replaced this request (HTTP 0 abort).</summary>
+    public static bool IsSupersededAbortError(string errorMessage) =>
+        IsSupersededAbort(0, errorMessage);
+
+    private static bool IsSupersededAbort(long responseCode, string message)
+    {
+        if (responseCode != 0 || string.IsNullOrEmpty(message))
+            return false;
+
+        return message.IndexOf("abort", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     /// <summary>

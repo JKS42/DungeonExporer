@@ -18,6 +18,24 @@
 
 ---
 
+---
+
+## 2026-06-18 — Console fixes: checkmark font + Ollama abort noise
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Replaced Unicode checkmark toggle graphic with an `Image`; quest acceptance text no longer uses ✓. Level-load trap/content Ollama plans now run sequentially. Superseded aborts (HTTP 0) are no longer logged as errors/warnings.
+**Why**: TMP missing ✓ glyph warnings; concurrent Ollama calls aborted each other and spammed the console.
+**Impact / docs touched**: `MainMenuController.cs`, `DialoguePanelController.cs`, `LevelGameplayBootstrap.cs`, `OllamaHandler.cs`, `DungeonTrapPlanner.cs`, `DungeonContentPlanner.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-18 — Fix TMP outline NullReferenceException
+**Type**: bug fix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `TmpTextUtility` no longer sets `outlineWidth` on freshly created TMP objects (which threw in `SetOutlineThickness`). UI text now uses a `Shadow` component for edge contrast instead.
+**Why**: Runtime UI build crashed with `NullReferenceException` when applying readability defaults.
+**Impact / docs touched**: `TmpTextUtility.cs`, `docs/refinements-changes.md`.
+
 ## 2026-06-16 — UI text readability pass
 **Type**: scope-change
 **AI tool(s)**: Cursor + Auto

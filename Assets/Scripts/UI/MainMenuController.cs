@@ -445,17 +445,13 @@ namespace DungeonExporer.UI
 
             var checkmark = MakeUiObject("Checkmark", bg.transform);
             StretchToParent(checkmark.GetComponent<RectTransform>());
-            var checkText = checkmark.AddComponent<TextMeshProUGUI>();
-            checkText.text = "\u2713"; // ✓
-            checkText.fontSize = 30;
-            checkText.fontStyle = FontStyles.Bold;
-            checkText.color = MenuTheme.ButtonSecondary;
-            checkText.alignment = TextAlignmentOptions.Center;
-            checkText.raycastTarget = false;
+            var checkImg = checkmark.AddComponent<Image>();
+            checkImg.color = MenuTheme.ButtonSecondary;
+            checkImg.raycastTarget = false;
 
             var toggle = toggleGo.AddComponent<Toggle>();
             toggle.targetGraphic = bgImg;
-            toggle.graphic = checkText; // Toggle hides this automatically when off.
+            toggle.graphic = checkImg;
             toggle.isOn = initial;
             toggle.onValueChanged.AddListener(v => onChanged(v));
         }

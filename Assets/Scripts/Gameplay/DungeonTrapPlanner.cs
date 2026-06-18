@@ -74,7 +74,8 @@ namespace DungeonExporer.Gameplay
 
             if (!string.IsNullOrEmpty(err))
             {
-                Debug.LogWarning("DungeonTrapPlanner: " + err);
+                if (!OllamaHandler.IsSupersededAbortError(err))
+                    Debug.LogWarning("DungeonTrapPlanner: " + err);
                 onFallback?.Invoke();
                 yield break;
             }

@@ -159,9 +159,44 @@ namespace DungeonExporer.Gameplay
             _lootRoot.SetParent(transform, false);
 
             SpawnNpc(origin, dialogue);
-            BeginTrapPlanPrefetch();
-            BeginContentPlanPrefetch();
+            StartCoroutine(PrefetchAiPlansSequential());
             StartCoroutine(PlaceDungeonWhenReady());
+        }
+
+        private IEnumerator PrefetchAiPlansSequential()
+        {
+            _trapPlanDone = false;
+            _contentPlanDone = false;
+            _cachedTrapPlan = null;
+            _cachedContentPlan = null;
+
+            if (_useAiTrapPlacement && GameSettings.LlmEnabled && _ollama != null && _dungeon != null)
+            {
+                yield return DungeonTrapPlanner.FetchPlanCoroutine(
+                    _ollama,
+                    _dungeon,
+                    _aiMaxTraps,
+                    _minCellsFromSpawn,
+                    plan => { _cachedTrapPlan = plan; },
+                    () => { });
+            }
+
+            _trapPlanDone = true;
+
+            if (_useAiContentPlacement && GameSettings.LlmEnabled && _ollama != null && _dungeon != null)
+            {
+                yield return DungeonContentPlanner.FetchPlanCoroutine(
+                    _ollama,
+                    _dungeon,
+                    _aiMaxLoot,
+                    _aiMaxEnemies,
+                    _aiMaxSigns,
+                    _minCellsFromSpawn,
+                    plan => { _cachedContentPlan = plan; },
+                    () => { });
+            }
+
+            _contentPlanDone = true;
         }
 
         private void EnsurePlayerCombat()
@@ -178,32 +213,6 @@ namespace DungeonExporer.Gameplay
                 camera = Camera.main.transform;
 
             combat.Wire(_inputActions, camera);
-        }
-
-        private void BeginContentPlanPrefetch()
-        {
-            _contentPlanDone = false;
-            _cachedContentPlan = null;
-
-            if (!_useAiContentPlacement || !GameSettings.LlmEnabled || _ollama == null || _dungeon == null)
-            {
-                _contentPlanDone = true;
-                return;
-            }
-
-            StartCoroutine(DungeonContentPlanner.FetchPlanCoroutine(
-                _ollama,
-                _dungeon,
-                _aiMaxLoot,
-                _aiMaxEnemies,
-                _aiMaxSigns,
-                _minCellsFromSpawn,
-                plan =>
-                {
-                    _cachedContentPlan = plan;
-                    _contentPlanDone = true;
-                },
-                () => { _contentPlanDone = true; }));
         }
 
         private IEnumerator PlaceDungeonWhenReady()
@@ -232,30 +241,6 @@ namespace DungeonExporer.Gameplay
 
             if (_cachedTrapPlan != null && !string.IsNullOrWhiteSpace(_cachedTrapPlan.CapNote))
                 DungeonFlavorHudBridge.PublishFlavorToast?.Invoke(_cachedTrapPlan.CapNote.Trim(), 6f);
-        }
-
-        private void BeginTrapPlanPrefetch()
-        {
-            _trapPlanDone = false;
-            _cachedTrapPlan = null;
-
-            if (!_useAiTrapPlacement || !GameSettings.LlmEnabled || _ollama == null || _dungeon == null)
-            {
-                _trapPlanDone = true;
-                return;
-            }
-
-            StartCoroutine(DungeonTrapPlanner.FetchPlanCoroutine(
-                _ollama,
-                _dungeon,
-                _aiMaxTraps,
-                _minCellsFromSpawn,
-                plan =>
-                {
-                    _cachedTrapPlan = plan;
-                    _trapPlanDone = true;
-                },
-                () => { _trapPlanDone = true; }));
         }
 
         private void SpawnNpc(Vector3 spawnFloor, DialoguePanelController dialogue)
