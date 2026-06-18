@@ -40,9 +40,9 @@ What the current build must deliver for playtest and submission:
 | Area | Requirement | Implementation |
 |---|---|---|
 | **Exploration** | First-person movement in a hybrid ASCII maze (`#` walls, `.` corridors, **S** safe hubs, **E** encounter pits). | `DungeonLevelBuilder`, `Level1_Maze.txt` |
-| **Quests** | At least one quest giver with authored objectives; progress tracked and saveable. | **Cap**, `QuestManager`, two quests (drill + Echoes) |
+| **Quests** | Authored main quests + optional AI side quests; progress tracked, completion indicated in HUD, saveable. | **Cap**, `QuestManager`, `AiQuestPlanner`, `QuestWorldEvents` |
 | **Combat** | Melee combat with foes that chase and attack; player attack with feedback. | `PlayerCombat`, `EnemyMeleeAI`, `CombatHitVfx` |
-| **LLM dialogue** | ≥1 functional LLM-driven feature: Cap voice lines + **Ask Cap** reactive Q&A. | `OllamaHandler` (`/api/generate` + `/api/chat`), `DialoguePanelController` |
+| **LLM dialogue** | Cap voice lines on open + **Another line** (no player-typed chat). | `OllamaHandler` (`/api/generate`), `DialoguePanelController` |
 | **LLM flavor** | Environment narration tied to zone type. | `DungeonFlavorNarrator` on **S** / **E** tiles |
 | **LLM planning** | Optional JSON placement hints validated in C# (not authoritative geometry). | `DungeonTrapPlanner`, `DungeonContentPlanner` |
 | **Local inference** | All runtime LLM calls to localhost Ollama only — no cloud API. | `OllamaHandler` → `localhost:11434` |
@@ -51,7 +51,7 @@ What the current build must deliver for playtest and submission:
 | **Persistence** | Session save / load. | **F5** / **F9**, `GameSaveService` |
 | **Transparency** | Setup panel when Ollama or model is missing; link to this guide. | `OllamaFirstRunHealthCheck`, `OllamaSetupPanelController` |
 
-Authoritative game facts (quest titles, briefing, objectives, maze layout, combat rules) stay in **C#** — the LLM adds flavor and dialogue only.
+Authoritative game facts (quest **objective event ids**, maze layout, combat rules) stay in **C#** — the LLM adds flavor, dialogue, and side-quest *wording* only (objectives must match `QuestWorldEvents`).
 
 ### 1.4 Course submission requirements (academic brief)
 
@@ -224,12 +224,12 @@ The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walka
 0. **Main Menu → How to Play** — skim controls before entering Level1.
 1. Find **Cap** (safe **S** room near spawn).
 2. **E** → accept **Cap's corridor drill**; read Cap's auto voice line (Ollama prefetch).
-3. Optional: type a question → **Ask Cap**; **Another line** for a fresh voice roll.
-4. Go to crimson **E** floors; foes **chase and melee** — **left-click** to attack (swing + impact VFX, HUD crosshair pulse on hit) until a **DungeonFoe** dies (~2 hits).
-5. Return to Cap to complete the quest; accept **Echoes in the dark** if offered.
-6. Step onto an **E** encounter tile (trigger volume) for the second quest.
+3. Optional: **Another line** for a fresh Cap voice roll.
+4. Go to crimson **E** floors; foes **chase and melee** — **left-click** to attack until a **DungeonFoe** dies (~2 hits). Confirm **Quest complete: …** toast and objective-line message.
+5. Return to Cap; accept **Echoes in the dark** if offered; step onto an **E** encounter tile for the second quest.
+6. After main quests, talk to Cap again for optional **AI side quests** (pebble pickup, safe-room visit, etc.) if offered.
 7. Walk through bubble pickups; jump narrow spike strips; read corridor **signs**.
-8. **F5** / **F9** save and load; toggle **AI-driven dialogue (Ollama)** in Options to verify canned Cap line when off. Enable **Fast AI responses** if Cap replies feel slow (requires `gemma3:4b`).
+8. **F5** / **F9** save and load (includes dynamic AI quest text); toggle **AI-driven dialogue (Ollama)** in Options to verify canned Cap line when off. Enable **Fast AI responses** if Cap voice feels slow (requires `gemma3:4b`).
 
 ### Ollama tester UI
 
@@ -262,7 +262,7 @@ DungeonExporer/
 │   ├── Scripts/
 │   │   ├── AI/                    # CharacterPersonalityTemplateManager, CapPersonalityPromptBuilder
 │   │   ├── Dungeon/               # DungeonLevelBuilder, flavor, encounters
-│   │   ├── Gameplay/              # Bootstrap, EnemyMeleeAI, quests, save, warm-up
+│   │   ├── Gameplay/              # Bootstrap, AiQuestPlanner, EnemyMeleeAI, quests, save, warm-up
 │   │   ├── Player/                # PlayerCombat, health, inventory
 │   │   ├── Settings/              # GameSettings, LlmPerformanceProfile (fast mode)
 │   │   ├── UI/
@@ -288,9 +288,9 @@ DungeonExporer/
 | Spikes always damage | Not jumping over strip | Traps are narrow; damage only when feet are low (`HazardVolume`). |
 | First LLM call very slow | Cold model | Wait on the Main Menu a few seconds (auto warm-up), enable **Fast AI responses**, or run `ollama run <model>` once before play. |
 | Cap dialogue empty / prompt error | Template missing | Ensure `Assets/Prompts/cap_personality.j2` exists; check Console for `CharacterPersonalityTemplateManager` errors. |
-| Ask Cap field stays greyed out | Stuck voice lock | Pull latest `DialoguePanelController` (`_voiceBusy` / `_askBusy` split). |
-| Cap shows planning text | Reasoning model (qwen3) | Enable **Fast AI responses** (`gemma3:4b`) or rely on `ExtractNpcSpokenDialogue` + echo filter. |
-| Console: `Request aborted HTTP 0` | Ollama contention | Fixed: request queue + planners defer while dialogue open. Retry **Ask Cap** if needed. |
+| Voice line slow or empty | Cold model / queue | Wait for Main Menu warm-up; use **Another line**; enable **Fast AI responses**. |
+| Cap shows planning text | Reasoning model (qwen3) | Enable **Fast AI responses** (`gemma3:4b`) or rely on `ExtractNpcSpokenDialogue`. |
+| Console: `Request aborted HTTP 0` | Ollama contention | Fixed: request queue + planners defer while dialogue open. Close Cap and retry. |
 | TMP missing glyph (e.g. ✓) | Unicode in UI text | Fixed: quest text and toggles use plain text / `Image` graphics instead of ✓. |
 | Compile: Newtonsoft | Missing package | Install `com.unity.nuget.newtonsoft-json` or ignore legacy `OllamaRequester`. |
 

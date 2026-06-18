@@ -20,10 +20,12 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 | Intro (30 s) | Title card or Main Menu | Cosy dungeon slice; Ollama on `localhost:11434` only |
 | Setup (45 s) | Terminal: `ollama list`, optional `curl localhost:11434/api/tags` | Model tag matches `GameSettings.LlmModel` |
 | Warm-up (30 s) | Main Menu → brief pause → Level1 | `OllamaMenuWarmup` reduces cold-start latency |
-| Cap dialogue (90 s) | Walk to Cap → **E** → voice line → **Ask Cap** typed question | C# template `Assets/Prompts/cap_personality.j2`; quest facts in static UI block |
-| Flavor (30 s) | Step on **S** / **E** floor tint | `DungeonFlavorNarrator` HUD toast |
-| Level-load AI (60 s) | Restart level or show Console once | Trap/content JSON planners; C# validates cells; procedural fill on timeout |
-| Opt-out (30 s) | Options → disable **AI-driven dialogue** → Cap again | Canned line; Ask Cap hidden |
+| Cap dialogue (90 s) | Walk to Cap → **E** → auto voice → **Another line** | C# template `Assets/Prompts/cap_personality.j2`; quest facts in static UI block |
+| Side quests (45 s) | Complete main quest → Cap offers AI errand → accept → finish objective | `AiQuestPlanner` JSON → `QuestWorldEvents` validation |
+| Quest complete (20 s) | Defeat foe or enter **E** tile | HUD toast + objective-line banner |
+| Flavor (30 s) | Step on **S** / **E** floor tint | `DungeonFlavorNarrator` → `ExtractFlavorLine` → HUD toast |
+| Level-load AI (60 s) | Restart level or show Console once | Trap/content/side-quest JSON planners; C# validates; procedural fill on timeout |
+| Opt-out (30 s) | Options → disable **AI-driven dialogue** → Cap again | Canned line; **Another line** hidden |
 | Code trace (45 s) | Editor: `OllamaHandler`, `CharacterPersonalityTemplateManager`, `Assets/Prompts/` | Request queue, sanitize output, facts in `QuestManager` |
 | Close (15 s) | Point to `docs/ollama-plan.md`, `docs/prompts-used.md` | Local, optional, documented |
 
@@ -42,9 +44,9 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 | Segment | What to show | Talking points |
 |---|---|---|
 | Hook (30 s) | Main Menu **How to Play** (brief) → spawn in maze, torch lighting | First-person cosy dungeon; hybrid ASCII layout; controls in-game |
-| Meet Cap (60 s) | Safe **S** room, quest accept, optional Ask Cap | LLM adds voice; objectives are reliable C# quests |
+| Meet Cap (60 s) | Safe **S** room, quest accept, voice + **Another line** | LLM adds voice; objectives are reliable C# quests |
 | Combat (90 s) | **E** pit: foe chases → left-click attack (swing + impact VFX, crosshair pulse) → kill | Two-way melee; not LLM-driven |
-| Quest loop (60 s) | Return to Cap → complete drill → **Echoes in the dark** | Save **F5** / load **F9** optional |
+| Quest loop (60 s) | **Quest complete** toast → return to Cap → **Echoes** → optional AI side quest | Save **F5** / load **F9** optional |
 | Hazards & loot (45 s) | Spike jump (striped + emissive marker), bubble pickup, corridor sign | Trap variety from Ollama plan + procedural fill |
 | Tone (30 s) | Flavor toast or sign text | Lighthearted fantasy palette (`MenuTheme`) |
 | Design intent (45 s) | Slide or in-game pause: high-concept bullets | Local LLM for flavor; authority in C# |
@@ -58,7 +60,8 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 
 - [ ] Both videos 3–6 minutes each
 - [ ] Audio explains *what* and *why* (not only silent gameplay)
-- [ ] Cap Ask Cap works (Ollama running; `Assets/Prompts/cap_personality.j2` present)
+- [ ] Cap voice works (Ollama running; `Assets/Prompts/cap_personality.j2` present)
+- [ ] Quest completion toast appears when finishing an objective chain
 - [ ] No unrotated API keys visible in Editor captures
 - [ ] File names match course submission instructions
 

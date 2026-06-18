@@ -11,6 +11,7 @@ namespace DungeonExporer.Gameplay
         public string[] completedQuestIds;
         public SaveQuestProgress[] activeQuests;
         public SaveInventoryStack[] inventory;
+        public SaveQuestDefinition[] dynamicQuestDefinitions;
     }
 
     [Serializable]
@@ -26,5 +27,17 @@ namespace DungeonExporer.Gameplay
         public string id;
         public string displayName;
         public int count;
+    }
+
+    [Serializable]
+    public struct SaveQuestDefinition
+    {
+        public string id;
+        public string title;
+        public string briefing;
+        public string completionSummary;
+        public string prerequisiteQuestIdCompleted;
+        public string[] objectiveEvents;
+        public string[] objectiveHudHints;
     }
 }

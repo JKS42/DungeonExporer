@@ -15,7 +15,7 @@ using UnityEngine.UI;
 namespace DungeonExporer.UI
 {
     /// <summary>
-    /// In-world dialogue: authored quest text plus Ollama lines with a typewriter-style reveal on Ask Cap.
+    /// In-world dialogue: authored quest text plus Ollama voice lines from Cap.
     /// </summary>
     [DefaultExecutionOrder(-20)]
     public sealed class DialoguePanelController : MonoBehaviour
@@ -27,8 +27,6 @@ namespace DungeonExporer.UI
         [SerializeField] private InputActionAsset _inputActions;
         [Tooltip("How long to wait for a proximity prefetch before starting a new Ollama call.")]
         [SerializeField] private float _prefetchWaitSeconds = 6f;
-        [Tooltip("Ask Cap: characters revealed per second after the stream finishes (filtered line).")]
-        [SerializeField] private float _askCapTypewriterCharsPerSecond = 52f;
 
         private const int DialogueCanvasSortOrder = 300;
 
@@ -43,8 +41,6 @@ namespace DungeonExporer.UI
         private RectTransform _llmContentRect;
         private TextMeshProUGUI _statusText;
         private Button _hearButton;
-        private Button _askButton;
-        private TMP_InputField _playerInput;
         private Button _acceptButton;
         private Button _closeButton;
 
@@ -52,14 +48,10 @@ namespace DungeonExporer.UI
         private string _questId = string.Empty;
         private string _npcConversationId = "npc";
         private bool _voiceBusy;
-        private bool _askBusy;
         private int _dialogueGeneration;
         private Coroutine _voiceCoroutine;
         private Coroutine _prefetchCoroutine;
-        private Coroutine _askCoroutine;
         private Coroutine _acceptanceConfirmationCoroutine;
-
-        private const int MaxPlayerQuestionChars = 200;
 
         private readonly List<RaycastResult> _raycastHits = new List<RaycastResult>(8);
         private static int _uiLayer = -1;
@@ -119,19 +111,6 @@ namespace DungeonExporer.UI
                     StopCoroutine(_voiceCoroutine);
                 _voiceCoroutine = StartCoroutine(AutoPresentNpcVoiceRoutine(def));
             }
-
-            FocusAskInput();
-        }
-
-        private void FocusAskInput()
-        {
-            if (!GameSettings.LlmEnabled || _playerInput == null)
-                return;
-
-            _playerInput.Select();
-            _playerInput.ActivateInputField();
-            if (EventSystem.current != null)
-                EventSystem.current.SetSelectedGameObject(_playerInput.gameObject);
         }
 
         /// <summary>Starts Ollama in the background while the player walks toward the NPC.</summary>
@@ -183,12 +162,6 @@ namespace DungeonExporer.UI
                 _acceptanceConfirmationCoroutine = null;
             }
 
-            if (_askCoroutine != null)
-            {
-                StopCoroutine(_askCoroutine);
-                _askCoroutine = null;
-            }
-
             ReleaseDialogueInputLock();
         }
 
@@ -204,27 +177,10 @@ namespace DungeonExporer.UI
             SetHearInteractable(true);
         }
 
-        private void LockAskInputForLlm()
-        {
-            _askBusy = true;
-            SetAskInteractable(false);
-        }
-
-        private void ReleaseAskInputLock()
-        {
-            _askBusy = false;
-            if (GameSettings.LlmEnabled)
-                SetAskInteractable(true);
-            FocusAskInput();
-        }
-
         private void ReleaseDialogueInputLock()
         {
             _voiceBusy = false;
-            _askBusy = false;
             SetHearInteractable(true);
-            if (GameSettings.LlmEnabled)
-                SetAskInteractable(true);
             if (_statusText != null)
                 _statusText.text = string.Empty;
         }
@@ -358,25 +314,12 @@ namespace DungeonExporer.UI
                 bool showHear = hasQuest && (canOffer || active || done) && GameSettings.LlmEnabled;
                 _hearButton.gameObject.SetActive(showHear);
             }
-
-            if (_askButton != null)
-                _askButton.gameObject.SetActive(GameSettings.LlmEnabled);
-            if (_playerInput != null)
-                _playerInput.gameObject.transform.parent.gameObject.SetActive(GameSettings.LlmEnabled);
         }
 
         private void SetHearInteractable(bool interactable)
         {
             if (_hearButton != null)
                 _hearButton.interactable = interactable;
-        }
-
-        private void SetAskInteractable(bool interactable)
-        {
-            if (_askButton != null)
-                _askButton.interactable = interactable;
-            if (_playerInput != null)
-                _playerInput.interactable = interactable;
         }
 
         private void OnHearClicked()
@@ -391,235 +334,6 @@ namespace DungeonExporer.UI
             if (_voiceCoroutine != null)
                 StopCoroutine(_voiceCoroutine);
             _voiceCoroutine = StartCoroutine(RefreshNpcVoiceRoutine(def, key));
-        }
-
-        private void OnAskClicked()
-        {
-            if (!GameSettings.LlmEnabled)
-                return;
-            if (_ollama == null)
-            {
-                if (_statusText != null)
-                    _statusText.text = "Ollama is not available in this scene.";
-                return;
-            }
-            if (_askBusy)
-                return;
-            if (_playerInput == null)
-                return;
-
-            string question = (_playerInput.text ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(question))
-            {
-                if (_statusText != null)
-                    _statusText.text = "Type a question for Cap first.";
-                FocusAskInput();
-                return;
-            }
-            if (question.Length > MaxPlayerQuestionChars)
-                question = question.Substring(0, MaxPlayerQuestionChars);
-
-            _playerInput.text = string.Empty;
-            if (_askCoroutine != null)
-                StopCoroutine(_askCoroutine);
-            _askCoroutine = StartCoroutine(AskCapRoutine(question));
-        }
-
-        private IEnumerator AskCapRoutine(string question)
-        {
-            int gen = _dialogueGeneration;
-            if (!QuestManager.Instance.TryGetDefinition(_questId, out QuestDefinition def))
-                yield break;
-
-            LockAskInputForLlm();
-            _ollama?.AbortActiveRequest();
-            NpcConversationMemory.AppendUserMessage(_npcConversationId, question);
-
-            if (_statusText != null)
-                _statusText.text = "Cap is thinking…";
-
-            try
-            {
-                string spoken = string.Empty;
-                bool displayedAnswer = false;
-                yield return FetchReactiveLineCoroutine(def, question, gen,
-                    reply => spoken = reply,
-                    uiShown => displayedAnswer = uiShown);
-
-                if (gen != _dialogueGeneration)
-                    yield break;
-
-                string answer = !string.IsNullOrWhiteSpace(spoken)
-                    ? spoken
-                    : "Hmm. My whiskers are tangled — try asking that again in a simpler way.";
-
-                Debug.Log($"[Ask Cap] Player: \"{question}\"\n{_displayName}: \"{answer}\"");
-
-                NpcConversationMemory.ReplaceAssistantReply(_npcConversationId, answer);
-
-                if (!displayedAnswer)
-                    yield return TypewriterLlmExchangeCoroutine(question, answer, gen);
-            }
-            finally
-            {
-                if (gen == _dialogueGeneration && IsOpen)
-                    ReleaseAskInputLock();
-                _askCoroutine = null;
-            }
-        }
-
-        private IEnumerator FetchReactiveLineCoroutine(QuestDefinition def, string question, int gen,
-            Action<string> onSpoken, Action<bool> onUiShown = null)
-        {
-            string spoken = string.Empty;
-            onUiShown?.Invoke(false);
-
-            if (_ollama == null)
-            {
-                onSpoken?.Invoke(spoken);
-                yield break;
-            }
-
-            string model = null;
-            string resolveError = null;
-            yield return _ollama.ResolveModelTagCoroutine(_ollama.GetPreferredModelName(),
-                resolved => model = resolved,
-                err => resolveError = err);
-
-            if (gen != _dialogueGeneration)
-            {
-                onSpoken?.Invoke(spoken);
-                yield break;
-            }
-
-            if (string.IsNullOrEmpty(model))
-            {
-                if (_statusText != null && !string.IsNullOrEmpty(resolveError))
-                    _statusText.text = resolveError;
-                onSpoken?.Invoke(spoken);
-                yield break;
-            }
-
-            if (!TryBuildReactiveChatMessages(def, question, out List<(string role, string content)> chatMessages))
-            {
-                if (_statusText != null && IsOpen)
-                    _statusText.text = "Could not build Cap prompt.";
-                onSpoken?.Invoke(string.Empty);
-                yield break;
-            }
-
-            UpdateLlmBodyText("You: " + (question ?? string.Empty).Trim());
-            if (_statusText != null && IsOpen)
-                _statusText.text = "Cap is thinking…";
-
-            bool done = false;
-            string raw = null;
-            string err = null;
-
-            _ollama.RequestChat(model, chatMessages,
-                onSuccess: text => { raw = text; done = true; },
-                onError: e => { err = e; done = true; },
-                saveToDialogueJson: true,
-                updateResponseUiField: false,
-                maxPredictTokens: _ollama.GetEffectiveNpcChatMaxTokens(),
-                disableThinking: true,
-                extractNpcDialogue: true,
-                npcDialogueName: _displayName);
-
-            while (!done && gen == _dialogueGeneration)
-                yield return null;
-
-            if (gen != _dialogueGeneration)
-            {
-                onSpoken?.Invoke(string.Empty);
-                yield break;
-            }
-
-            if (!string.IsNullOrEmpty(err))
-            {
-                Debug.LogWarning($"[Ask Cap] Ollama error for \"{question}\": {err}");
-                if (_statusText != null && IsOpen)
-                    _statusText.text = err;
-            }
-            else if (_statusText != null && IsOpen)
-                _statusText.text = string.Empty;
-
-            spoken = ResolveNpcSpokenLine(raw, question);
-            if (string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(raw))
-                Debug.LogWarning($"[Ask Cap] Ollama returned text but no usable Cap line for \"{question}\". Raw: {raw}");
-
-            if (!string.IsNullOrWhiteSpace(spoken))
-            {
-                yield return TypewriterLlmExchangeCoroutine(question, spoken, gen);
-                onUiShown?.Invoke(true);
-            }
-
-            onSpoken?.Invoke(spoken);
-        }
-
-        private bool TryBuildReactiveChatMessages(QuestDefinition def, string question,
-            out List<(string role, string content)> messages)
-        {
-            messages = null;
-            string trimmedQuestion = (question ?? string.Empty).Trim();
-            if (trimmedQuestion.Length == 0)
-                return false;
-
-            string systemPrompt = BuildReactiveNpcPrompt(def, trimmedQuestion);
-            if (string.IsNullOrWhiteSpace(systemPrompt))
-                systemPrompt = BuildReactiveFallbackSystemPrompt(def);
-            else
-                systemPrompt = StripGenerateCompletionSuffix(systemPrompt);
-
-            if (string.IsNullOrWhiteSpace(systemPrompt))
-                systemPrompt = BuildReactiveFallbackSystemPrompt(def);
-
-            systemPrompt += "\n\nNever repeat or quote the player's question back. Answer in Cap's own words with a helpful in-character reply.";
-
-            messages = new List<(string role, string content)>
-            {
-                ("system", systemPrompt),
-                ("user", trimmedQuestion)
-            };
-            return true;
-        }
-
-        private static string StripGenerateCompletionSuffix(string prompt)
-        {
-            if (string.IsNullOrWhiteSpace(prompt))
-                return string.Empty;
-
-            string trimmed = prompt.TrimEnd();
-            if (trimmed.EndsWith(": \"", StringComparison.Ordinal))
-                return trimmed.Substring(0, trimmed.Length - 3).TrimEnd();
-            if (trimmed.EndsWith(":\u201c", StringComparison.Ordinal))
-                return trimmed.Substring(0, trimmed.Length - 2).TrimEnd();
-            return trimmed;
-        }
-
-        private string BuildReactiveFallbackSystemPrompt(QuestDefinition def)
-        {
-            var sb = new StringBuilder();
-            sb.Append("You are ").Append(_displayName)
-                .Append(", a cosy dungeon guide NPC in a lighthearted fantasy game.\n");
-            sb.Append("Quest: ").Append(def.title).Append(". ").Append(def.briefing).Append('\n');
-
-            if (QuestManager.Instance != null)
-            {
-                string world = QuestManager.Instance.BuildPromptContext();
-                if (!string.IsNullOrWhiteSpace(world))
-                    sb.AppendLine(world.Trim());
-            }
-
-            if (PlayerInventory.Instance != null)
-                sb.AppendLine(PlayerInventory.Instance.BuildSummaryForPrompt());
-
-            string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
-            if (!string.IsNullOrWhiteSpace(memory))
-                sb.AppendLine(memory.Trim());
-
-            sb.AppendLine("Reply with ONLY what you say out loud in 1-3 short cosy sentences. No planning or analysis.");
-            return sb.ToString().TrimEnd();
         }
 
         private IEnumerator AutoPresentNpcVoiceRoutine(QuestDefinition def)
@@ -864,82 +578,6 @@ namespace DungeonExporer.UI
                 completed);
         }
 
-        private string BuildReactiveNpcPrompt(QuestDefinition def, string question)
-        {
-            string world = QuestManager.Instance != null ? QuestManager.Instance.BuildPromptContext() : string.Empty;
-            string inv = PlayerInventory.Instance != null ? PlayerInventory.Instance.BuildSummaryForPrompt() : "Inventory: unknown.";
-            string memory = NpcConversationMemory.BuildPromptBlock(_npcConversationId);
-            bool completed = QuestManager.Instance != null && QuestManager.Instance.IsQuestCompleted(_questId);
-            bool active = QuestManager.Instance != null && QuestManager.Instance.IsQuestActive(_questId);
-
-            return CapPersonalityPromptBuilder.BuildReactivePrompt(
-                _displayName,
-                def.title,
-                def.briefing,
-                world,
-                inv,
-                memory,
-                question,
-                active,
-                completed);
-        }
-
-        private string BuildAskCapExchangePrefix(string question) =>
-            "You: " + (question ?? string.Empty).Trim() + "\n" + _displayName + ": ";
-
-        private IEnumerator TypewriterLlmExchangeCoroutine(string question, string answer, int gen)
-        {
-            yield return TypewriterRevealCoroutine(BuildAskCapExchangePrefix(question), answer ?? string.Empty, gen);
-        }
-
-        private IEnumerator TypewriterRevealCoroutine(string prefix, string body, int gen)
-        {
-            if (_llmBodyText == null)
-                yield break;
-
-            body = body ?? string.Empty;
-            if (body.Length == 0)
-            {
-                UpdateLlmBodyText(prefix.TrimEnd());
-                yield break;
-            }
-
-            float rate = Mathf.Max(12f, _askCapTypewriterCharsPerSecond);
-            UpdateLlmBodyText(prefix);
-            int revealed = 0;
-            float carry = 0f;
-
-            while (revealed < body.Length && gen == _dialogueGeneration && IsOpen)
-            {
-                carry += Time.unscaledDeltaTime * rate;
-                int add = Mathf.FloorToInt(carry);
-                if (add > 0)
-                {
-                    carry -= add;
-                    revealed = Mathf.Min(body.Length, revealed + add);
-                    UpdateLlmBodyText(prefix + body.Substring(0, revealed));
-                }
-
-                yield return null;
-            }
-
-            if (gen == _dialogueGeneration && IsOpen)
-                UpdateLlmBodyText(prefix + body);
-        }
-
-        private string ResolveNpcSpokenLine(string raw, string playerQuestion = null)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-                return string.Empty;
-
-            string spoken = OllamaHandler.ExtractNpcSpokenDialogue(raw, _displayName, playerQuestion);
-            if (!string.IsNullOrWhiteSpace(spoken))
-                return spoken.Trim();
-
-            // Never show raw model output when extraction failed — whiskers fallback handles empty.
-            return string.Empty;
-        }
-
         private void OnAcceptClicked()
         {
             if (QuestManager.Instance == null)
@@ -1084,7 +722,6 @@ namespace DungeonExporer.UI
             llmHintLe.preferredHeight = 28f;
 
             _llmScrollRect = BuildLlmScrollArea(_rootPanel.transform);
-            BuildAskRow(_rootPanel.transform);
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
                 MenuTheme.GameHudSmallFontSize, MenuTheme.GameplayText, TextAlignmentOptions.Center);
@@ -1134,73 +771,6 @@ namespace DungeonExporer.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
-        }
-
-        private void BuildAskRow(Transform parent)
-        {
-            var row = MakeUiObject("AskRow", parent);
-            var rowLe = row.AddComponent<LayoutElement>();
-            rowLe.minHeight = 52f;
-            rowLe.preferredHeight = 52f;
-
-            var hlg = row.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 10f;
-            hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.childControlHeight = true;
-            hlg.childControlWidth = true;
-            hlg.childForceExpandHeight = true;
-            hlg.childForceExpandWidth = false;
-
-            _playerInput = BuildPlayerInput(row.transform);
-            _playerInput.onSubmit.AddListener(_ => OnAskClicked());
-            var inputLe = _playerInput.gameObject.AddComponent<LayoutElement>();
-            inputLe.flexibleWidth = 1f;
-            inputLe.minWidth = 200f;
-
-            _askButton = MakeButton("Ask", row.transform, "Ask Cap",
-                MenuTheme.ButtonPrimary, MenuTheme.ButtonPrimaryHover, OnAskClicked);
-            var askLe = _askButton.gameObject.GetComponent<LayoutElement>();
-            if (askLe != null)
-                askLe.flexibleWidth = 0f;
-        }
-
-        private static TMP_InputField BuildPlayerInput(Transform parent)
-        {
-            var fieldGo = MakeUiObject("PlayerQuestion", parent);
-            var fieldBg = fieldGo.AddComponent<Image>();
-            fieldBg.color = new Color(0.96f, 0.93f, 0.86f, 1f);
-            fieldBg.raycastTarget = true;
-
-            var viewport = MakeUiObject("TextArea", fieldGo.transform);
-            StretchToParent(viewport.GetComponent<RectTransform>());
-            viewport.AddComponent<RectMask2D>();
-
-            var placeholderGo = MakeUiObject("Placeholder", viewport.transform);
-            StretchToParent(placeholderGo.GetComponent<RectTransform>());
-            var placeholder = placeholderGo.AddComponent<TextMeshProUGUI>();
-            placeholder.text = "Ask Cap something…";
-            placeholder.fontSize = MenuTheme.GameBodyFontSize;
-            placeholder.color = MenuTheme.GameplayMutedText;
-            placeholder.alignment = TextAlignmentOptions.MidlineLeft;
-            placeholder.raycastTarget = false;
-            TmpTextUtility.ApplyReadableDefaults(placeholder, gameplayBlackText: true);
-
-            var textGo = MakeUiObject("Text", viewport.transform);
-            StretchToParent(textGo.GetComponent<RectTransform>());
-            var text = textGo.AddComponent<TextMeshProUGUI>();
-            text.fontSize = MenuTheme.GameBodyFontSize;
-            text.color = MenuTheme.GameplayText;
-            TmpTextUtility.ApplyReadableDefaults(text, gameplayBlackText: true);
-            text.alignment = TextAlignmentOptions.MidlineLeft;
-            text.raycastTarget = false;
-
-            var input = fieldGo.AddComponent<TMP_InputField>();
-            input.textViewport = viewport.GetComponent<RectTransform>();
-            input.textComponent = text;
-            input.placeholder = placeholder;
-            input.lineType = TMP_InputField.LineType.SingleLine;
-            input.characterLimit = MaxPlayerQuestionChars;
-            return input;
         }
 
         private ScrollRect BuildLlmScrollArea(Transform parent)

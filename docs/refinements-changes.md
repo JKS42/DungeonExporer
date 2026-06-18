@@ -18,6 +18,40 @@
 
 ---
 
+## 2026-06-18 — Documentation sync (current gameplay)
+**Type**: documentation
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Updated `README.md`, `high-concept.md`, `setup.md`, `ollama-plan.md`, `build-notes.md`, `video-deliverables.md`, `deliverables-checklist.md`, `llm-integration-report.md`, `prompts-used.md`, and `ethical-considerations.md` to match the current build: **Ask Cap removed**, **AI side quests** (`AiQuestPlanner`), **quest completion HUD**, planning-text filters, one-way Cap dialogue (voice + Another line), and `QuestWorldEvents` objective whitelist.
+**Why**: User requested docs reflect recent gameplay changes.
+**Impact / docs touched**: files listed above, this log.
+
+## 2026-06-18 — HUD quest completion feedback
+**Type**: enhancement
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `QuestManager.QuestCompleted` fires when the last objective is met. `GameplayHudController` shows a bottom toast (`Quest complete: …`) and updates the top-left objective line for 8 seconds.
+**Why**: Player had no in-game signal when a quest finished (only a console log).
+**Impact / docs touched**: `QuestManager.cs`, `GameplayHudController.cs`, this log.
+
+## 2026-06-18 — Remove Ask Cap player text input
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Removed the Ask Cap text field and button from `DialoguePanelController`. Cap dialogue is now one-way: auto voice on open and **Another line** only. Reactive Q&A code and typewriter exchange removed.
+**Why**: User requested removal of the feature where the player writes to the AI.
+**Impact / docs touched**: `DialoguePanelController.cs`, `docs/high-concept.md`, `docs/setup.md`, this log.
+**Follow-ups**: `OllamaHandler.RequestChat` remains for potential future use; not called from gameplay UI.
+
+## 2026-06-18 — AI-generated side quests (Cap errands)
+**Type**: feature
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `AiQuestPlanner` asks Ollama for two side quests (`ai_cap_side_a`, `ai_cap_side_b`) with JSON validated in C# (`QuestWorldEvents` whitelist). `QuestManager` registers dynamic quests and persists them in save data. New world events: `collected_pebble`, `collected_trail_ration`, `entered_safe_room`. Cap offers side quests after main chain prerequisites via `NpcInteractable`.
+**Why**: User requested AI-created quests completable in the maze while keeping objective authority in C#.
+**Impact / docs touched**: `AiQuestPlanner.cs`, `QuestWorldEvents.cs`, `QuestManager.cs`, `GameSaveData.cs`, `LevelGameplayBootstrap.cs`, `NpcInteractable.cs`, `WorldPickup.cs`, `DungeonFlavorZone.cs`, `cap_personality.j2`, `docs/high-concept.md`, this log.
+**Follow-ups**: Optional Cap dialogue button to refresh side quests on a new run seed.
+
 ## 2026-06-18 — Documentation sync (match current Ollama + UI stack)
 **Type**: documentation
 **AI tool(s)**: Cursor + Auto

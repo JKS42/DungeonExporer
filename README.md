@@ -41,7 +41,7 @@ Full install, **requirements**, controls, and troubleshooting: [`docs/setup.md`]
 | Pause | Escape |
 | Save / load session | **F5** / **F9** |
 
-**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with swing/impact VFX and HUD hit feedback) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions; **Another line** for a new Ollama voice; enable **Fast AI responses** in Options if replies feel slow (`gemma3:4b`). Bubble pickups; jump spike traps (striped albedo + emissive pulse).
+**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** on crimson **E** floors (chase/melee; **left-click** with swing/impact VFX) → HUD shows **Quest complete** toast → return to Cap → **Echoes in the dark** → optional **AI side quests** after main errands → bubble loot, jump spike traps, read corridor **signs**, flavor toasts on **S**/**E**. Cap dialogue is **one-way**: auto voice on open + **Another line** (no player-typed chat). Enable **Fast AI responses** in Options if voice feels slow (`gemma3:4b`).
 
 ## Documentation
 
@@ -99,7 +99,7 @@ Logged in [`docs/refinements-changes.md`](docs/refinements-changes.md); art prom
 | Tool | Used for |
 |---|---|
 | **Cursor** + Claude / GPT | Code, docs, debugging |
-| **Ollama** (runtime) | NPC voice, Ask Cap Q&A, flavor toasts, level-load JSON plans |
+| **Ollama** (runtime) | NPC voice, flavor toasts, AI side quests, level-load JSON plans |
 | **Cap template (runtime)** | `CharacterPersonalityTemplateManager` + `Assets/Prompts/cap_personality.j2` |
 | **Meshy AI** | Player, Cap, Grumblemite FBX |
 | **Python (Pillow)** | Tileable dungeon wall / floor / spike albedos |
@@ -124,7 +124,7 @@ DungeonExporer/
 │   ├── Scripts/
 │   │   ├── Dungeon/              # Maze build, flavor zones, encounters
 │   │   ├── AI/                   # CharacterPersonalityTemplateManager, CapPersonalityPromptBuilder
-│   │   ├── Gameplay/             # Quests, NPC, EnemyMeleeAI, loot, save, warm-up
+│   │   ├── Gameplay/             # Quests, AiQuestPlanner, NPC, EnemyMeleeAI, loot, save, warm-up
 │   │   ├── Player/               # Movement, PlayerCombat, health, inventory
 │   │   ├── UI/                   # HUD, dialogue, menus, Ollama setup
 │   │   ├── Settings/             # GameSettings, LlmPerformanceProfile
@@ -150,18 +150,17 @@ DungeonExporer/
 
 - [x] First-person movement, jump, crouch, sprint
 - [x] ASCII maze + safe / encounter zones + textured walls / floors
-- [x] Quest system (`QuestManager`) — Cap's drill + Echoes in the dark
-- [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama voice (prefetch + Ask Cap typewriter)
+- [x] Quest system (`QuestManager`) — Cap's drill + Echoes + **AI side quests** (`AiQuestPlanner`); **HUD completion toast**
+- [x] NPC **Cap** (Meshy model) + dialogue UI + Ollama voice (prefetch + **Another line**)
 - [x] Two-way melee combat — `PlayerCombat` + `EnemyMeleeAI` (chase, attack) + `CombatHitVfx`
-- [x] **Ask Cap** reactive Q&A (C# personality template → Ollama `/api/chat`)
 - [x] Pickups (bubble + icon), spike hazards (jumpable), flavor narration on **S** / **E**
-- [x] HUD (health, quest, inventory), pause menu, **How to Play** on main menu, session save (F5/F9)
+- [x] HUD (health, quest objective + completion feedback, inventory), pause menu, **How to Play**, session save (F5/F9)
 - [x] Ollama health check + in-game setup panel
 - [x] Playtest-driven passes: melee hit detection + VFX, trap visibility, maze lighting coverage, UI text readability (`TmpTextUtility`)
 - [ ] Consolidate Ollama clients (`OllamaHandler` → SimpleOllamaUnity)
 - [ ] Player Adventurer mesh in scene (asset exists under `Art/Characters`)
 - [ ] Rigged enemy animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
-- [x] Ollama request queue (dialogue + planners serialized; Ask Cap priority)
+- [x] Ollama request queue (voice + planners serialized)
 - [x] Boot-time Ollama warm-up (Main Menu via `OllamaMenuWarmup`)
 - [x] Level-load trap/content planners defer while Cap dialogue is open
 - [x] Fast AI responses option (Options → `gemma3:4b`, lower token caps)

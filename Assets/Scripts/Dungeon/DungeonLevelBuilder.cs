@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using DungeonExporer.Gameplay;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -780,7 +781,7 @@ namespace DungeonExporer.Dungeon
             box.isTrigger = true;
             box.size = new Vector3(_cellSize * 0.94f, _wallHeight * 0.5f, _cellSize * 0.94f);
             var flavor = go.AddComponent<DungeonFlavorZone>();
-            flavor.Configure(kind);
+            flavor.Configure(kind, kind == DungeonFlavorKind.Safe ? QuestWorldEvents.EnteredSafeRoom : null);
             var rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;

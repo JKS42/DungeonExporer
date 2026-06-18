@@ -58,14 +58,23 @@ namespace DungeonExporer.Gameplay
                 return _followUpQuestId;
             if (QuestManager.Instance.IsQuestActive(_questId))
                 return _questId;
+            if (QuestManager.Instance.TryGetFirstActiveDynamicQuestId(out string activeSide))
+                return activeSide;
+
             if (hasFollow && QuestManager.Instance.CanOfferQuest(_followUpQuestId))
                 return _followUpQuestId;
             if (QuestManager.Instance.CanOfferQuest(_questId))
                 return _questId;
+            if (QuestManager.Instance.TryGetNextOfferableDynamicQuestId(out string offerSide))
+                return offerSide;
+
             if (hasFollow && QuestManager.Instance.IsQuestCompleted(_followUpQuestId))
                 return _followUpQuestId;
             if (QuestManager.Instance.IsQuestCompleted(_questId))
                 return _questId;
+            if (QuestManager.Instance.TryGetFirstCompletedDynamicQuestId(out string doneSide))
+                return doneSide;
+
             return _questId;
         }
 

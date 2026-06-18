@@ -18,21 +18,23 @@
 ### Core loop (current Level1)
 
 1. **Explore** a hybrid maze: narrow **`.`** corridors, large **S** safe rooms, central **E** encounter pits (`Level1_Maze.txt` → `DungeonLevelBuilder`).
-2. **Meet Cap** in the nearest **S** hub to spawn; **E** to interact — accept quests; Cap's voice line appears automatically (prefetched Ollama). Type a question and **Ask Cap** for reactive replies.
+2. **Meet Cap** in the nearest **S** hub to spawn; **E** to interact — accept quests; Cap's voice line appears automatically (prefetched Ollama). **Another line** requests a fresh Cap voice roll.
 3. **Fight** Meshy **DungeonFoe** creatures on **E** tiles (melee, left click, hit VFX + HUD feedback); complete **Cap's corridor drill** (`defeated_dungeon_foe`).
 4. **Survive** spike / ember / slime traps (jumpable, emissive hazard markers; layout partly chosen by Ollama at load, validated in C#), pick up bubble loot (AI-suggested cells with procedural fill), read wooden **signs** in corridors, fight foes on **E** pits (AI placement + fill), and read HUD quest hints and flavor toasts on **S** / **E** zones.
-5. **Return to Cap** for follow-up quest **Echoes in the dark** (stand on any **E** encounter volume).
-6. **Save** session with **F5** / **F9** (`GameSaveService`) — position, quests, inventory.
+5. **Return to Cap** for follow-up quest **Echoes in the dark** (stand on any **E** encounter volume). Optional **AI side quests** appear after prerequisites (`AiQuestPlanner` → validated objectives in `QuestWorldEvents`).
+6. **Save** session with **F5** / **F9** (`GameSaveService`) — position, quests (including dynamic AI quests), inventory.
+
+**Quest feedback:** Completing the last objective shows a **Quest complete** HUD toast and a temporary objective-line message (`QuestManager.QuestCompleted` → `GameplayHudController`).
 
 **Onboarding:** Full scripted tutorial is out of scope for Level1. Controls and tips live on **Main Menu → How to Play** and in [`setup.md`](./setup.md).
 
 ### Win / fail conditions
 
-*To be defined for a full game.* Level1 is a **vertical slice**: two quests, no formal win screen. Player death from spike traps or **DungeonFoe** melee is supported via `PlayerHealth` (fade + respawn at save position when applicable).
+*To be defined for a full game.* Level1 is a **vertical slice**: two authored quests plus up to two **AI side quests**, no formal win screen. Player death from spike traps or **DungeonFoe** melee is supported via `PlayerHealth` (fade + respawn at save position when applicable).
 
 ### Save model (v1)
 
-- **Session save** — `GameSaveService` writes `dungeon_session_save.json` to `Application.persistentDataPath` (player transform, `QuestManager` state, `PlayerInventory`). Auto-load on level start if the file exists; **F5** save, **F9** load.
+- **Session save** — `GameSaveService` writes `dungeon_session_save.json` to `Application.persistentDataPath` (player transform, `QuestManager` state including **dynamic AI quest definitions**, `PlayerInventory`). Auto-load on level start if the file exists; **F5** save, **F9** load.
 - **Roguelite / permadeath** — possible later mode; not implemented.
 
 ### Out of scope (v1)
@@ -44,14 +46,15 @@
 
 ## 2. The role of the LLM
 
-The LLM is woven into gameplay as **flavor, dialogue, and trap placement hints**, with **authoritative quest facts and validation in C#**:
+The LLM is woven into gameplay as **flavor, dialogue, side-quest text, and trap placement hints**, with **authoritative quest objective ids and validation in C#**:
 
 | Use case | Description | Status |
 |---|---|---|
-| NPC dialogue | Prefetched / auto-shown lines at Cap; **Ask Cap** reactive Q&A; quest facts from `QuestManager`. Turn memory via `NpcConversationMemory`. | **In Level1** |
+| NPC dialogue | Prefetched / auto-shown lines at Cap; **Another line** for a fresh voice roll; quest facts from `QuestManager`. | **In Level1** |
 | Trap layout | JSON plan at level load (`DungeonTrapPlanner`); cells validated (`IsTrapEligibleCell`); procedural fill for remainder. | **In Level1** |
 | Loot / enemies / signs | JSON plan at level load (`DungeonContentPlanner`); loot on walkable tiles, foes on **E**, signs on **.** corridors; procedural fill. | **In Level1** |
 | Room / tile flavor | Short lines when entering **S** or **E** volumes (`DungeonFlavorZone` → `DungeonFlavorNarrator` → HUD toast). | **In Level1** |
+| AI side quests | Cap offers 2 optional errands at level load (`AiQuestPlanner` JSON → validated objectives → `QuestManager`). | **In Level1** |
 | Item / lore text | Descriptions on pickup or inspect. | Planned |
 | Hint system | Context-aware hints. | Stretch |
 | AI Director | Pacing / difficulty from play pattern. | Stretch |

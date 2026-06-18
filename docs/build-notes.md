@@ -11,7 +11,8 @@ The brief asks for a prototype demonstrating **at least one functional LLM-drive
 
 | Feature | Evidence |
 |---|---|
-| LLM NPC dialogue | Level1 → Cap → auto voice + **Ask Cap** (C# `cap_personality.j2` → Ollama) |
+| LLM NPC dialogue | Level1 → Cap → auto voice + **Another line** (C# `cap_personality.j2` → Ollama) |
+| LLM AI side quests | Level load → `AiQuestPlanner` → Cap offers optional errands |
 | LLM environment flavor | Enter **S** / **E** zones → HUD toast |
 | Health check + setup panel | Start without Ollama → guided continue |
 
@@ -56,7 +57,7 @@ Tag submission build in README or release notes, e.g. **Final build — 2026-06-
 
 1. Install Ollama + `qwen3:4b`
 2. Run exported `.exe`
-3. Main Menu → brief pause (warm-up) → Level1 → Cap → verify voice line + **Ask Cap**
+3. Main Menu → brief pause (warm-up) → Level1 → Cap → verify voice line + **Another line**; complete a quest and confirm **Quest complete** HUD toast
 4. Toggle LLM off in Options → verify canned line
 
 ## Related docs

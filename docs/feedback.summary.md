@@ -91,4 +91,4 @@ See [`critical.feedback.md`](./critical.feedback.md) for rationale and [`refinem
 | Text readability | `TmpTextUtility`, larger black gameplay fonts, UI shadows/outlines on signs |
 | Lighting | Torch placement rework + coverage pass in `DungeonLevelBuilder` |
 | Tutorial / onboarding | **Main Menu → How to Play** panel (partial); full tutorial deferred |
-| LLM (not raised by reviewers) | C# Cap template, request queue, fast mode, warm-up, Ask Cap UX, planner deferral |
+| LLM (not raised by reviewers) | C# Cap template, request queue, fast mode, warm-up, AI side quests, quest completion HUD, planner deferral; Ask Cap removed |

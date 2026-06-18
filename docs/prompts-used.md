@@ -13,13 +13,13 @@
 **File:** `Assets/Prompts/cap_personality.j2`  
 **Context defaults:** `Assets/Prompts/cap_context.json`  
 **Renderer:** `CharacterPersonalityTemplateManager.RenderCapPersonality` (DatingSim-style `{{ field }}` replacement).  
-**Builder:** `CapPersonalityPromptBuilder` → voice / reactive modes.
+**Builder:** `CapPersonalityPromptBuilder` → voice mode (shipped UI).
 
 Mirrors also under `Assets/StreamingAssets/Prompts/` for standalone builds.
 
 **Legacy (offline only):** [`prompts/cap_personality.jinja2`](../prompts/cap_personality.jinja2) + [`prompts/render_cap_prompt.py`](../prompts/render_cap_prompt.py) — documentation and optional comparison; **not** called at runtime.
 
-**Context variables:** `display_name`, `mode` (`voice` | `reactive`), `quest_title`, `quest_briefing`, `quest_state`, `world_context`, `inventory_summary`, `memory_block`, `player_question` (reactive), `max_sentences`, `situation`, Cap role/background/mood fields from `cap_context.json`.
+**Context variables:** `display_name`, `mode` (`voice` only in shipped UI), `quest_title`, `quest_briefing`, `quest_state`, `world_context`, `inventory_summary`, `memory_block`, `max_sentences`, `situation`, Cap role/background/mood fields from `cap_context.json`.
 
 ---
 
@@ -33,15 +33,15 @@ Mirrors also under `Assets/StreamingAssets/Prompts/` for standalone builds.
 
 ---
 
-### 1.1b Ask Cap — reactive Q&A (`mode: reactive`)
+### 1.1b AI side quests (`AiQuestPlanner`)
 
-**Purpose:** Player-typed questions in the dialogue panel (**Ask Cap**).
+**Purpose:** Two optional Cap errands at level load (`ai_cap_side_a`, `ai_cap_side_b`). Title, briefing, and HUD hints are LLM-written; **objective event ids** must match `QuestWorldEvents` (validated in C#).
 
-**Builder:** `CapPersonalityPromptBuilder.BuildReactivePrompt` → §1.0 with `player_question`.
+**Builder:** `AiQuestPlanner.BuildPrompt()` — JSON schema with fixed quest ids and objective whitelist.
 
-**Memory:** `NpcConversationMemory` stores sanitized Cap turns + player questions (trimmed in fast mode).
+**Fallback:** Procedural side quests register immediately if Ollama is off or JSON fails.
 
-**Model / API:** `OllamaHandler.RequestChat` (merges system + user into one `/api/generate` prompt, high-priority queue). Filtered line typewriter-revealed in UI. Console debug: `[Ask Cap] Player: "…" / Cap: "…"`.
+**Model / API:** Non-streaming `RequestGeneration`, `jsonResponse: true`, `disableThinking: true`, queued after trap/content planners.
 
 ---
 
@@ -64,6 +64,7 @@ No instructions, no quest spoilers, no NPC names, no markdown. Max 26 words.
 
 **Trap plan** (`DungeonTrapPlanner`): maze ASCII block + JSON schema for `spike` / `ember` / `slime` cells.  
 **Content plan** (`DungeonContentPlanner`): `loot`, `enemies`, `signs` arrays.  
+**Side quests** (`AiQuestPlanner`): fixed ids + `QuestWorldEvents` objective whitelist.  
 **Model / API:** `RequestGeneration` with `jsonResponse: true`, validated in C# before spawn.
 
 ---
@@ -76,11 +77,15 @@ Free-form prompts typed in the Level1 test panel. Used for connectivity checks, 
 
 ## 2. Superseded prompts (iterations)
 
-### 2.1 Python Jinja2 Cap renderer (superseded 2026-06-18)
+### 2.3 Ask Cap reactive Q&A (removed 2026-06-18)
+
+Player-typed **Ask Cap** used `CapPersonalityPromptBuilder.BuildReactivePrompt` + `OllamaHandler.RequestChat`. Removed from `DialoguePanelController`; Cap dialogue is one-way (voice + **Another line** only). `RequestChat` remains in `OllamaHandler` for potential future use.
+
+### 2.4 Python Jinja2 Cap renderer (superseded 2026-06-18)
 
 `CapPersonalityPromptBuilder` previously invoked `prompts/render_cap_prompt.py` (real Jinja2 subprocess). Replaced by `CharacterPersonalityTemplateManager` + `Assets/Prompts/cap_personality.j2` so Unity builds need no Python on the player machine.
 
-### 2.2 C#-embedded Cap template (superseded 2026-06-11)
+### 2.5 C#-embedded Cap template (superseded 2026-06-11)
 
 Hard-coded strings in `DialoguePanelController` replaced by external template files. See §1.0.
 
@@ -90,9 +95,8 @@ Hard-coded strings in `DialoguePanelController` replaced by external template fi
 
 | Symptom | Model | Mitigation |
 |---|---|---|
-| Planning text in Ask Cap / flavor | `qwen3:4b` | `ExtractNpcSpokenDialogue`, `ExtractFlavorLine`, `think: false`; enable **Fast AI responses** (`gemma3:4b`) |
+| Planning text in Cap voice / flavor | `qwen3:4b` | `ExtractNpcSpokenDialogue`, `ExtractFlavorLine`, `think: false`; enable **Fast AI responses** (`gemma3:4b`) |
 | Empty Cap line after HTTP 0 | Any | Ollama FIFO queue; planners defer while dialogue open |
-| Player question echoed as Cap reply | `qwen3:4b` | Echo rejection in `ExtractNpcSpokenDialogue` |
-| Invalid trap JSON | Any | `DungeonLevelBuilder.IsTrapEligibleCell` + procedural fill |
+| Invalid trap / side-quest JSON | Any | C# validation + procedural / fallback fill |
 
 See `Assets/DialogueOutput/ollama-dialogue.json` for dated examples.

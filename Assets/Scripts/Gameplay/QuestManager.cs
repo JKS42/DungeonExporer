@@ -28,10 +28,13 @@ namespace DungeonExporer.Gameplay
         public static QuestManager Instance { get; private set; }
 
         public event Action QuestStateChanged;
+        public event Action<QuestDefinition> QuestCompleted;
 
         private readonly Dictionary<string, QuestDefinition> _definitions = new();
         private readonly Dictionary<string, int> _activeObjectiveIndex = new();
         private readonly HashSet<string> _completed = new();
+        private readonly HashSet<string> _dynamicQuestIds = new();
+        private readonly List<string> _dynamicQuestOrder = new();
 
         private static string NormalizeQuestId(string questId) =>
             string.IsNullOrWhiteSpace(questId) ? string.Empty : questId.Trim();
@@ -77,6 +80,81 @@ namespace DungeonExporer.Gameplay
             if (def == null || string.IsNullOrWhiteSpace(def.id))
                 return;
             _definitions[def.id] = def;
+        }
+
+        /// <summary>Registers or replaces an AI side quest (not active/completed). Id must start with <c>ai_</c>.</summary>
+        public bool TryRegisterOrReplaceDynamicQuest(QuestDefinition def)
+        {
+            if (def == null || string.IsNullOrWhiteSpace(def.id))
+                return false;
+
+            string questId = NormalizeQuestId(def.id);
+            if (!questId.StartsWith("ai_", StringComparison.Ordinal))
+                return false;
+
+            if (IsQuestActive(questId) || IsQuestCompleted(questId))
+                return false;
+
+            def.id = questId;
+            Register(def);
+            if (!_dynamicQuestIds.Contains(questId))
+            {
+                _dynamicQuestIds.Add(questId);
+                _dynamicQuestOrder.Add(questId);
+            }
+
+            QuestStateChanged?.Invoke();
+            return true;
+        }
+
+        public bool IsDynamicQuest(string questId) => _dynamicQuestIds.Contains(NormalizeQuestId(questId));
+
+        public bool TryGetFirstActiveDynamicQuestId(out string questId)
+        {
+            questId = null;
+            for (int i = 0; i < _dynamicQuestOrder.Count; i++)
+            {
+                string id = _dynamicQuestOrder[i];
+                if (IsQuestActive(id))
+                {
+                    questId = id;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool TryGetNextOfferableDynamicQuestId(out string questId)
+        {
+            questId = null;
+            for (int i = 0; i < _dynamicQuestOrder.Count; i++)
+            {
+                string id = _dynamicQuestOrder[i];
+                if (CanOfferQuest(id))
+                {
+                    questId = id;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool TryGetFirstCompletedDynamicQuestId(out string questId)
+        {
+            questId = null;
+            for (int i = 0; i < _dynamicQuestOrder.Count; i++)
+            {
+                string id = _dynamicQuestOrder[i];
+                if (IsQuestCompleted(id))
+                {
+                    questId = id;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public bool TryStartQuest(string questId)
@@ -152,7 +230,10 @@ namespace DungeonExporer.Gameplay
                 _activeObjectiveIndex.Remove(q);
                 _completed.Add(q);
                 if (_definitions.TryGetValue(q, out QuestDefinition d))
+                {
                     Debug.Log($"Quest complete: {d.title}");
+                    QuestCompleted?.Invoke(d);
+                }
             }
 
             if (stateChanged)
@@ -228,12 +309,69 @@ namespace DungeonExporer.Gameplay
             }
 
             data.activeQuests = active;
+
+            var dynamic = new List<SaveQuestDefinition>(_dynamicQuestIds.Count);
+            foreach (string id in _dynamicQuestOrder)
+            {
+                if (!_dynamicQuestIds.Contains(id))
+                    continue;
+                if (!_definitions.TryGetValue(id, out QuestDefinition def))
+                    continue;
+                dynamic.Add(ToSaveDefinition(def));
+            }
+
+            data.dynamicQuestDefinitions = dynamic.ToArray();
+        }
+
+        private static SaveQuestDefinition ToSaveDefinition(QuestDefinition def) => new SaveQuestDefinition
+        {
+            id = def.id,
+            title = def.title,
+            briefing = def.briefing,
+            completionSummary = def.completionSummary,
+            prerequisiteQuestIdCompleted = def.prerequisiteQuestIdCompleted,
+            objectiveEvents = def.objectiveEvents,
+            objectiveHudHints = def.objectiveHudHints
+        };
+
+        private void RegisterDynamicFromSave(SaveQuestDefinition saved)
+        {
+            if (string.IsNullOrWhiteSpace(saved.id))
+                return;
+
+            string questId = NormalizeQuestId(saved.id);
+            if (!questId.StartsWith("ai_", StringComparison.Ordinal))
+                return;
+
+            var def = new QuestDefinition
+            {
+                id = questId,
+                title = saved.title,
+                briefing = saved.briefing,
+                completionSummary = saved.completionSummary,
+                prerequisiteQuestIdCompleted = saved.prerequisiteQuestIdCompleted,
+                objectiveEvents = saved.objectiveEvents,
+                objectiveHudHints = saved.objectiveHudHints
+            };
+
+            Register(def);
+            if (!_dynamicQuestIds.Contains(questId))
+            {
+                _dynamicQuestIds.Add(questId);
+                _dynamicQuestOrder.Add(questId);
+            }
         }
 
         public void ApplyFromSave(GameSaveData data)
         {
             if (data == null)
                 return;
+
+            if (data.dynamicQuestDefinitions != null)
+            {
+                for (int i = 0; i < data.dynamicQuestDefinitions.Length; i++)
+                    RegisterDynamicFromSave(data.dynamicQuestDefinitions[i]);
+            }
 
             _completed.Clear();
             if (data.completedQuestIds != null)

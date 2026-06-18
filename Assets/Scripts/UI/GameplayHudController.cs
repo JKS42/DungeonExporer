@@ -31,6 +31,7 @@ namespace DungeonExporer.UI
         private TextMeshProUGUI _interactPrompt;
         private TextMeshProUGUI _flavorToast;
         private Coroutine _flavorCoroutine;
+        private Coroutine _questCompleteLineRoutine;
         private Image _crosshair;
         private Coroutine _hitConfirmRoutine;
 
@@ -100,7 +101,10 @@ namespace DungeonExporer.UI
                 PlayerInventory.Instance.OnChanged += RefreshInventory;
 
             if (QuestManager.Instance != null)
+            {
                 QuestManager.Instance.QuestStateChanged += OnQuestStateChanged;
+                QuestManager.Instance.QuestCompleted += OnQuestCompleted;
+            }
         }
 
         private void Unbind()
@@ -115,10 +119,42 @@ namespace DungeonExporer.UI
                 PlayerInventory.Instance.OnChanged -= RefreshInventory;
 
             if (QuestManager.Instance != null)
+            {
                 QuestManager.Instance.QuestStateChanged -= OnQuestStateChanged;
+                QuestManager.Instance.QuestCompleted -= OnQuestCompleted;
+            }
         }
 
-        private void OnQuestStateChanged() => RefreshQuestObjectiveLine();
+        private void OnQuestStateChanged()
+        {
+            if (_questCompleteLineRoutine != null)
+                return;
+            RefreshQuestObjectiveLine();
+        }
+
+        private void OnQuestCompleted(QuestDefinition def)
+        {
+            if (def == null)
+                return;
+
+            string title = string.IsNullOrWhiteSpace(def.title) ? "Quest" : def.title.Trim();
+            ShowFlavorToastInternal("Quest complete: " + title, 6.5f);
+
+            if (_questObjectiveLine == null)
+                return;
+
+            if (_questCompleteLineRoutine != null)
+                StopCoroutine(_questCompleteLineRoutine);
+            _questCompleteLineRoutine = StartCoroutine(QuestCompleteLineRoutine(title));
+        }
+
+        private IEnumerator QuestCompleteLineRoutine(string title)
+        {
+            _questObjectiveLine.text = "Complete: " + title + " — visit Cap when you can.";
+            yield return new WaitForSecondsRealtime(8f);
+            _questCompleteLineRoutine = null;
+            RefreshQuestObjectiveLine();
+        }
 
         private void OnHealthChanged(float current, float max) => RefreshHealthBar(current, max);
 

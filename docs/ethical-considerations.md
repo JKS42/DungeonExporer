@@ -10,7 +10,8 @@
 | Feature | AI? | Player-visible? |
 |---|---|---|
 | Quest titles, objectives, rewards | **No** — authored in `QuestManager` | Yes (HUD / dialogue panel) |
-| NPC voice + **Ask Cap** lines | **Yes** — Ollama (prompt from `Assets/Prompts/cap_personality.j2`) | Dialogue panel shows LLM block; quest facts are authored separately |
+| NPC voice lines | **Yes** — Ollama (prompt from `Assets/Prompts/cap_personality.j2`) | Dialogue panel LLM block; quest facts are authored separately |
+| AI side quest text | **Yes** — Ollama JSON (`AiQuestPlanner`); objectives validated in C# | Cap dialogue when offered; HUD uses C# hints |
 | Safe / encounter floor toasts | **Yes** — Ollama | Short HUD flavor line; no label (ambient) |
 | Level layout, combat AI, pickup effects | **No** | Foe chase/melee and player attacks are C#; LLM may suggest *where* foes/loot/signs spawn |
 | 3D characters (Cap, foes) | **Generated asset** (Meshy) | Visual only; not runtime LLM |
@@ -33,7 +34,7 @@
 2. **Controls:** **Main Menu → How to Play** lists bindings and tips without requiring LLM features.
 3. **Options:** **AI-driven dialogue (Ollama)** (`GameSettings.LlmEnabled`) and **Fast AI responses** (`GameSettings.LlmFastMode`). When LLM is off:
    - Opening Cap shows an authored canned line (no network call).
-   - **Ask Cap** and **Another line** are hidden; zone flavor and Ollama planners are skipped.
+   - **Another line** is hidden; zone flavor and Ollama planners are skipped (fallback side quests still register).
 4. **Quest clarity:** Objectives and acceptance do not depend on model output; players are not penalized for disabling AI.
 
 **Recommendation for showcase video:** Mention that dialogue is optional and local.

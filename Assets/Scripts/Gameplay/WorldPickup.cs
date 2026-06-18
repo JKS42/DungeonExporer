@@ -35,6 +35,8 @@ namespace DungeonExporer.Gameplay
             if (PlayerInventory.Instance != null && !string.IsNullOrWhiteSpace(_itemId))
                 PlayerInventory.Instance.TryAdd(_itemId, _displayName, _count);
 
+            QuestWorldEvents.NotifyPickup(_itemId);
+
             if (_healAmount > 0f && PlayerHealth.Instance != null)
                 PlayerHealth.Instance.Heal(_healAmount);
 

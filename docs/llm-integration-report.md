@@ -17,9 +17,9 @@ We chose Ollama over cloud APIs for four reasons aligned with the project brief:
 
 ### 2.2 Client architecture
 
-Gameplay uses `OllamaHandler` (`Assets/Scripts/OllamaHandler.cs`) with UnityWebRequest. Shipped paths call **`/api/generate`** (non-streaming for voice, flavor, planners, and Ask Cap — `RequestChat` merges system + user into one generate prompt). A FIFO **request queue** serializes calls; Ask Cap requests are **high priority**. Optional NDJSON streaming remains on the scene test UI and in `RequestChatStreaming` for future use. **SimpleOllamaUnity** is included for future consolidation but is not the primary path.
+Gameplay uses `OllamaHandler` (`Assets/Scripts/OllamaHandler.cs`) with UnityWebRequest. Shipped paths call **`/api/generate`** (non-streaming for voice, flavor, planners, and AI side quests). A FIFO **request queue** serializes calls. Optional NDJSON streaming remains on the Level1 test UI only. **SimpleOllamaUnity** is included for future consolidation but is not the primary path.
 
-Reasoning models may leak planning text; we send **`think: false`** where supported, sanitize outputs (`SanitizeModelOutput`, `ExtractNpcSpokenDialogue`, `ExtractFlavorLine`), and typewriter-reveal only the filtered Ask Cap line. Dialogue close aborts in-flight voice via generation guards.
+Reasoning models may leak planning text; we send **`think: false`** where supported and sanitize outputs (`SanitizeModelOutput`, `ExtractNpcSpokenDialogue`, `ExtractFlavorLine`). Dialogue close aborts in-flight voice via generation guards.
 
 ### 2.3 Authoritative game state vs. stateless LLM
 
@@ -41,22 +41,22 @@ Quest acceptance, objectives, trap **validation**, and rewards are **never** par
 
 Six LLM touchpoints ship in Level1:
 
-1. **NPC dialogue** — Prefetch while approaching Cap; panel shows **instant authored fallback**, then Ollama voice when ready. **Another line** re-rolls; **Ask Cap** accepts typed questions with memory. Cap prompts from `Assets/Prompts/cap_personality.j2` via `CharacterPersonalityTemplateManager` (no Python at runtime).
-2. **Environmental flavor** — `DungeonFlavorZone` → `DungeonFlavorNarrator` → HUD toast on safe/encounter tiles.
-3. **Trap layout** — `DungeonTrapPlanner` JSON at level load; cells validated in C#; procedural fill on timeout.
-4. **Loot scatter** — `DungeonContentPlanner` JSON `loot` entries; procedural fill.
-5. **Enemy placement** — same plan’s `enemies` on **E** tiles; procedural fill.
-6. **Sign text** — same plan’s `signs` on corridor cells (`DungeonSignPost`).
+1. **NPC dialogue** — Prefetch while approaching Cap; panel shows **instant authored fallback**, then Ollama voice when ready. **Another line** re-rolls. Cap prompts from `Assets/Prompts/cap_personality.j2` via `CharacterPersonalityTemplateManager` (no Python at runtime). **No player-typed chat** in the shipped UI.
+2. **Environmental flavor** — `DungeonFlavorZone` → `DungeonFlavorNarrator` → `ExtractFlavorLine` → HUD toast on safe/encounter tiles.
+3. **AI side quests** — `AiQuestPlanner` JSON at level load; objectives validated against `QuestWorldEvents`; Cap offers via `QuestManager` dynamic registration.
+4. **Trap layout** — `DungeonTrapPlanner` JSON at level load; cells validated in C#; procedural fill on timeout.
+5. **Loot / enemies / signs** — `DungeonContentPlanner` JSON; procedural fill.
+6. **Quest completion feedback** — C# only: `QuestManager.QuestCompleted` → HUD toast (not LLM-generated).
 
-Planners wait **4 seconds** after spawn and **until the dialogue panel closes** so Cap chat wins at level start. Dialogue and flavor respect `NarrationUiGate`.
+Planners wait **4 seconds** after spawn and **until the dialogue panel closes** so Cap voice wins at level start. Dialogue and flavor respect `NarrationUiGate`.
 
-Options expose **`GameSettings.LlmEnabled`** and **`GameSettings.LlmFastMode`**. When LLM is off, Cap shows a canned line, Ask Cap / Another line hide, and planners skip Ollama.
+Options expose **`GameSettings.LlmEnabled`** and **`GameSettings.LlmFastMode`**. When LLM is off, Cap shows a canned line, **Another line** hides, and Ollama planners skip (fallback side quests still register).
 
 ## 4. Performance considerations
 
 - **Main Menu warm-up** (`OllamaMenuWarmup`) — 8-token completion; re-warms on Options changes.
 - **Proximity prefetch** for NPC voice (`NpcDialogueCache`).
-- **Request queue** — prevents HTTP 0 abort storms between voice, Ask Cap, and planners.
+- **Request queue** — prevents HTTP 0 abort storms between voice and planners.
 - **Fast mode** — `gemma3:4b`, lower caps, 2-sentence Cap prompts.
 - **Token caps** bound worst-case latency; work on coroutines.
 
@@ -83,7 +83,7 @@ Changes are logged in `docs/refinements-changes.md`. Prompt experiments in `docs
 
 External playtesting (see [`feedback.summary.md`](./feedback.summary.md)) focused on **gameplay clarity** (combat, traps, text, lighting), not the LLM directly — supporting our non-blocking design.
 
-Post-playtest work included: C# Cap template (DatingSim port), planning-text filters, Ollama request queue, fast mode, main-menu warm-up, Ask Cap UX (`_voiceBusy` / `_askBusy` split), and gameplay readability (`TmpTextUtility`, How to Play). Details in [`critical.feedback.md`](./critical.feedback.md).
+Post-playtest work included: C# Cap template (DatingSim port), planning-text filters, Ollama request queue, fast mode, main-menu warm-up, **AI side quests** (`AiQuestPlanner`), removal of player-typed Ask Cap, **quest completion HUD**, and gameplay readability (`TmpTextUtility`, How to Play). Details in [`critical.feedback.md`](./critical.feedback.md).
 
 ## 8. Conclusion
 

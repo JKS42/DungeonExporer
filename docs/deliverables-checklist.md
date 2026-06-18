@@ -30,7 +30,7 @@ Use this page when submitting the project. Items marked **you** must be produced
 
 | Requirement | Status | Notes |
 |---|---|---|
-| Prototype with ≥1 LLM feature | Done in repo | **Level1** — Cap voice + **Ask Cap** (C# template → Ollama), zone flavor, trap/content JSON plans |
+| Prototype with ≥1 LLM feature | Done in repo | **Level1** — Cap voice, zone flavor, AI side quests, trap/content JSON plans |
 | Final build (stable, refined) | **You** export | See [`build-notes.md`](./build-notes.md) |
 
 **How to produce a build:** Unity → **File → Build Settings** → add `Level1` (and `MainMenu` if used) → **Build**. Test on a machine with Ollama + `qwen3:4b` pulled.
@@ -80,7 +80,7 @@ Suggested capture: OBS / Xbox Game Bar; show Task Manager or `ollama list` brief
 - [ ] Replace *your name* in [`README.md`](../README.md) Credits.
 - [ ] Confirm `ollama pull qwen3:4b` on demo PC; match `GameSettings.LlmModel` / `OllamaHandler` default model.
 - [ ] Optional: `ollama pull gemma3:4b` if demoing **Fast AI responses**.
-- [ ] Playtest two-way combat (foe chase, hit VFX) + spike trap visibility + Ask Cap before recording showcase video.
+- [ ] Playtest two-way combat (foe chase, hit VFX) + spike trap visibility + Cap voice + quest completion toast before recording showcase video.
 - [ ] Record both videos using [`video-deliverables.md`](./video-deliverables.md).
 - [ ] Export Windows (or target) build per [`build-notes.md`](./build-notes.md).
 - [ ] Zip repo or submit Git link + build + videos per course instructions.

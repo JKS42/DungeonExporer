@@ -37,6 +37,11 @@ namespace DungeonExporer.Gameplay
         [SerializeField] private int _aiMaxSigns = 6;
         [SerializeField] private float _aiContentPlanTimeoutSeconds = 8f;
 
+        [Header("AI side quests")]
+        [Tooltip("When enabled and Ollama is available, Cap's model writes optional side quests (objectives validated in C#).")]
+        [SerializeField] private bool _useAiQuestGeneration = true;
+        [SerializeField] private float _aiQuestPlanTimeoutSeconds = 8f;
+
         [Header("NPC")]
         [Tooltip("Meshy Cap model (FBX under Assets/Models). Auto-assigned in the editor from GameplayModelPaths.NpcCapFbx.")]
         [SerializeField] private GameObject _npcModel;
@@ -82,6 +87,7 @@ namespace DungeonExporer.Gameplay
         private bool _trapPlanDone;
         private DungeonContentPlan _cachedContentPlan;
         private bool _contentPlanDone;
+        private bool _questPlanDone;
 
         private void Awake()
         {
@@ -159,6 +165,8 @@ namespace DungeonExporer.Gameplay
             _lootRoot.SetParent(transform, false);
 
             SpawnNpc(origin, dialogue);
+            if (QuestManager.Instance != null)
+                AiQuestPlanner.RegisterFallbackQuests(QuestManager.Instance);
             StartCoroutine(PrefetchAiPlansSequential());
             StartCoroutine(PlaceDungeonWhenReady());
         }
@@ -170,6 +178,7 @@ namespace DungeonExporer.Gameplay
 
             _trapPlanDone = false;
             _contentPlanDone = false;
+            _questPlanDone = false;
             _cachedTrapPlan = null;
             _cachedContentPlan = null;
 
@@ -202,6 +211,18 @@ namespace DungeonExporer.Gameplay
             }
 
             _contentPlanDone = true;
+
+            if (_useAiQuestGeneration && GameSettings.LlmEnabled && _ollama != null && QuestManager.Instance != null)
+            {
+                yield return WaitUntilDialogueClosed();
+                yield return AiQuestPlanner.FetchQuestsCoroutine(
+                    _ollama,
+                    QuestManager.Instance,
+                    _ => { },
+                    () => { });
+            }
+
+            _questPlanDone = true;
         }
 
         private static IEnumerator WaitUntilDialogueClosed()
