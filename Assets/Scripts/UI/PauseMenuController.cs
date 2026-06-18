@@ -120,9 +120,7 @@ namespace DungeonExporer.UI
             _canvas.sortingOrder = 200;
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            TmpTextUtility.ConfigureCanvasScaler(scaler);
 
             var dim = MakeUiObject("Dim", _canvas.transform);
             StretchToParent(dim.GetComponent<RectTransform>());
@@ -203,7 +201,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
+            TmpTextUtility.ApplyReadableDefaults(tmp);
             return tmp;
         }
 

@@ -70,9 +70,7 @@ namespace DungeonExporer.UI
             _canvas.sortingOrder = 10;
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            TmpTextUtility.ConfigureCanvasScaler(scaler);
 
             // EventSystem is required for Buttons to receive clicks.
             if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
@@ -326,7 +324,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
+            TmpTextUtility.ApplyReadableDefaults(tmp);
             return tmp;
         }
 

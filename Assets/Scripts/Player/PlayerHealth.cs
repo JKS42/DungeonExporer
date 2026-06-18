@@ -171,8 +171,7 @@ namespace DungeonExporer.Player
             canvas.sortingOrder = 500;
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
+            TmpTextUtility.ConfigureCanvasScaler(scaler);
 
             var dim = new GameObject("Fade", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(CanvasGroup));
             dim.transform.SetParent(canvasGo.transform, false);

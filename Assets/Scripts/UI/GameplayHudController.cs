@@ -31,6 +31,8 @@ namespace DungeonExporer.UI
         private TextMeshProUGUI _interactPrompt;
         private TextMeshProUGUI _flavorToast;
         private Coroutine _flavorCoroutine;
+        private Image _crosshair;
+        private Coroutine _hitConfirmRoutine;
 
         private void Awake()
         {
@@ -67,6 +69,13 @@ namespace DungeonExporer.UI
             if (Instance == null)
                 return;
             Instance.ShowFlavorToastInternal(message, secondsVisible);
+        }
+
+        public static void FlashMeleeHitConfirm()
+        {
+            if (Instance == null)
+                return;
+            Instance.FlashMeleeHitConfirmInternal();
         }
 
         private void Update()
@@ -165,9 +174,7 @@ namespace DungeonExporer.UI
             _canvas.sortingOrder = _canvasSortOrder;
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            TmpTextUtility.ConfigureCanvasScaler(scaler);
 
             var topLeft = new GameObject("TopLeft", typeof(RectTransform));
             topLeft.transform.SetParent(canvasGo.transform, false);
@@ -186,7 +193,7 @@ namespace DungeonExporer.UI
             vlg.childForceExpandHeight = false;
             vlg.childForceExpandWidth = true;
 
-            var hpLabel = MakeTmp("HpLabel", topLeft.transform, "Health", 20f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+            var hpLabel = MakeTmp("HpLabel", topLeft.transform, "Health", MenuTheme.HudSmallFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
             var hpLabelLe = hpLabel.gameObject.AddComponent<LayoutElement>();
             hpLabelLe.minHeight = 22f;
             hpLabelLe.preferredHeight = 22f;
@@ -211,12 +218,12 @@ namespace DungeonExporer.UI
             _healthFillAnchor.offsetMax = new Vector2(-2f, -2f);
             barFill.GetComponent<Image>().color = new Color(0.45f, 0.78f, 0.42f, 1f);
 
-            _healthNumbers = MakeTmp("HealthNumbers", topLeft.transform, "—", 22f, MenuTheme.BodyText, TextAlignmentOptions.Left);
+            _healthNumbers = MakeTmp("HealthNumbers", topLeft.transform, "—", MenuTheme.HudFontSize, MenuTheme.BodyText, TextAlignmentOptions.Left);
             var hpNumLe = _healthNumbers.gameObject.AddComponent<LayoutElement>();
             hpNumLe.minHeight = 26f;
             hpNumLe.preferredHeight = 26f;
 
-            _questObjectiveLine = MakeTmp("QuestObjective", topLeft.transform, " ", 18f, MenuTheme.BodyText,
+            _questObjectiveLine = MakeTmp("QuestObjective", topLeft.transform, " ", MenuTheme.HudSmallFontSize, MenuTheme.BodyText,
                 TextAlignmentOptions.TopLeft);
             var questLe = _questObjectiveLine.gameObject.AddComponent<LayoutElement>();
             questLe.minHeight = 40f;
@@ -240,17 +247,17 @@ namespace DungeonExporer.UI
             invV.childControlHeight = true;
             invV.childForceExpandWidth = true;
 
-            var invTitle = MakeTmp("InvTitle", _inventoryRoot.transform, "Inventory (I)", 22f, MenuTheme.TitleText, TextAlignmentOptions.Left);
+            var invTitle = MakeTmp("InvTitle", _inventoryRoot.transform, "Inventory (I)", MenuTheme.HudFontSize, MenuTheme.TitleText, TextAlignmentOptions.Left);
             var invTitleLe = invTitle.gameObject.AddComponent<LayoutElement>();
             invTitleLe.minHeight = 28f;
 
-            _inventoryBody = MakeTmp("InvBody", _inventoryRoot.transform, "(empty)", 20f, MenuTheme.SubtitleText, TextAlignmentOptions.TopLeft);
+            _inventoryBody = MakeTmp("InvBody", _inventoryRoot.transform, "(empty)", MenuTheme.HudSmallFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.TopLeft);
             var invBodyLe = _inventoryBody.gameObject.AddComponent<LayoutElement>();
             invBodyLe.flexibleHeight = 1f;
             invBodyLe.minHeight = 120f;
             _inventoryBody.textWrappingMode = TextWrappingModes.Normal;
 
-            var invHint = MakeTmp("InvHint", _inventoryRoot.transform, "Walk over glowing orbs to pick them up.", 16f, MenuTheme.BodyText, TextAlignmentOptions.Left);
+            var invHint = MakeTmp("InvHint", _inventoryRoot.transform, "Walk over glowing orbs to pick them up.", MenuTheme.CaptionFontSize, MenuTheme.BodyText, TextAlignmentOptions.Left);
             var invHintLe = invHint.gameObject.AddComponent<LayoutElement>();
             invHintLe.minHeight = 40f;
 
@@ -272,21 +279,32 @@ namespace DungeonExporer.UI
             bottomV.childControlWidth = true;
             bottomV.childForceExpandWidth = true;
 
-            _interactPrompt = MakeTmp("InteractPrompt", bottom.transform, string.Empty, 22f, MenuTheme.TitleText,
-                TextAlignmentOptions.Center);
+            _interactPrompt = MakeTmp("InteractPrompt", bottom.transform, string.Empty, MenuTheme.HudFontSize, MenuTheme.TitleText,
+                TextAlignmentOptions.Center, lightOnDark: true);
             var interactLe = _interactPrompt.gameObject.AddComponent<LayoutElement>();
             interactLe.minHeight = 30f;
             _interactPrompt.fontStyle = FontStyles.Bold;
 
-            _flavorToast = MakeTmp("FlavorToast", bottom.transform, string.Empty, 18f, MenuTheme.SubtitleText,
-                TextAlignmentOptions.Center);
+            _flavorToast = MakeTmp("FlavorToast", bottom.transform, string.Empty, MenuTheme.HudSmallFontSize, MenuTheme.SubtitleText,
+                TextAlignmentOptions.Center, lightOnDark: true);
             var flavorLe = _flavorToast.gameObject.AddComponent<LayoutElement>();
             flavorLe.minHeight = 44f;
             _flavorToast.alpha = 0.92f;
+
+            var crosshairGo = new GameObject("MeleeCrosshair", typeof(RectTransform), typeof(Image));
+            crosshairGo.transform.SetParent(canvasGo.transform, false);
+            var crosshairRt = crosshairGo.GetComponent<RectTransform>();
+            crosshairRt.anchorMin = new Vector2(0.5f, 0.5f);
+            crosshairRt.anchorMax = new Vector2(0.5f, 0.5f);
+            crosshairRt.pivot = new Vector2(0.5f, 0.5f);
+            crosshairRt.sizeDelta = new Vector2(10f, 10f);
+            _crosshair = crosshairGo.GetComponent<Image>();
+            _crosshair.color = new Color(0.95f, 0.95f, 0.98f, 0.72f);
+            _crosshair.raycastTarget = false;
         }
 
         private static TextMeshProUGUI MakeTmp(string name, Transform parent, string text, float size, Color color,
-            TextAlignmentOptions align)
+            TextAlignmentOptions align, bool lightOnDark = false)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -295,7 +313,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = size;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
+            TmpTextUtility.ApplyReadableDefaults(tmp, lightOnDark);
             return tmp;
         }
 
@@ -346,6 +364,42 @@ namespace DungeonExporer.UI
             yield return new WaitForSecondsRealtime(Mathf.Max(0.35f, secondsVisible));
             _flavorToast.text = string.Empty;
             _flavorCoroutine = null;
+        }
+
+        private void FlashMeleeHitConfirmInternal()
+        {
+            if (_crosshair == null)
+                return;
+
+            if (_hitConfirmRoutine != null)
+                StopCoroutine(_hitConfirmRoutine);
+            _hitConfirmRoutine = StartCoroutine(HitConfirmRoutine());
+        }
+
+        private IEnumerator HitConfirmRoutine()
+        {
+            Color baseColor = new Color(0.95f, 0.95f, 0.98f, 0.72f);
+            Color hitColor = new Color(1f, 0.82f, 0.35f, 1f);
+            Vector2 baseSize = new Vector2(10f, 10f);
+            Vector2 hitSize = new Vector2(18f, 18f);
+
+            RectTransform rt = _crosshair.rectTransform;
+            float elapsed = 0f;
+            const float duration = 0.14f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float pulse = 1f - t;
+                _crosshair.color = Color.Lerp(baseColor, hitColor, pulse);
+                rt.sizeDelta = Vector2.Lerp(baseSize, hitSize, pulse);
+                yield return null;
+            }
+
+            _crosshair.color = baseColor;
+            rt.sizeDelta = baseSize;
+            _hitConfirmRoutine = null;
         }
     }
 }

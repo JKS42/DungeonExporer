@@ -51,9 +51,7 @@ namespace DungeonExporer.UI
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = _sortingOrder;
             var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            TmpTextUtility.ConfigureCanvasScaler(scaler);
 
             _root = new GameObject("PanelRoot", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
             _root.transform.SetParent(canvasGo.transform, false);
@@ -70,7 +68,7 @@ namespace DungeonExporer.UI
             v.childControlHeight = true;
             v.childControlWidth = true;
 
-            var title = MakeText("Title", _root.transform, "Ollama needs attention", 32f, MenuTheme.TitleText);
+            var title = MakeText("Title", _root.transform, "Ollama needs attention", MenuTheme.SubtitleFontSize, MenuTheme.TitleText);
             var titleLe = title.gameObject.AddComponent<LayoutElement>();
             titleLe.minHeight = 40f;
 
@@ -78,11 +76,10 @@ namespace DungeonExporer.UI
             var bodyLe = _body.gameObject.AddComponent<LayoutElement>();
             bodyLe.flexibleHeight = 1f;
             bodyLe.minHeight = 160f;
-            _body.textWrappingMode = TextWrappingModes.Normal;
 
             var hint = MakeText("Hint", _root.transform,
                 "First model load can take 30–60s (cold). After Ollama is healthy, press Continue.",
-                18f, MenuTheme.SubtitleText);
+                MenuTheme.CaptionFontSize, MenuTheme.SubtitleText);
             var hintLe = hint.gameObject.AddComponent<LayoutElement>();
             hintLe.minHeight = 56f;
 
@@ -113,7 +110,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = size;
             tmp.color = color;
             tmp.alignment = TextAlignmentOptions.TopLeft;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
+            TmpTextUtility.ApplyReadableDefaults(tmp);
             return tmp;
         }
 

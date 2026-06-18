@@ -391,14 +391,19 @@ namespace DungeonExporer.Gameplay
                     rend.sharedMaterial = _spikeTrapMaterial;
                 else
                 {
-                    rend.material.color = trapType switch
+                    Material mat = rend.material;
+                    mat.color = trapType switch
                     {
-                        DungeonTrapType.Ember => new Color(0.85f, 0.38f, 0.12f, 1f),
-                        DungeonTrapType.Slime => new Color(0.28f, 0.62f, 0.32f, 1f),
-                        _ => new Color(0.55f, 0.22f, 0.28f, 1f)
+                        DungeonTrapType.Ember => new Color(0.95f, 0.42f, 0.1f, 1f),
+                        DungeonTrapType.Slime => new Color(0.24f, 0.78f, 0.34f, 1f),
+                        _ => new Color(0.88f, 0.32f, 0.26f, 1f)
                     };
+                    mat.EnableKeyword("_EMISSION");
                 }
             }
+
+            var hazardVisual = go.AddComponent<HazardTrapVisual>();
+            hazardVisual.Configure(trapType);
 
             var rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;

@@ -88,43 +88,56 @@ def make_flagstone_floor(path: Path, seed: int = 77) -> None:
 
 
 def make_spike_trap(path: Path, seed: int = 13) -> None:
-    rng = random.Random(seed)
-    size = 512
-    img = Image.new("RGB", (size, size), (48, 42, 46))
-    draw = ImageDraw.Draw(img)
+  """Tileable hazard plate: dark rust grate, warning stripes, bright spike tips."""
+  rng = random.Random(seed)
+  size = 512
+  base = (58, 32, 30)
+  grate = (44, 26, 24)
+  img = Image.new("RGB", (size, size), base)
+  draw = ImageDraw.Draw(img)
 
-    for y in range(0, size, 32):
-        draw.line([(0, y), (size, y)], fill=(62, 52, 50), width=3)
-    for x in range(0, size, 32):
-        draw.line([(x, 0), (x, size)], fill=(62, 52, 50), width=3)
+  for y in range(0, size, 32):
+    draw.line([(0, y), (size, y)], fill=grate, width=4)
+  for x in range(0, size, 32):
+    draw.line([(x, 0), (x, size)], fill=grate, width=4)
 
-    cols, rows = 4, 4
-    cw, ch = size // cols, size // rows
-    for row in range(rows):
-        for col in range(cols):
-            cx = col * cw + cw // 2
-            cy = row * ch + ch // 2
-            spread = cw // 3
-            for sx in (-spread, 0, spread):
-                for sy in (-spread // 2, spread // 2):
-                    bx = cx + sx + rng.randint(-4, 4)
-                    by = cy + sy + rng.randint(-4, 4)
-                    tip = by - rng.randint(26, 38)
-                    half = rng.randint(7, 11)
-                    metal = (168, 172, 178) if rng.random() > 0.25 else (140, 138, 132)
-                    draw.polygon(
-                        [(bx - half, by), (bx + half, by), (bx, tip)],
-                        fill=metal,
-                    )
-                    draw.line([(bx, by), (bx, tip)], fill=(96, 92, 88), width=1)
+  stripe = (196, 72, 38)
+  stripe_dark = (150, 48, 28)
+  for i in range(-size, size * 2, 48):
+    draw.line([(i, 0), (i + size, size)], fill=stripe_dark, width=10)
+    draw.line([(i + 12, 0), (i + size + 12, size)], fill=stripe, width=5)
 
-    overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    od = ImageDraw.Draw(overlay)
-    od.rectangle([0, 0, size - 1, size - 1], outline=(120, 48, 42, 90), width=8)
-    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-    img = img.filter(ImageFilter.GaussianBlur(radius=0.25))
-    img.save(path, "PNG")
-    print(f"wrote {path}")
+  cols, rows = 4, 4
+  cw, ch = size // cols, size // rows
+  for row in range(rows):
+    for col in range(cols):
+      cx = col * cw + cw // 2
+      cy = row * ch + ch // 2
+      spread = cw // 3
+      for sx in (-spread, 0, spread):
+        for sy in (-spread // 2, spread // 2):
+          bx = cx + sx + rng.randint(-4, 4)
+          by = cy + sy + rng.randint(-4, 4)
+          tip = by - rng.randint(28, 40)
+          half = rng.randint(8, 12)
+          metal = (214, 218, 224) if rng.random() > 0.2 else (188, 190, 196)
+          draw.polygon(
+            [(bx - half, by), (bx + half, by), (bx, tip)],
+            fill=metal,
+          )
+          draw.line([(bx, by), (bx, tip)], fill=(118, 112, 108), width=2)
+          draw.ellipse(
+            [bx - 3, tip - 3, bx + 3, tip + 3],
+            fill=(232, 58, 42),
+          )
+
+  overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+  od = ImageDraw.Draw(overlay)
+  od.rectangle([0, 0, size - 1, size - 1], outline=(255, 96, 48, 180), width=10)
+  od.rectangle([18, 18, size - 19, size - 19], outline=(255, 168, 72, 110), width=4)
+  img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+  img.save(path, "PNG")
+  print(f"wrote {path}")
 
 
 def main() -> None:

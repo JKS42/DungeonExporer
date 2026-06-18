@@ -18,6 +18,38 @@
 
 ---
 
+## 2026-06-16 — UI text readability pass
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Added `TmpTextUtility` (canvas scaler defaults, TMP font assignment, subtle outlines). Bumped `MenuTheme` body/HUD font sizes; applied readability settings across HUD, dialogue, menus, setup panel, and dungeon sign posts. Enabled TMP extra padding globally.
+**Why**: Playtest feedback — UI text felt blurry or hard to read.
+**Impact / docs touched**: `TmpTextUtility.cs`, `MenuTheme.cs`, `GameplayHudController.cs`, `DialoguePanelController.cs`, `MainMenuController.cs`, `PauseMenuController.cs`, `OllamaSetupPanelController.cs`, `DungeonSignPost.cs`, `TMP Settings.asset`, `docs/refinements-changes.md`.
+
+## 2026-06-16 — Full-maze lighting coverage
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Reworked `DungeonLevelBuilder` torch placement: one light per safe/encounter room cluster centre, grid fill, and a coverage pass that adds torches until every walkable cell is within range. Raised ambient fill and torch range; lowered torch height for floor readability. Removed per-cell safe-room torch spam that could exceed URP light limits.
+**Why**: Playtest feedback — some maze rooms were completely dark.
+**Impact / docs touched**: `DungeonLevelBuilder.cs`, `Level1.unity`, `docs/refinements-changes.md`.
+
+## 2026-06-16 — Trap visibility pass (texture + emissive marker)
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Regenerated `SpikeTrap_Albedo.png` with higher-contrast hazard stripes and red spike tips; enabled emissive tint on `SpikeTrap.mat`. Added `HazardTrapVisual` (pulsing emission + small marker light) on all hazards; brightened ember/slime trap colours.
+**Why**: Playtest feedback — spike traps were hard to spot in the dungeon lighting.
+**Impact / docs touched**: `Tools/generate_dungeon_textures.py`, `SpikeTrap_Albedo.png`, `SpikeTrap.mat`, `HazardTrapVisual.cs`, `LevelGameplayBootstrap.cs`, `docs/refinements-changes.md`.
+
+## 2026-06-16 — Melee hit detection + hit feedback pass
+**Type**: scope-change
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Strengthened `PlayerCombat` with multi-height close-range overlap probes, wider hit radius, and a forward cone check for short foes. Added swing whoosh VFX, impact ring particles, and a HUD crosshair pulse on successful hits (`CombatHitVfx`, `GameplayHudController`).
+**Why**: Playtest feedback — attacks felt in range but did not connect; players needed clearer confirmation when a swing lands.
+**Impact / docs touched**: `PlayerCombat.cs`, `CombatHitVfx.cs`, `GameplayHudController.cs`, `docs/refinements-changes.md`.
+
 ## 2026-06-16 — AI annexure populated
 **Type**: decision
 **AI tool(s)**: Cursor + Auto

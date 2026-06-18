@@ -1,3 +1,4 @@
+using DungeonExporer.UI;
 using TMPro;
 using UnityEngine;
 
@@ -42,15 +43,16 @@ namespace DungeonExporer.Gameplay
             textGo.transform.SetParent(board.transform, false);
             textGo.transform.localPosition = new Vector3(0f, 0f, -0.55f);
             textGo.transform.localRotation = Quaternion.identity;
-            textGo.transform.localScale = Vector3.one * 0.018f;
+            textGo.transform.localScale = Vector3.one * 0.024f;
 
             var tmp = textGo.AddComponent<TextMeshPro>();
             tmp.text = text ?? string.Empty;
-            tmp.fontSize = 36f;
+            tmp.fontSize = 48f;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = new Color(0.22f, 0.16f, 0.1f, 1f);
+            tmp.color = new Color(0.16f, 0.11f, 0.07f, 1f);
             tmp.textWrappingMode = TextWrappingModes.Normal;
-            tmp.rectTransform.sizeDelta = new Vector2(280f, 80f);
+            tmp.rectTransform.sizeDelta = new Vector2(320f, 96f);
+            TmpTextUtility.ApplyReadableDefaults(tmp);
 
             var sign = root.AddComponent<DungeonSignPost>();
             sign._height = 1.35f;

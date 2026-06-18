@@ -838,9 +838,7 @@ namespace DungeonExporer.UI
             ApplyUiLayer(canvasGo);
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
+            TmpTextUtility.ConfigureCanvasScaler(scaler);
 
             var dim = MakeUiObject("Dim", canvasGo.transform);
             StretchToParent(dim.GetComponent<RectTransform>());
@@ -883,7 +881,7 @@ namespace DungeonExporer.UI
             titleLe.preferredHeight = 44f;
 
             var staticHint = MakeText("StaticHint", _rootPanel.transform, "Quest (game rules)",
-                16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+                MenuTheme.CaptionFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
             staticHint.raycastTarget = false;
             var staticHintLe = staticHint.gameObject.AddComponent<LayoutElement>();
             staticHintLe.minHeight = 22f;
@@ -901,7 +899,7 @@ namespace DungeonExporer.UI
             _staticBodyText.maxVisibleLines = 5;
 
             var llmHint = MakeText("LlmHint", _rootPanel.transform, "Cap’s voice (Ollama — appears below)",
-                16f, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
+                MenuTheme.CaptionFontSize, MenuTheme.SubtitleText, TextAlignmentOptions.Left);
             llmHint.raycastTarget = false;
             var llmHintLe = llmHint.gameObject.AddComponent<LayoutElement>();
             llmHintLe.minHeight = 22f;
@@ -911,7 +909,7 @@ namespace DungeonExporer.UI
             BuildAskRow(_rootPanel.transform);
 
             _statusText = MakeText("Status", _rootPanel.transform, string.Empty,
-                18f, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
+                MenuTheme.HudSmallFontSize, new Color(0.55f, 0.12f, 0.1f, 1f), TextAlignmentOptions.Center);
             _statusText.raycastTarget = false;
             var statusLe = _statusText.gameObject.AddComponent<LayoutElement>();
             statusLe.minHeight = 28f;
@@ -1007,12 +1005,14 @@ namespace DungeonExporer.UI
             placeholder.color = new Color(0.45f, 0.4f, 0.36f, 0.75f);
             placeholder.alignment = TextAlignmentOptions.MidlineLeft;
             placeholder.raycastTarget = false;
+            TmpTextUtility.ApplyReadableDefaults(placeholder);
 
             var textGo = MakeUiObject("Text", viewport.transform);
             StretchToParent(textGo.GetComponent<RectTransform>());
             var text = textGo.AddComponent<TextMeshProUGUI>();
             text.fontSize = MenuTheme.BodyFontSize;
             text.color = MenuTheme.BodyText;
+            TmpTextUtility.ApplyReadableDefaults(text);
             text.alignment = TextAlignmentOptions.MidlineLeft;
             text.raycastTarget = false;
 
@@ -1110,7 +1110,7 @@ namespace DungeonExporer.UI
             tmp.fontSize = fontSize;
             tmp.color = color;
             tmp.alignment = align;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
+            TmpTextUtility.ApplyReadableDefaults(tmp);
             return tmp;
         }
 

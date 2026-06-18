@@ -1826,12 +1826,14 @@ MonoBehaviour:
   _ceilingMaterial: {fileID: 0}
   _setupLighting: 1
   _directionalIntensity: 1.55
-  _ambientFill: {r: 0.38, g: 0.36, b: 0.34, a: 1}
-  _maxTorches: 56
-  _torchSpacing: 3
-  _torchIntensity: 16
-  _torchRange: 18
-  _torchHeightFactor: 0.72
+  _ambientFill: {r: 0.5, g: 0.48, b: 0.46, a: 1}
+  _maxTorches: 96
+  _hardMaxTorches: 128
+  _ensureFullCoverage: 1
+  _torchSpacing: 2
+  _torchIntensity: 18
+  _torchRange: 22
+  _torchHeightFactor: 0.58
   _encounterEnterQuestEventId: entered_encounter_zone
 --- !u!1 &2100000030
 GameObject:

@@ -45,13 +45,18 @@ namespace DungeonExporer.Dungeon
         [Header("Lighting")]
         [SerializeField] private bool _setupLighting = true;
         [SerializeField] private float _directionalIntensity = 1.55f;
-        [SerializeField] private Color _ambientFill = new(0.38f, 0.36f, 0.34f, 1f);
-        [SerializeField] private int _maxTorches = 56;
-        [Tooltip("Minimum grid cells between torch point lights (Chebyshev).")]
-        [SerializeField] private int _torchSpacing = 3;
-        [SerializeField] private float _torchIntensity = 16f;
-        [SerializeField] private float _torchRange = 18f;
-        [SerializeField] private float _torchHeightFactor = 0.72f;
+        [SerializeField] private Color _ambientFill = new(0.5f, 0.48f, 0.46f, 1f);
+        [Tooltip("Soft cap for torch count before the coverage pass stops adding lights.")]
+        [SerializeField] private int _maxTorches = 96;
+        [Tooltip("Absolute cap when filling dark gaps so every walkable cell is lit.")]
+        [SerializeField] private int _hardMaxTorches = 128;
+        [Tooltip("When true, adds extra torches until all walkable cells sit within one spacing radius of a light.")]
+        [SerializeField] private bool _ensureFullCoverage = true;
+        [Tooltip("Minimum grid cells between torch point lights (Chebyshev); auto-tuned from range when ≤ 0.")]
+        [SerializeField] private int _torchSpacing = 2;
+        [SerializeField] private float _torchIntensity = 18f;
+        [SerializeField] private float _torchRange = 22f;
+        [SerializeField] private float _torchHeightFactor = 0.58f;
 
         [Header("Encounter gameplay")]
         [Tooltip("Quest/world event id fired the first time the player enters any <c>E</c> encounter cell volume.")]
@@ -563,33 +568,161 @@ namespace DungeonExporer.Dungeon
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = _ambientFill;
 
-            var torchCells = new List<Vector2Int>();
-            int spacing = Mathf.Max(1, _torchSpacing);
+            var torchCells = new HashSet<Vector2Int>();
+            int spacing = ResolveTorchSpacingCells();
 
             if (_spawnCell.x >= 0)
-                TryAddTorchCell(torchCells, _spawnCell, spacing, force: true);
+                torchCells.Add(_spawnCell);
 
-            for (int i = 0; i < _walkableCells.Count; i++)
-            {
-                Vector2Int cell = _walkableCells[i];
-                if (GetCellSymbol(cell) == 'S')
-                    TryAddTorchCell(torchCells, cell, spacing, force: true);
-            }
+            AddRoomCenterTorches(torchCells, 'S');
+            AddRoomCenterTorches(torchCells, 'E');
 
             for (int i = 0; i < _walkableCells.Count && torchCells.Count < _maxTorches; i++)
             {
                 Vector2Int cell = _walkableCells[i];
-                if ((cell.x + cell.y) % 2 != 0)
+                if (HasTorchWithinSpacing(torchCells, cell, spacing))
                     continue;
-                TryAddTorchCell(torchCells, cell, spacing, force: false);
+                torchCells.Add(cell);
             }
 
-            for (int i = 0; i < torchCells.Count; i++)
+            if (_ensureFullCoverage)
+                FillLightingGaps(torchCells, spacing, _hardMaxTorches);
+
+            foreach (Vector2Int cell in torchCells)
             {
-                Vector3 pos = CellCenterWorld(torchCells[i]);
+                Vector3 pos = CellCenterWorld(cell);
                 pos.y = _wallHeight * _torchHeightFactor;
                 CreateTorchLight(lightsRoot, pos);
             }
+        }
+
+        private int ResolveTorchSpacingCells()
+        {
+            if (_torchSpacing > 0)
+                return _torchSpacing;
+
+            return Mathf.Max(1, Mathf.RoundToInt(_torchRange * 0.5f / Mathf.Max(0.5f, _cellSize)));
+        }
+
+        private void AddRoomCenterTorches(HashSet<Vector2Int> torchCells, char symbol)
+        {
+            IReadOnlyList<Vector2Int> centers = FindRoomCenters(symbol);
+            for (int i = 0; i < centers.Count; i++)
+                torchCells.Add(centers[i]);
+        }
+
+        private List<Vector2Int> FindRoomCenters(char symbol)
+        {
+            var visited = new HashSet<Vector2Int>();
+            var centers = new List<Vector2Int>();
+
+            for (int i = 0; i < _walkableCells.Count; i++)
+            {
+                Vector2Int start = _walkableCells[i];
+                if (visited.Contains(start) || GetCellSymbol(start) != symbol)
+                    continue;
+
+                var component = new List<Vector2Int>();
+                var queue = new Queue<Vector2Int>();
+                queue.Enqueue(start);
+                visited.Add(start);
+
+                while (queue.Count > 0)
+                {
+                    Vector2Int current = queue.Dequeue();
+                    component.Add(current);
+
+                    TryEnqueueRoomCell(queue, visited, current, symbol, 1, 0);
+                    TryEnqueueRoomCell(queue, visited, current, symbol, -1, 0);
+                    TryEnqueueRoomCell(queue, visited, current, symbol, 0, 1);
+                    TryEnqueueRoomCell(queue, visited, current, symbol, 0, -1);
+                }
+
+                if (component.Count > 0)
+                    centers.Add(PickCenterCell(component));
+            }
+
+            return centers;
+        }
+
+        private void TryEnqueueRoomCell(
+            Queue<Vector2Int> queue,
+            HashSet<Vector2Int> visited,
+            Vector2Int current,
+            char symbol,
+            int dx,
+            int dz)
+        {
+            Vector2Int next = new Vector2Int(current.x + dx, current.y + dz);
+            if (visited.Contains(next) || GetCellSymbol(next) != symbol)
+                return;
+
+            visited.Add(next);
+            queue.Enqueue(next);
+        }
+
+        private static Vector2Int PickCenterCell(List<Vector2Int> cells)
+        {
+            float avgX = 0f;
+            float avgZ = 0f;
+            for (int i = 0; i < cells.Count; i++)
+            {
+                avgX += cells[i].x;
+                avgZ += cells[i].y;
+            }
+
+            avgX /= cells.Count;
+            avgZ /= cells.Count;
+
+            Vector2Int best = cells[0];
+            float bestDist = float.MaxValue;
+            for (int i = 0; i < cells.Count; i++)
+            {
+                float dx = cells[i].x - avgX;
+                float dz = cells[i].y - avgZ;
+                float dist = dx * dx + dz * dz;
+                if (dist >= bestDist)
+                    continue;
+
+                bestDist = dist;
+                best = cells[i];
+            }
+
+            return best;
+        }
+
+        private static bool HasTorchWithinSpacing(HashSet<Vector2Int> torchCells, Vector2Int cell, int spacing)
+        {
+            foreach (Vector2Int torch in torchCells)
+            {
+                if (ChebyshevDistance(torch, cell) <= spacing)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void FillLightingGaps(HashSet<Vector2Int> torchCells, int spacing, int hardMax)
+        {
+            bool added;
+            int safety = _walkableCells.Count + 8;
+            do
+            {
+                added = false;
+                for (int i = 0; i < _walkableCells.Count && safety-- > 0; i++)
+                {
+                    Vector2Int cell = _walkableCells[i];
+                    if (HasTorchWithinSpacing(torchCells, cell, spacing))
+                        continue;
+
+                    if (torchCells.Count >= hardMax)
+                        return;
+
+                    torchCells.Add(cell);
+                    added = true;
+                    break;
+                }
+            } while (added && torchCells.Count < hardMax && safety > 0);
         }
 
         private static Light FindDirectionalLight()
@@ -602,23 +735,6 @@ namespace DungeonExporer.Dungeon
             }
 
             return null;
-        }
-
-        private void TryAddTorchCell(List<Vector2Int> torchCells, Vector2Int cell, int spacing, bool force)
-        {
-            if (!force)
-            {
-                if (torchCells.Count >= _maxTorches)
-                    return;
-
-                for (int i = 0; i < torchCells.Count; i++)
-                {
-                    if (ChebyshevDistance(torchCells[i], cell) < spacing)
-                        return;
-                }
-            }
-
-            torchCells.Add(cell);
         }
 
         private void CreateTorchLight(Transform parent, Vector3 position)

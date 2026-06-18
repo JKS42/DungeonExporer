@@ -92,9 +92,10 @@ The palette is mirrored in code at `Assets/Scripts/UI/MenuTheme.cs` so UI and 3D
 
 - **Location**: `Assets/Art/Environment/SpikeTrap/`
 - **Files**:
-  - `SpikeTrap_Albedo.png` — 512×512 rusted grate + upward spikes (top-down readable).
-  - `SpikeTrap.mat` — URP Lit; assigned on **`LevelGameplayBootstrap._spikeTrapMaterial`**.
+  - `SpikeTrap_Albedo.png` — 512×512 rusted grate + diagonal hazard stripes + bright red-tipped spikes (top-down readable).
+  - `SpikeTrap.mat` — URP Lit with warm hazard tint + emissive base; assigned on **`LevelGameplayBootstrap._spikeTrapMaterial`**.
 - **Tool**: **Python 3 + Pillow** — `make_spike_trap()` in `Tools/generate_dungeon_textures.py`.
+- **Runtime**: `HazardTrapVisual` pulses emissive colour and adds a small marker point light (no trap size change).
 - **Generated**: 2026-05-15.
 - **Status**: In use on scattered maze spike hazards.
 

@@ -33,9 +33,14 @@ namespace DungeonExporer.UI
 
         // Typography (point sizes, used with TMP).
         public const float TitleFontSize = 96f;
-        public const float SubtitleFontSize = 28f;
-        public const float ButtonFontSize = 32f;
-        public const float BodyFontSize = 22f;
+        public const float SubtitleFontSize = 30f;
+        public const float ButtonFontSize = 34f;
+        public const float BodyFontSize = 26f;
+        public const float CaptionFontSize = 20f;
+        public const float HudFontSize = 26f;
+        public const float HudSmallFontSize = 22f;
+
+        public static readonly Vector2 ReferenceResolution = new(1920f, 1080f);
 
         // Layout.
         public const float PanelPadding = 32f;
