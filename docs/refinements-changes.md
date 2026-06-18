@@ -22,6 +22,14 @@
 
 ---
 
+## 2026-06-18 — Compiler warnings: TMP fontFeatures + sign height
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Replaced obsolete `TMP_Text.enableKerning` with `fontFeatures` (`OTL_FeatureTag.kern`) in `TmpTextUtility`. `DungeonSignPost.Create` now reads `_height` when placing the board instead of a hardcoded Y offset.
+**Why**: Unity 6 / TMP 2.x deprecation warning and unused-field warning in the Console.
+**Impact / docs touched**: `TmpTextUtility.cs`, `DungeonSignPost.cs`, `docs/refinements-changes.md`, `docs/setup.md`, `README.md`.
+
 ## 2026-06-18 — Fix empty How to Play panel text
 **Type**: bug fix
 **AI tool(s)**: Cursor + Auto

@@ -1,7 +1,7 @@
 # Playtest Feedback Summary
 
 > Consolidated reviewer feedback from Level1 playtesting.  
-> Last updated: 2026-06-16.
+> Last updated: 2026-06-18.
 
 ---
 
@@ -77,3 +77,18 @@
 - Noted repeated requests for a tutorial (clear high-priority pattern).
 - Noted that readability/clarity concerns appear across multiple systems (UI text, hazards, combat ranges).
 - Noted positive response to maze direction and flow, with suggestion to hide explicit arrows.
+
+---
+
+## Responses implemented (post-playtest)
+
+See [`critical.feedback.md`](./critical.feedback.md) for rationale and [`refinements-changes.md`](./refinements-changes.md) for dated engineering entries. Summary:
+
+| Feedback theme | Response |
+|---|---|
+| Combat range / hit clarity | Stronger `PlayerCombat` detection; swing/impact VFX; HUD crosshair pulse on hit |
+| Spike trap clarity | Regenerated spike albedo, emissive hazard material, `HazardTrapVisual` marker |
+| Text readability | `TmpTextUtility`, larger fonts, UI shadows, TMP wrapping fixes |
+| Lighting | Torch placement rework + coverage pass in `DungeonLevelBuilder` |
+| Tutorial / onboarding | **Main Menu → How to Play** panel (partial); full tutorial deferred |
+| LLM (not raised by reviewers) | Jinja2 Cap prompts, warm-up, Ask Cap UX, sequential level-load planners |

@@ -1,7 +1,7 @@
 # Project Deliverables Checklist
 
 > Maps the brief (**Structure & Deliverables**) to files in this repo.  
-> Last updated: 2026-06-11
+> Last updated: 2026-06-18
 
 Use this page when submitting the project. Items marked **you** must be produced outside the repo (videos, builds, name in credits).
 
@@ -20,6 +20,9 @@ Use this page when submitting the project. Items marked **you** must be produced
 | Prompt archive | Done | [`prompts-used.md`](./prompts-used.md) |
 | LLM integration report (600–800 words) | Done | [`llm-integration-report.md`](./llm-integration-report.md) |
 | Ethical considerations | Done | [`ethical-considerations.md`](./ethical-considerations.md) |
+| Playtest feedback summary | Done | [`feedback.summary.md`](./feedback.summary.md) |
+| Critical engagement with feedback | Done | [`critical.feedback.md`](./critical.feedback.md) |
+| AI usage disclosure (annexure) | Done | [`ai-usage-annexure.md`](./ai-usage-annexure.md) |
 
 ---
 
@@ -73,10 +76,11 @@ Suggested capture: OBS / Xbox Game Bar; show Task Manager or `ollama list` brief
 
 ## Quick pre-submission pass
 
+- [ ] Skim **Main Menu → How to Play** in a fresh playthrough.
 - [ ] Replace *your name* in [`README.md`](../README.md) Credits.
 - [ ] Confirm `ollama pull qwen3:4b` on demo PC; match `GameSettings.LlmModel` / `OllamaHandler` default model.
 - [ ] Confirm `pip install jinja2` and Python on PATH for Cap dialogue in builds.
-- [ ] Playtest two-way combat (foe chase) + Ask Cap before recording showcase video.
+- [ ] Playtest two-way combat (foe chase, hit VFX) + spike trap visibility + Ask Cap before recording showcase video.
 - [ ] Record both videos using [`video-deliverables.md`](./video-deliverables.md).
 - [ ] Export Windows (or target) build per [`build-notes.md`](./build-notes.md).
 - [ ] Zip repo or submit Git link + build + videos per course instructions.

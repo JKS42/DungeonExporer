@@ -1,7 +1,7 @@
 # Ethical Considerations — DungeonExporer
 
 > Transparency, licensing, crediting, and player awareness for AI use in this project.  
-> Last updated: 2026-06-11
+> Last updated: 2026-06-18
 
 ## 1. Transparency
 
@@ -30,10 +30,11 @@
 ## 2. Player awareness & control
 
 1. **First run:** If Ollama or the model is missing, a setup panel explains the requirement and links to [`setup.md`](./setup.md). **Continue** allows play without AI dialogue.
-2. **Options:** **LLM / AI dialogue** toggle (`GameSettings.LlmEnabled`). When off:
+2. **Controls:** **Main Menu → How to Play** lists bindings and tips without requiring LLM features.
+3. **Options:** **LLM / AI dialogue** toggle (`GameSettings.LlmEnabled`). When off:
    - Cap voice / **Ask Cap** show a short canned Cap line (no network call).
    - Zone flavor narration is skipped.
-3. **Quest clarity:** Objectives and acceptance do not depend on model output; players are not penalized for disabling AI.
+4. **Quest clarity:** Objectives and acceptance do not depend on model output; players are not penalized for disabling AI.
 
 **Recommendation for showcase video:** Mention that dialogue is optional and local.
 
@@ -68,6 +69,7 @@ Consider adding a **Credits** section on the main menu (future) listing Ollama a
 ### 4.3 Academic integrity
 
 - **`refinements-changes.md`** records AI-assisted decisions with tool names and dates.
+- **`ai-usage-annexure.md`** provides the formal assessment disclosure template.
 - **`prompts-used.md`** archives prompts; do not present model-generated prose as sole authored design without attribution.
 - Code written with Cursor should still be understood and demonstrable in the technical video.
 

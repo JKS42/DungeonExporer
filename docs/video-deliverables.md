@@ -1,11 +1,11 @@
 # Video Deliverables — DungeonExporer
 
 > Shot lists for the two required 3–6 minute submission videos.  
-> Last updated: 2026-06-11
+> Last updated: 2026-06-18
 
 Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if possible. Show the game window full-screen; avoid desktop clutter.
 
-**Before recording:** Ollama running, `ollama pull qwen3:4b`, `pip install jinja2`, Python on PATH. Wait a few seconds on the **Main Menu** so warm-up completes.
+**Before recording:** Ollama running, `ollama pull qwen3:4b`, `pip install jinja2`, Python on PATH. Wait a few seconds on the **Main Menu** so warm-up completes. Optionally open **How to Play** to show in-game controls reference.
 
 ---
 
@@ -41,11 +41,11 @@ Record with OBS, Xbox Game Bar, or Unity Recorder. Capture at **1920×1080** if 
 
 | Segment | What to show | Talking points |
 |---|---|---|
-| Hook (30 s) | Spawn in maze, torch lighting | First-person cosy dungeon; hybrid ASCII layout |
+| Hook (30 s) | Main Menu **How to Play** (brief) → spawn in maze, torch lighting | First-person cosy dungeon; hybrid ASCII layout; controls in-game |
 | Meet Cap (60 s) | Safe **S** room, quest accept, optional Ask Cap | LLM adds voice; objectives are reliable C# quests |
-| Combat (90 s) | **E** pit: foe chases → left-click attack (hit sparks) → kill | Two-way melee; not LLM-driven |
+| Combat (90 s) | **E** pit: foe chases → left-click attack (swing + impact VFX, crosshair pulse) → kill | Two-way melee; not LLM-driven |
 | Quest loop (60 s) | Return to Cap → complete drill → **Echoes in the dark** | Save **F5** / load **F9** optional |
-| Hazards & loot (45 s) | Spike jump, bubble pickup, corridor sign | Trap variety from Ollama plan + procedural fill |
+| Hazards & loot (45 s) | Spike jump (striped + emissive marker), bubble pickup, corridor sign | Trap variety from Ollama plan + procedural fill |
 | Tone (30 s) | Flavor toast or sign text | Lighthearted fantasy palette (`MenuTheme`) |
 | Design intent (45 s) | Slide or in-game pause: high-concept bullets | Local LLM for flavor; authority in C# |
 | Close (15 s) | Main menu or fade | Where to find repo + build notes |

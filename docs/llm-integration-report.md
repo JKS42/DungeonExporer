@@ -1,7 +1,7 @@
 # LLM Integration Report — DungeonExporer
 
 > Word count: ~790 (body).  
-> Last updated: 2026-06-16
+> Last updated: 2026-06-18
 
 ## 1. Introduction
 
@@ -60,12 +60,12 @@ Playtest feedback emphasized that **no player will wait 15 seconds** for optiona
 
 - **Main Menu warm-up** (`OllamaMenuWarmup` → `WarmupModelCoroutine`, 8-token completion) reduces cold-start latency before Level1.
 - **Proximity prefetch** for NPC voice while walking toward Cap (`NpcDialogueCache`).
-- **Level-load prefetch** for trap/content JSON while loot and enemies spawn immediately; validated placement when plans arrive (timeout ~8 s) or procedural fill.
+- **Level-load prefetch** for trap/content JSON while loot and enemies spawn immediately; trap and content planners run **sequentially** (`PrefetchAiPlansSequential`) to avoid aborting each other on the single-flight client; validated placement when plans arrive (timeout ~8 s) or procedural fill.
 - **Non-streaming** NPC requests with tight `num_predict` (~80 via `defaultNpcMaxTokens`) reduce perceived stall versus click-to-stream UX.
 - **Token caps** (~72 flavor, ~80 NPC, ~240 content JSON) bound worst-case latency.
 - Work runs on **coroutines**; the main thread only updates UI and spawns validated entities.
 
-**Known limit:** `OllamaHandler` is single-flight — concurrent level-load planners and dialogue can abort each other (`HTTP 0`); C# falls back to procedural scatter. A request queue is future work. Benchmarks belong in `docs/eval/` (TODO).
+**Known limit:** `OllamaHandler` remains single-flight — dialogue during level load can still cancel an in-flight planner request, but trap/content planners no longer run in parallel with each other. Superseded aborts (`HTTP 0`) are suppressed in logs. A full request queue is future work. Benchmarks belong in `docs/eval/` (TODO).
 
 ## 5. Gameplay impact
 
@@ -92,7 +92,9 @@ Every meaningful change is logged in `docs/refinements-changes.md` with date, ra
 
 External playtesting (see [`feedback.summary.md`](./feedback.summary.md)) surprised us: reviewers commented on **gameplay clarity** (combat range, traps, text, lighting) but raised **no direct concerns about Cap dialogue or the LLM**. That outcome supports the non-blocking design — prefetch, authored fallbacks, and opt-out kept AI optional rather than a friction point.
 
-Our main post-event engineering still targeted the **model pipeline**, even though feedback did not name it. Commits after the event moved Cap prompts to Jinja2-only rendering, strengthened qwen3 planning-text filtering, added main-menu warm-up, and fixed Ask Cap so replies overwrite cleanly instead of stacking. Smaller gameplay passes (melee hit detection, spike-trap readability) ran in parallel. We deferred a full tutorial and animation overhaul as out of scope; rationale and feasibility notes are in [`critical.feedback.md`](./critical.feedback.md).
+Our main post-event engineering still targeted the **model pipeline**, even though feedback did not name it. Commits after the event moved Cap prompts to Jinja2-only rendering, strengthened qwen3 planning-text filtering, added main-menu warm-up, fixed Ask Cap so replies overwrite cleanly instead of stacking, and sequenced level-load trap/content planners to reduce Ollama abort noise.
+
+Parallel **gameplay** passes addressed reviewer clarity concerns: melee hit detection and VFX, hazard emissive markers, maze lighting coverage, UI text readability (`TmpTextUtility`), and a **How to Play** panel on the main menu as lightweight onboarding. We deferred a full tutorial and animation overhaul as out of scope; rationale and feasibility notes are in [`critical.feedback.md`](./critical.feedback.md).
 
 ## 8. Conclusion
 

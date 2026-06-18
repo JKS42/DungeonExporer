@@ -1,7 +1,7 @@
 # High Concept Document — DungeonExporer
 
 > Design intent and scope for the current build.
-> Last updated: 2026-06-11
+> Last updated: 2026-06-18
 
 ## 1. Ideation
 
@@ -19,10 +19,12 @@
 
 1. **Explore** a hybrid maze: narrow **`.`** corridors, large **S** safe rooms, central **E** encounter pits (`Level1_Maze.txt` → `DungeonLevelBuilder`).
 2. **Meet Cap** in the nearest **S** hub to spawn; **E** to interact — accept quests; Cap's voice line appears automatically (prefetched Ollama). Type a question and **Ask Cap** for reactive replies.
-3. **Fight** Meshy **DungeonFoe** creatures on **E** tiles (melee, left click); complete **Cap's corridor drill** (`defeated_dungeon_foe`).
-4. **Survive** spike / ember / slime traps (jumpable; layout partly chosen by Ollama at load, validated in C#), pick up bubble loot (AI-suggested cells with procedural fill), read wooden **signs** in corridors, fight foes on **E** pits (AI placement + fill), and read HUD quest hints and flavor toasts on **S** / **E** zones.
+3. **Fight** Meshy **DungeonFoe** creatures on **E** tiles (melee, left click, hit VFX + HUD feedback); complete **Cap's corridor drill** (`defeated_dungeon_foe`).
+4. **Survive** spike / ember / slime traps (jumpable, emissive hazard markers; layout partly chosen by Ollama at load, validated in C#), pick up bubble loot (AI-suggested cells with procedural fill), read wooden **signs** in corridors, fight foes on **E** pits (AI placement + fill), and read HUD quest hints and flavor toasts on **S** / **E** zones.
 5. **Return to Cap** for follow-up quest **Echoes in the dark** (stand on any **E** encounter volume).
 6. **Save** session with **F5** / **F9** (`GameSaveService`) — position, quests, inventory.
+
+**Onboarding:** Full scripted tutorial is out of scope for Level1. Controls and tips live on **Main Menu → How to Play** and in [`setup.md`](./setup.md).
 
 ### Win / fail conditions
 

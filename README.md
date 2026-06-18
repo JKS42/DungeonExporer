@@ -21,8 +21,9 @@ ollama pull qwen3:4b
 ```
 
 4. Open this repo in Unity, open **`Assets/Scenes/Level1.unity`**, press **Play**.
-5. If Ollama is down or the model is missing, an in-game setup panel links to [`docs/setup.md`](docs/setup.md); you can continue without streaming dialogue.
-6. **Save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads. A save auto-loads on level start when that file exists (delete it to reset).
+5. On the **Main Menu**, open **How to Play** for controls and tips; wait a few seconds so Ollama can warm up before Level1.
+6. If Ollama is down or the model is missing, an in-game setup panel links to [`docs/setup.md`](docs/setup.md); you can continue without streaming dialogue.
+7. **Save**: **F5** writes `dungeon_session_save.json` under the OS persistent data path; **F9** reloads. A save auto-loads on level start when that file exists (delete it to reset).
 
 Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 
@@ -40,7 +41,7 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 | Pause | Escape |
 | Save / load session | **F5** / **F9** |
 
-**Suggested loop:** Find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with hit sparks) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions (personality from `prompts/cap_personality.jinja2`); **Another line** for a new Ollama voice; bubble pickups; jump spike traps. Wait a few seconds on the **Main Menu** so Ollama can warm up before Level1.
+**Suggested loop:** **Main Menu → How to Play** (optional) → find **Cap** in a green-tinted **S** safe room → accept **Cap's corridor drill** → defeat **DungeonFoe** creatures on crimson **E** floors (they chase and melee back; **left-click** to attack with swing/impact VFX and HUD hit feedback) → return to Cap → accept **Echoes in the dark** → stand on an **E** tile. Optional: **Ask Cap** typed questions (personality from `prompts/cap_personality.jinja2`); **Another line** for a new Ollama voice; bubble pickups; jump spike traps (striped albedo + emissive pulse). Wait a few seconds on the **Main Menu** so Ollama can warm up before Level1.
 
 ## Documentation
 
@@ -58,6 +59,9 @@ Full install, controls, and troubleshooting: [`docs/setup.md`](docs/setup.md).
 | [`docs/build-notes.md`](docs/build-notes.md) | Prototype vs final build export |
 | [`docs/art-direction.md`](docs/art-direction.md) | Style pillars, asset prompts (Meshy, Pillow) |
 | [`docs/refinements-changes.md`](docs/refinements-changes.md) | Running log of changes and AI-assisted decisions |
+| [`docs/feedback.summary.md`](docs/feedback.summary.md) | Consolidated playtest reviewer notes |
+| [`docs/critical.feedback.md`](docs/critical.feedback.md) | Critical engagement with playtest feedback |
+| [`docs/ai-usage-annexure.md`](docs/ai-usage-annexure.md) | Assessment AI usage disclosure (annexure) |
 
 ## Dependencies
 
@@ -151,13 +155,15 @@ DungeonExporer/
 - [x] Two-way melee combat — `PlayerCombat` + `EnemyMeleeAI` (chase, attack) + `CombatHitVfx`
 - [x] **Ask Cap** reactive Q&A (Jinja2 personality → Ollama)
 - [x] Pickups (bubble + icon), spike hazards (jumpable), flavor narration on **S** / **E**
-- [x] HUD (health, quest, inventory), pause menu, session save (F5/F9)
+- [x] HUD (health, quest, inventory), pause menu, **How to Play** on main menu, session save (F5/F9)
 - [x] Ollama health check + in-game setup panel
+- [x] Playtest-driven passes: melee hit detection + VFX, trap visibility, maze lighting coverage, UI text readability (`TmpTextUtility`)
 - [ ] Consolidate Ollama clients (`OllamaHandler` → SimpleOllamaUnity)
 - [ ] Player Adventurer mesh in scene (asset exists under `Art/Characters`)
 - [ ] Rigged enemy animation, `RoomDefinition` / `NpcDefinition` ScriptableObjects
-- [ ] Serialize concurrent Ollama requests (trap/content planners vs dialogue)
+- [ ] Request queue for Ollama (level-load planners are sequential; dialogue still single-flight)
 - [x] Boot-time Ollama warm-up (Main Menu via `OllamaMenuWarmup`)
+- [x] Level-load trap/content planners run sequentially (reduces load-time HTTP 0 aborts)
 - [ ] Full `GameSettings.LlmEnabled` kill-switch at all call sites
 
 ## Credits

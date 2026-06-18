@@ -1,7 +1,7 @@
 # Ollama Plan — DungeonExporer
 
 > Living document. Update whenever the model, the prompt structure, or the data flow changes.
-> Last updated: 2026-06-11 (Jinja2 Cap prompts, warm-up, combat slice, content/trap planners)
+> Last updated: 2026-06-18 (Jinja2 Cap prompts, warm-up, sequential planners, playtest UX passes)
 
 ## 1. Model choice
 
@@ -78,10 +78,11 @@ DialoguePanelController
 
 LevelGameplayBootstrap (Start)
    │
-   ├─► DungeonContentPlanner.FetchPlanCoroutine → loot / enemies / signs JSON
+   ├─► PrefetchAiPlansSequential (trap plan, then content plan — one Ollama call at a time)
+   │      DungeonTrapPlanner.FetchPlanCoroutine → traps JSON → ScatterTraps (when ready)
+   │      DungeonContentPlanner.FetchPlanCoroutine → loot / enemies / signs JSON
    │      DungeonLootScatter.ScatterLoot + ScatterEnemies (AI first, procedural fill)
    │      DungeonSignPost.Create per validated sign cell
-   └─► DungeonTrapPlanner.FetchPlanCoroutine → traps JSON → ScatterTraps
 
 Parallel: OllamaHandler test UI on Level1 (manual prompt / stream for debugging)
 ```
@@ -170,7 +171,7 @@ Personality macros (`cap_personality`, `cap_voice_rules`) live in the template �
 | `<think>`-tag leakage | Medium | UI shows reasoning text | `clearThinking = true` on every request; assert in code. |
 | Ollama server crashes mid-session | Low | Stalled UI | Timeout on each request; fall back to canned text; surface a non-blocking toast. |
 | Per-call latency budget blown on low-end hardware | Medium | Game feels stuttery | Run inference off the main thread (already async); show "..." indicator; allow disabling LLM features in settings. |
-| Concurrent requests abort each other | **Observed** | `Request aborted HTTP 0` in Console; trap/content planners vs dialogue | Single-flight `OllamaHandler` cancels prior request; planners fall back to procedural scatter; consider a request queue. |
+| Concurrent requests abort each other | **Mitigated at load** | Dialogue vs planners, or overlapping dialogue | Single-flight `OllamaHandler`; trap/content planners run sequentially at level load (2026-06-18); superseded aborts suppressed in logs; procedural fallback on timeout; full request queue still TODO. |
 | Cap prompt render fails (no Python/Jinja2) | Medium | Empty Ask Cap / voice prompt | `pip install jinja2`; Python on PATH; see `docs/setup.md` troubleshooting. |
 | API key for Neocortex committed in git | **Confirmed** | Account compromise | Rotate key; gitignore `NeocortexSettings.asset`; decide whether Neocortex stays in the project. |
 

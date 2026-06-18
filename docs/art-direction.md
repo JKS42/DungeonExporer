@@ -2,7 +2,7 @@
 
 > Single source of truth for the visual style of the game and the prompts / tools that produced each asset.
 > Tone: **lighthearted fantasy** — warm parchment, sun-gold, mossy green, cocoa brown, brass. No black, no grimdark.
-> Last updated: 2026-05-15
+> Last updated: 2026-06-16 (spike trap readability pass)
 
 ## Style pillars
 

@@ -1,7 +1,7 @@
 # Prompt Archive — DungeonExporer
 
 > Record of prompts tested for Ollama integration.  
-> Last updated: 2026-06-11  
+> Last updated: 2026-06-18  
 > Raw log (debug): `Assets/DialogueOutput/ollama-dialogue.json`
 
 ---

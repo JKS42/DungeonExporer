@@ -1,7 +1,7 @@
 # Setup Guide — DungeonExporer
 
 > Install, run, and playtest the current Level1 slice.
-> Last updated: 2026-06-11
+> Last updated: 2026-06-18
 
 ## 1. System requirements
 
@@ -109,10 +109,10 @@ Unity invokes the same script at runtime when building Ask Cap / voice prompts. 
 
 ### Boot flow
 
-- **Main Menu** (`OllamaMenuWarmup`): when LLM is enabled, issues a short warm-up completion so Level1 hits a hot model.
+- **Main Menu** (`OllamaMenuWarmup`): when LLM is enabled, issues a short warm-up completion so Level1 hits a hot model. **How to Play** lists controls and tips (scrollable panel).
 - **`OllamaFirstRunHealthCheck`**: pings Ollama and checks the model tag; on failure, **`OllamaSetupPanelController`** offers a link to this guide and **Continue** (play without streaming).
 - **`DungeonLevelBuilder`**: builds maze from `Assets/Data/Dungeon/Level1_Maze.txt`, places player at **P**.
-- **`LevelGameplayBootstrap`**: spawns **Cap**; Ollama JSON plans for loot, foes, signs, and traps (with procedural fill); attaches **`EnemyMeleeAI`** to foes.
+- **`LevelGameplayBootstrap`**: spawns **Cap**; Ollama JSON plans for loot, foes, signs, and traps run **sequentially** at load (trap plan, then content plan), with procedural fill; attaches **`EnemyMeleeAI`** to foes.
 - **`GameSaveService`**: auto-loads `dungeon_session_save.json` if present.
 
 ### Controls (keyboard & mouse)
@@ -137,14 +137,15 @@ Gamepad: Attack = west face button; Interact = north; see `InputSystem_Actions` 
 
 ### Dungeon look
 
-The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walkable cell, and **torch lighting** (warm point lights + boosted sun/ambient). Tune on **Dungeon** → `DungeonLevelBuilder`: `_wallHeight`, `_torchIntensity`, `_maxTorches`, `_directionalIntensity`.
+The **Dungeon** object builds **5.5m** stone walls, a **ceiling** on every walkable cell, and **torch lighting** (room-centre + grid-fill torches, coverage pass, warm point lights + boosted sun/ambient). Hazards use high-contrast spike albedos and a pulsing emissive marker (`HazardTrapVisual`). Tune on **Dungeon** → `DungeonLevelBuilder`: `_wallHeight`, `_torchIntensity`, `_maxTorches`, `_directionalIntensity`.
 
 ### Playtest checklist
 
+0. **Main Menu → How to Play** — skim controls before entering Level1.
 1. Find **Cap** (safe **S** room near spawn).
 2. **E** → accept **Cap's corridor drill**; read Cap's auto voice line (Ollama prefetch).
 3. Optional: type a question → **Ask Cap**; **Another line** for a fresh voice roll.
-4. Go to crimson **E** floors; foes **chase and melee** — **left-click** to attack (spark VFX) until a **DungeonFoe** dies (~2 hits).
+4. Go to crimson **E** floors; foes **chase and melee** — **left-click** to attack (swing + impact VFX, HUD crosshair pulse on hit) until a **DungeonFoe** dies (~2 hits).
 5. Return to Cap to complete the quest; accept **Echoes in the dark** if offered.
 6. Step onto an **E** encounter tile (trigger volume) for the second quest.
 7. Walk through bubble pickups; jump narrow spike strips; read corridor **signs**.
@@ -208,7 +209,8 @@ DungeonExporer/
 | Cap dialogue empty / prompt error | Python or Jinja2 missing | Install Python 3 and run `pip install jinja2`. Cap prompts render from `prompts/cap_personality.jinja2` only. |
 | Ask Cap field stays greyed out | Stuck `_busy` after aborted LLM | Fixed in `DialoguePanelController` (try/finally + `ReleaseDialogueInputLock`); pull latest. |
 | Cap shows planning text | qwen3 meta / raw fallback | `ExtractNpcSpokenDialogue` + Jinja2 rules; no raw-model fallback in voice coroutines. |
-| Console: `Request aborted HTTP 0` | Parallel Ollama calls | Expected when trap/content planners overlap dialogue; planners use procedural fallback. |
+| Console: `Request aborted HTTP 0` | Single-flight Ollama client | Level-load trap/content plans run sequentially (2026-06-18); superseded aborts are suppressed. If this appears during Cap dialogue, retry **Ask Cap** — dialogue and planners still share one client. |
+| TMP missing glyph (e.g. ✓) | Unicode in UI text | Fixed: quest text and toggles use plain text / `Image` graphics instead of ✓. |
 | Compile: Newtonsoft | Missing package | Install `com.unity.nuget.newtonsoft-json` or ignore legacy `OllamaRequester`. |
 
 Save file location (Windows example): `%USERPROFILE%\AppData\LocalLow\<CompanyName>\<ProductName>\dungeon_session_save.json` — exact path logged on **F5** in the Console.
@@ -225,3 +227,6 @@ Save file location (Windows example): `%USERPROFILE%\AppData\LocalLow\<CompanyNa
 - [`build-notes.md`](./build-notes.md) — export prototype/final build.
 - [`art-direction.md`](./art-direction.md) — Meshy prompts and texture recipe.
 - [`refinements-changes.md`](./refinements-changes.md) — change log.
+- [`feedback.summary.md`](./feedback.summary.md) — consolidated playtest notes.
+- [`critical.feedback.md`](./critical.feedback.md) — critical engagement with feedback.
+- [`ai-usage-annexure.md`](./ai-usage-annexure.md) — assessment AI disclosure template.

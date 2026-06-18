@@ -8,7 +8,7 @@
 - LLM implementation planning and risk design (`docs/ollama-plan.md`).
 - Prompt engineering and iterations (`docs/prompts-used.md`, `prompts/cap_personality.jinja2`).
 - Local LLM gameplay integration and testing (`Assets/Scripts/OllamaHandler.cs`, `DialoguePanelController.cs`, `CapPersonalityPromptBuilder.cs`).
-- Gameplay refinements from feedback (combat/trap/UI/lighting notes in `docs/critical.feedback.md` and `docs/refinements-changes.md`).
+- Gameplay refinements from feedback (combat/trap/UI/lighting/How to Play — see `docs/critical.feedback.md`, `docs/feedback.summary.md`, and `docs/refinements-changes.md`).
 - Technical and reflective reporting (`docs/llm-integration-report.md`, `docs/critical.feedback.md`, `docs/feedback.summary.md`).
 
 ### Name of AI tool(s) used:
@@ -28,8 +28,8 @@
 ### Date(s) in which generative AI was used:
 
 - Ongoing across the project timeline.
-- Documented examples in repository logs: 2026-05-14 to 2026-06-16.
-- Most recent documented AI-assisted updates: 2026-06-16 (`docs/refinements-changes.md` top entries).
+- Documented examples in repository logs: 2026-05-14 to 2026-06-18.
+- Most recent documented AI-assisted updates: 2026-06-18 (`docs/refinements-changes.md` top entries — playtest UX, How to Play, compiler warning fixes).
 
 ### Evidence of AI usage:
 

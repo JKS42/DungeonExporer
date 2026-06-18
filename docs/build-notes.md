@@ -1,7 +1,7 @@
 # Prototype & Final Build Notes
 
 > For academic submission: what counts as prototype vs. final, and how to export.  
-> Last updated: 2026-06-11
+> Last updated: 2026-06-18
 
 ## Prototype (requirement met in repo)
 
@@ -24,7 +24,8 @@ Historical prototype issues (empty responses, planning text in UI) are documente
 
 The **final build** should be a **stable player executable** (or WebGL if allowed) that includes:
 
-- Level1 gameplay loop (quests, two-way melee combat, save/load)
+- Level1 gameplay loop (quests, two-way melee combat with hit feedback, save/load)
+- **Main Menu** with **How to Play** and Ollama warm-up
 - Python 3 + Jinja2 on the target machine (Cap prompts) or document graceful degrade
 - Documented Ollama integration (or graceful degrade)
 - No debug-only blockers (Console errors acceptable only if explained)
@@ -51,7 +52,7 @@ The **final build** should be a **stable player executable** (or WebGL if allowe
 
 ### Version label
 
-Tag submission build in README or release notes, e.g. **Final build — 2026-06-11 — Level1 slice**.
+Tag submission build in README or release notes, e.g. **Final build — 2026-06-18 — Level1 slice**.
 
 ## Assessor quick test (no Unity)
 
