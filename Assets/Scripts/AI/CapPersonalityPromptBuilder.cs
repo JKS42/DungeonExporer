@@ -1,7 +1,7 @@
 namespace DungeonExporer.AI
 {
     /// <summary>
-    /// Builds Cap voice and Ask Cap prompts via <see cref="CharacterPersonalityTemplateManager"/>.
+    /// Builds Cap voice and Ask Cap prompts via <see cref="CharacterPersonalityTemplateManager"/> (DatingSim pattern).
     /// </summary>
     public static class CapPersonalityPromptBuilder
     {

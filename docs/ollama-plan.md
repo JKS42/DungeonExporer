@@ -33,7 +33,7 @@
 | Room / tile flavor (safe vs encounter) | ~72 (`DungeonFlavorNarrator`) | < 2 s | < 5 s | No (single completion) |
 | Full room prose (future) | 60 | < 1.5 s | < 3 s | Yes |
 | NPC dialogue line | ~80 (`defaultNpcMaxTokens`) | < 2 s | < 4 s | No (prefetch + non-stream) |
-| Reactive NPC Q&A (Ask Cap `/api/chat`) | ~160 (`defaultNpcChatMaxTokens`) | < 2 s | < 5 s | No |
+| Reactive NPC Q&A (Ask Cap) | ~160 (`defaultNpcChatMaxTokens`) | < 2 s | < 5 s | No (typewriter on filtered line only) |
 | **Fast mode** (Options) | ~48 voice / ~80 chat; `gemma3:4b`; 2-sentence Cap prompts | < 1.5 s | < 3 s | No |
 | Loot / enemy / sign JSON plan | ~240 | < 3 s | < 8 s | No |
 | Item description (on pickup) | 40 | < 1 s | < 2 s | No (cache after first call) |
@@ -74,7 +74,7 @@ DialoguePanelController
    │  UI: quest block + LLM block + player input + Ask Cap / Another line / Accept / Close
    │
    ├─► open: auto voice (cached or non-stream RequestGeneration, extractNpcDialogue)
-   ├─► Ask Cap: reactive RequestGeneration with player question
+   ├─► Ask Cap: `RequestChat` → wait for filtered line → typewriter reveal in dialogue panel
    └─► Another line: invalidate cache + re-fetch
 
 LevelGameplayBootstrap (Start)

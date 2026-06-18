@@ -62,6 +62,7 @@ namespace DungeonExporer.UI
 
             var go = new GameObject("OllamaMenuWarmup");
             go.AddComponent<OllamaHandler>();
+            go.AddComponent<CharacterPersonalityTemplateManager>();
             go.AddComponent<OllamaMenuWarmup>();
         }
 

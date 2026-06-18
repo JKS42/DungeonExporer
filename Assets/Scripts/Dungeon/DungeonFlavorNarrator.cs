@@ -65,14 +65,15 @@ namespace DungeonExporer.Dungeon
                 onSuccess: text =>
                 {
                     _busy = false;
-                    string line = OllamaHandler.SanitizeModelOutput(text).Trim();
+                    string line = OllamaHandler.ExtractFlavorLine(text);
                     if (line.Length > 0)
                         DungeonFlavorHudBridge.PublishFlavorToast?.Invoke(line, 5.5f);
                 },
                 onError: _ => { _busy = false; },
                 saveToDialogueJson: false,
                 updateResponseUiField: false,
-                maxPredictTokens: _ollama.GetEffectiveFlavorMaxTokens());
+                maxPredictTokens: _ollama.GetEffectiveFlavorMaxTokens(),
+                disableThinking: true);
         }
     }
 }

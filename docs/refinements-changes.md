@@ -18,6 +18,33 @@
 
 ---
 
+## 2026-06-18 — Ask Cap streaming typewriter UI
+**Type**: enhancement
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `OllamaHandler.RequestChatStreaming` streams Ask Cap via `/api/generate` (high-priority queue). `DialoguePanelController` waits for the full filtered Cap line, then typewriter-reveals only that reply (no live token display). Whiskers fallback still typewriters when extraction fails.
+**Why**: Snappier Ask Cap feel while keeping planning text out of the UI; player sees only the final Cap response.
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `docs/ollama-plan.md`, this log.
+**Follow-ups**: Optional streaming for Cap voice prefetch / “Another line”.
+
+## 2026-06-18 — Filter qwen3 planning text from Cap dialogue and flavor toasts
+**Type**: bugfix
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: Expanded `OllamaHandler` meta-planning detection (`LooksLikeBulkMetaPlanning`, more markers, `ExtractFlavorLine`). `DungeonFlavorNarrator` uses flavor extraction and `disableThinking: true`. Ask Cap no longer falls back to raw sanitized model output when extraction fails.
+**Why**: `qwen3:4b` was leaking chain-of-thought planning into HUD flavor toasts and Ask Cap replies (`What to say: -`, “the user wants me to act as…”).
+**Impact / docs touched**: `OllamaHandler.cs`, `DialoguePanelController.cs`, `DungeonFlavorNarrator.cs`, this log.
+**Follow-ups**: Enable **Fast AI responses** (uses `gemma3:4b`) in Options for fewer planning leaks; consider changing default `LlmModel` away from `qwen3:4b`.
+
+## 2026-06-18 — Ollama stack aligned to DatingSim template + generate flow
+**Type**: refactor
+**AI tool(s)**: Cursor + Auto
+
+**What changed**: `CharacterPersonalityTemplateManager` matches DatingSim (MonoBehaviour, reflection `{{ field }}` render, Cap `cap_context.json`). `OllamaHandler` uses DatingSim `LoadAndRenderCharacterTemplate` / `SendPromptRequest` (`/api/generate` with `system + Player:`). `RequestChat` now builds the same combined prompt instead of `/api/chat`. Ask Cap enables `extractNpcDialogue` on generate path.
+**Why**: User requested DatingSim `OllamaHandler` and `CharacterPersonalityTemplateManager` replace the prior Ollama prompt path.
+**Impact / docs touched**: `CharacterPersonalityTemplateManager.cs`, `OllamaHandler.cs`, `DialoguePanelController.cs`, `MainMenuController.cs`, this log.
+**Follow-ups**: Remove unused `ChatCoroutine` dead code in a later cleanup pass.
+
 ## 2026-06-18 — Main Menu Ollama warm-up hardened
 **Type**: enhancement
 **AI tool(s)**: Cursor + Auto
